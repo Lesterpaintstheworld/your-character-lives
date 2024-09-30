@@ -27,12 +27,12 @@ def take_screenshot():
     return img_byte_arr.getvalue()
 
 def send_screenshot_to_api(screenshot_bytes):
-    """Send the screenshot to the API and return the response."""
+    """Send the screenshot to the API and return the audio data."""
     files = {'image': ('screenshot.png', screenshot_bytes, 'image/png')}
     try:
         response = requests.post(API_ENDPOINT, files=files, timeout=30)
         response.raise_for_status()
-        return response.json()
+        return response.content
     except requests.exceptions.RequestException as e:
         logging.error(f"API request failed: {e}")
         return None
@@ -57,11 +57,11 @@ def main(interval):
             logging.info("Sending screenshot to API")
             api_response = send_screenshot_to_api(screenshot_bytes)
             
-            if api_response and 'audio' in api_response:
+            if api_response:
                 logging.info("Playing audio response")
-                play_audio(api_response['audio'])
+                play_audio(api_response)
             else:
-                logging.warning("No valid audio data received from API")
+                logging.warning("No audio data received from API")
             
             time.sleep(interval)
         except Exception as e:
