@@ -6,15 +6,9 @@ import pygame
 import logging
 import argparse
 from PIL import Image
-import tempfile
-import os
-import subprocess
+import io
 
 # Configuration
-# Chemin vers FFmpeg (à ajuster selon votre installation)
-FFMPEG_PATH = r"C:\Program Files\ffmpeg\bin\ffmpeg.exe"
-# Chemin vers opusdec (à ajuster selon votre installation)
-OPUSDEC_PATH = r"C:\Program Files\opus-tools\opusdec.exe"
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
@@ -44,7 +38,7 @@ def send_screenshot_to_api(screenshot_bytes):
         logging.info(f"API response size: {len(response.content)} bytes")
         
         # Vérifier si le contenu est un fichier audio OPUS
-        if content_type == 'audio/opus':
+        if content_type == 'audio/mpeg':
             return response.content
         else:
             logging.error(f"Unexpected content type: {content_type}")
@@ -54,48 +48,26 @@ def send_screenshot_to_api(screenshot_bytes):
         return None
 
 def play_audio(data):
-    """Play the audio from binary OPUS data."""
+    """Play the audio from binary MP3 data."""
     try:
         logging.info(f"Received audio data of size: {len(data)} bytes")
         if len(data) < 1000:
             logging.warning("Audio data seems too small, might be invalid")
             return
 
-        # Créer un fichier temporaire pour stocker l'audio OPUS
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.opus') as temp_opus:
-            temp_opus.write(data)
-            temp_opus_path = temp_opus.name
+        pygame.mixer.init()
+        sound = pygame.mixer.Sound(io.BytesIO(data))
+        duration = sound.get_length()
 
-        # Convertir OPUS en WAV en utilisant opusdec
-        temp_wav_path = temp_opus_path.replace('.opus', '.wav')
-        opusdec_command = f'"{OPUSDEC_PATH}" "{temp_opus_path}" "{temp_wav_path}"'
-        
-        try:
-            subprocess.run(opusdec_command, check=True, shell=True, stderr=subprocess.PIPE)
-        except subprocess.CalledProcessError as e:
-            logging.error(f"Opus decoding failed: {e.stderr.decode()}")
+        if duration < 0.5:
+            logging.warning(f"Audio duration ({duration} seconds) seems too short, might be invalid")
             return
 
-        # Jouer le fichier WAV
-        pygame.mixer.init()
-        try:
-            sound = pygame.mixer.Sound(temp_wav_path)
-            duration = sound.get_length()
-            
-            if duration < 0.5:
-                logging.warning(f"Audio duration ({duration} seconds) seems too short, might be invalid")
-                return
-
-            logging.info(f"Playing audio of duration: {duration} seconds")
-            sound.play()
-            pygame.time.wait(int(duration * 1000))
-        except pygame.error as pe:
-            logging.error(f"Failed to load or play audio: {pe}")
-        finally:
-            # Nettoyer les fichiers temporaires
-            os.remove(temp_opus_path)
-            os.remove(temp_wav_path)
-
+        logging.info(f"Playing audio of duration: {duration} seconds")
+        sound.play()
+        pygame.time.wait(int(duration * 1000))
+    except pygame.error as e:
+        logging.error(f"Failed to play audio: {e}")
     except Exception as e:
         logging.error(f"Unexpected error while processing or playing audio: {e}")
 
