@@ -9,7 +9,7 @@ from PIL import Image
 
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
-API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
+API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook-test/ycl-enpoint"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -37,14 +37,13 @@ def send_screenshot_to_api(screenshot_bytes):
         logging.error(f"API request failed: {e}")
         return None
 
-def play_audio(audio_url):
-    """Play the audio file from the given URL."""
+def play_audio(audio_data):
+    """Play the audio from binary data."""
     try:
         pygame.mixer.init()
-        pygame.mixer.music.load(audio_url)
-        pygame.mixer.music.play()
-        while pygame.mixer.music.get_busy():
-            pygame.time.Clock().tick(10)
+        sound = pygame.mixer.Sound(buffer=audio_data)
+        sound.play()
+        pygame.time.wait(int(sound.get_length() * 1000))
     except pygame.error as e:
         logging.error(f"Failed to play audio: {e}")
 
@@ -58,11 +57,11 @@ def main(interval):
             logging.info("Sending screenshot to API")
             api_response = send_screenshot_to_api(screenshot_bytes)
             
-            if api_response and 'audio_url' in api_response:
+            if api_response and 'audio' in api_response:
                 logging.info("Playing audio response")
-                play_audio(api_response['audio_url'])
+                play_audio(api_response['audio'])
             else:
-                logging.warning("No valid audio URL received from API")
+                logging.warning("No valid audio data received from API")
             
             time.sleep(interval)
         except Exception as e:
@@ -81,4 +80,4 @@ if __name__ == "__main__":
         logging.info("Program terminated by user")
 
 # Ajout d'un message pour indiquer comment exécuter le script
-print("Pour exécuter ce script, utilisez la commande : python main.py")
+print("Pour exécuter ce script, utilisez la commande : python ck3_ai_character.py")
