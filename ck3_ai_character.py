@@ -10,6 +10,7 @@ from pydub import AudioSegment
 import tempfile
 import os
 import shutil
+import subprocess
 
 # Configuration
 # Chemin vers FFmpeg (à ajuster selon votre installation)
