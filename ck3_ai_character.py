@@ -9,8 +9,11 @@ from PIL import Image
 from pydub import AudioSegment
 import tempfile
 import os
+import shutil
 
 # Configuration
+# Chemin vers FFmpeg (à ajuster selon votre installation)
+FFMPEG_PATH = r"C:\path\to\ffmpeg\bin\ffmpeg.exe"
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
@@ -62,11 +65,15 @@ def play_audio(audio_data):
             temp_mp3.write(audio_data)
             temp_mp3_path = temp_mp3.name
 
-        # Convertir MP3 en WAV
-        audio = AudioSegment.from_mp3(temp_mp3_path)
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_wav:
-            audio.export(temp_wav.name, format="wav")
-            temp_wav_path = temp_wav.name
+        # Convertir MP3 en WAV en utilisant FFmpeg directement
+        temp_wav_path = temp_mp3_path.replace('.mp3', '.wav')
+        ffmpeg_command = f'"{FFMPEG_PATH}" -i "{temp_mp3_path}" "{temp_wav_path}"'
+        
+        try:
+            subprocess.run(ffmpeg_command, check=True, shell=True, stderr=subprocess.PIPE)
+        except subprocess.CalledProcessError as e:
+            logging.error(f"FFmpeg conversion failed: {e.stderr.decode()}")
+            return
 
         # Jouer le fichier WAV
         pygame.mixer.init()
