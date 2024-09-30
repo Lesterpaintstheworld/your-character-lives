@@ -6,15 +6,15 @@ import pygame
 import logging
 import argparse
 from PIL import Image
-from pydub import AudioSegment
 import tempfile
 import os
-import shutil
 import subprocess
 
 # Configuration
 # Chemin vers FFmpeg (à ajuster selon votre installation)
 FFMPEG_PATH = r"C:\path\to\ffmpeg\bin\ffmpeg.exe"
+# Chemin vers opusdec (à ajuster selon votre installation)
+OPUSDEC_PATH = r"C:\path\to\opus\opusdec.exe"
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
@@ -43,8 +43,8 @@ def send_screenshot_to_api(screenshot_bytes):
         logging.info(f"API response content type: {content_type}")
         logging.info(f"API response size: {len(response.content)} bytes")
         
-        # Vérifier si le contenu est un fichier audio MP3
-        if content_type == 'audio/mp3':
+        # Vérifier si le contenu est un fichier audio OPUS
+        if content_type == 'audio/opus':
             return response.content
         else:
             logging.error(f"Unexpected content type: {content_type}")
@@ -54,26 +54,26 @@ def send_screenshot_to_api(screenshot_bytes):
         return None
 
 def play_audio(audio_data):
-    """Play the audio from binary MP3 data."""
+    """Play the audio from binary OPUS data."""
     try:
         logging.info(f"Received audio data of size: {len(audio_data)} bytes")
         if len(audio_data) < 1000:
             logging.warning("Audio data seems too small, might be invalid")
             return
 
-        # Créer un fichier temporaire pour stocker l'audio MP3
-        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_mp3:
-            temp_mp3.write(audio_data)
-            temp_mp3_path = temp_mp3.name
+        # Créer un fichier temporaire pour stocker l'audio OPUS
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.opus') as temp_opus:
+            temp_opus.write(audio_data)
+            temp_opus_path = temp_opus.name
 
-        # Convertir MP3 en WAV en utilisant FFmpeg directement
-        temp_wav_path = temp_mp3_path.replace('.mp3', '.wav')
-        ffmpeg_command = f'"{FFMPEG_PATH}" -i "{temp_mp3_path}" "{temp_wav_path}"'
+        # Convertir OPUS en WAV en utilisant opusdec
+        temp_wav_path = temp_opus_path.replace('.opus', '.wav')
+        opusdec_command = f'"{OPUSDEC_PATH}" "{temp_opus_path}" "{temp_wav_path}"'
         
         try:
-            subprocess.run(ffmpeg_command, check=True, shell=True, stderr=subprocess.PIPE)
+            subprocess.run(opusdec_command, check=True, shell=True, stderr=subprocess.PIPE)
         except subprocess.CalledProcessError as e:
-            logging.error(f"FFmpeg conversion failed: {e.stderr.decode()}")
+            logging.error(f"Opus decoding failed: {e.stderr.decode()}")
             return
 
         # Jouer le fichier WAV
@@ -93,7 +93,7 @@ def play_audio(audio_data):
             logging.error(f"Failed to load or play audio: {pe}")
         finally:
             # Nettoyer les fichiers temporaires
-            os.remove(temp_mp3_path)
+            os.remove(temp_opus_path)
             os.remove(temp_wav_path)
 
     except Exception as e:
