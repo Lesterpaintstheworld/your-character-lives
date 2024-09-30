@@ -37,11 +37,11 @@ def send_screenshot_to_api(screenshot_bytes):
         logging.error(f"API request failed: {e}")
         return None
 
-def play_audio(audio_data):
+def play_audio(data):
     """Play the audio from binary data."""
     try:
         pygame.mixer.init()
-        sound = pygame.mixer.Sound(buffer=audio_data)
+        sound = pygame.mixer.Sound(buffer=data)
         sound.play()
         pygame.time.wait(int(sound.get_length() * 1000))
     except pygame.error as e:

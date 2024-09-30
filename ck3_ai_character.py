@@ -53,17 +53,17 @@ def send_screenshot_to_api(screenshot_bytes):
         logging.error(f"API request failed: {e}")
         return None
 
-def play_audio(audio_data):
+def play_audio(data):
     """Play the audio from binary OPUS data."""
     try:
-        logging.info(f"Received audio data of size: {len(audio_data)} bytes")
-        if len(audio_data) < 1000:
+        logging.info(f"Received audio data of size: {len(data)} bytes")
+        if len(data) < 1000:
             logging.warning("Audio data seems too small, might be invalid")
             return
 
         # Créer un fichier temporaire pour stocker l'audio OPUS
         with tempfile.NamedTemporaryFile(delete=False, suffix='.opus') as temp_opus:
-            temp_opus.write(audio_data)
+            temp_opus.write(data)
             temp_opus_path = temp_opus.name
 
         # Convertir OPUS en WAV en utilisant opusdec
