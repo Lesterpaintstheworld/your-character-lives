@@ -9,7 +9,7 @@ from PIL import Image
 
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
-API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook-test/ycl-enpoint"
+API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
