@@ -12,9 +12,9 @@ import subprocess
 
 # Configuration
 # Chemin vers FFmpeg (à ajuster selon votre installation)
-FFMPEG_PATH = r"C:\path\to\ffmpeg\bin\ffmpeg.exe"
+FFMPEG_PATH = r"C:\Program Files\ffmpeg\bin\ffmpeg.exe"
 # Chemin vers opusdec (à ajuster selon votre installation)
-OPUSDEC_PATH = r"C:\path\to\opus\opusdec.exe"
+OPUSDEC_PATH = r"C:\Program Files\opus-tools\opusdec.exe"
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
