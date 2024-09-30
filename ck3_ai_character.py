@@ -5,8 +5,10 @@ import io
 import pygame
 import logging
 import argparse
-import wave
 from PIL import Image
+from pydub import AudioSegment
+import tempfile
+import os
 
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
@@ -37,8 +39,8 @@ def send_screenshot_to_api(screenshot_bytes):
         logging.info(f"API response content type: {content_type}")
         logging.info(f"API response size: {len(response.content)} bytes")
         
-        # Vérifier si le contenu est un fichier audio valide
-        if content_type.startswith('audio/'):
+        # Vérifier si le contenu est un fichier audio MP3
+        if content_type == 'audio/mpeg':
             return response.content
         else:
             logging.error(f"Unexpected content type: {content_type}")
@@ -48,45 +50,46 @@ def send_screenshot_to_api(screenshot_bytes):
         return None
 
 def play_audio(audio_data):
-    """Play the audio from binary data."""
+    """Play the audio from binary MP3 data."""
     try:
         logging.info(f"Received audio data of size: {len(audio_data)} bytes")
         if len(audio_data) < 1000:
             logging.warning("Audio data seems too small, might be invalid")
             return
 
-        # Sauvegarde des données audio pour analyse
-        with open('received_audio.wav', 'wb') as f:
-            f.write(audio_data)
-        logging.info("Saved received audio data to 'received_audio.wav' for analysis")
+        # Créer un fichier temporaire pour stocker l'audio MP3
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp3') as temp_mp3:
+            temp_mp3.write(audio_data)
+            temp_mp3_path = temp_mp3.name
 
-        # Vérifier si le fichier audio est valide
-        try:
-            with wave.open('received_audio.wav', 'rb') as wave_file:
-                params = wave_file.getparams()
-                logging.info(f"Audio file parameters: {params}")
-        except wave.Error as we:
-            logging.error(f"Invalid WAV file: {we}")
-            return
+        # Convertir MP3 en WAV
+        audio = AudioSegment.from_mp3(temp_mp3_path)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as temp_wav:
+            audio.export(temp_wav.name, format="wav")
+            temp_wav_path = temp_wav.name
 
+        # Jouer le fichier WAV
         pygame.mixer.init()
         try:
-            sound = pygame.mixer.Sound('received_audio.wav')
+            sound = pygame.mixer.Sound(temp_wav_path)
+            duration = sound.get_length()
+            
+            if duration < 0.5:
+                logging.warning(f"Audio duration ({duration} seconds) seems too short, might be invalid")
+                return
+
+            logging.info(f"Playing audio of duration: {duration} seconds")
+            sound.play()
+            pygame.time.wait(int(duration * 1000))
         except pygame.error as pe:
-            logging.error(f"Failed to load audio: {pe}")
-            return
+            logging.error(f"Failed to load or play audio: {pe}")
+        finally:
+            # Nettoyer les fichiers temporaires
+            os.remove(temp_mp3_path)
+            os.remove(temp_wav_path)
 
-        duration = sound.get_length()
-        
-        if duration < 0.5:
-            logging.warning(f"Audio duration ({duration} seconds) seems too short, might be invalid")
-            return
-
-        logging.info(f"Playing audio of duration: {duration} seconds")
-        sound.play()
-        pygame.time.wait(int(duration * 1000))
     except Exception as e:
-        logging.error(f"Unexpected error while playing audio: {e}")
+        logging.error(f"Unexpected error while processing or playing audio: {e}")
 
 def main(interval):
     logging.info(f"Starting CK3 AI Character POC with {interval} second interval")
