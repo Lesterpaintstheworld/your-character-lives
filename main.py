@@ -61,7 +61,7 @@ def main(interval):
             if api_response and 'audio_url' in api_response:
                 logging.info("Playing audio response")
                 play_audio(api_response['audio_url'])
-            else:cd c:\cd
+            else:
                 logging.warning("No valid audio URL received from API")
             
             time.sleep(interval)
