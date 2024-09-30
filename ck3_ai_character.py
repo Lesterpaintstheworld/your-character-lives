@@ -40,7 +40,7 @@ def send_screenshot_to_api(screenshot_bytes):
         logging.info(f"API response size: {len(response.content)} bytes")
         
         # Vérifier si le contenu est un fichier audio MP3
-        if content_type == 'audio/mpeg':
+        if content_type == 'audio/mp3':
             return response.content
         else:
             logging.error(f"Unexpected content type: {content_type}")
