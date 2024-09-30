@@ -32,6 +32,9 @@ def send_screenshot_to_api(screenshot_bytes):
     try:
         response = requests.post(API_ENDPOINT, files=files, timeout=30)
         response.raise_for_status()
+        content_type = response.headers.get('Content-Type', '')
+        logging.info(f"API response content type: {content_type}")
+        logging.info(f"API response size: {len(response.content)} bytes")
         return response.content
     except requests.exceptions.RequestException as e:
         logging.error(f"API request failed: {e}")
@@ -41,15 +44,20 @@ def play_audio(audio_data):
     """Play the audio from binary data."""
     try:
         logging.info(f"Received audio data of size: {len(audio_data)} bytes")
-        if len(audio_data) < 100:  # Ajustez cette valeur selon vos besoins
+        if len(audio_data) < 1000:  # Augmenté à 1000 bytes
             logging.warning("Audio data seems too small, might be invalid")
             return
+
+        # Sauvegarde des données audio pour analyse
+        with open('received_audio.bin', 'wb') as f:
+            f.write(audio_data)
+        logging.info("Saved received audio data to 'received_audio.bin' for analysis")
 
         pygame.mixer.init()
         sound = pygame.mixer.Sound(buffer=audio_data)
         duration = sound.get_length()
         
-        if duration < 0.1:  # Ajustez cette valeur selon vos besoins
+        if duration < 0.5:  # Augmenté à 0.5 secondes
             logging.warning(f"Audio duration ({duration} seconds) seems too short, might be invalid")
             return
 
