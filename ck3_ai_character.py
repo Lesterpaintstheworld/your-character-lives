@@ -5,6 +5,7 @@ import io
 import pygame
 import logging
 import argparse
+import wave
 from PIL import Image
 
 # Configuration
@@ -35,7 +36,13 @@ def send_screenshot_to_api(screenshot_bytes):
         content_type = response.headers.get('Content-Type', '')
         logging.info(f"API response content type: {content_type}")
         logging.info(f"API response size: {len(response.content)} bytes")
-        return response.content
+        
+        # Vérifier si le contenu est un fichier audio valide
+        if content_type.startswith('audio/'):
+            return response.content
+        else:
+            logging.error(f"Unexpected content type: {content_type}")
+            return None
     except requests.exceptions.RequestException as e:
         logging.error(f"API request failed: {e}")
         return None
@@ -44,28 +51,40 @@ def play_audio(audio_data):
     """Play the audio from binary data."""
     try:
         logging.info(f"Received audio data of size: {len(audio_data)} bytes")
-        if len(audio_data) < 1000:  # Augmenté à 1000 bytes
+        if len(audio_data) < 1000:
             logging.warning("Audio data seems too small, might be invalid")
             return
 
         # Sauvegarde des données audio pour analyse
-        with open('received_audio.bin', 'wb') as f:
+        with open('received_audio.wav', 'wb') as f:
             f.write(audio_data)
-        logging.info("Saved received audio data to 'received_audio.bin' for analysis")
+        logging.info("Saved received audio data to 'received_audio.wav' for analysis")
+
+        # Vérifier si le fichier audio est valide
+        try:
+            with wave.open('received_audio.wav', 'rb') as wave_file:
+                params = wave_file.getparams()
+                logging.info(f"Audio file parameters: {params}")
+        except wave.Error as we:
+            logging.error(f"Invalid WAV file: {we}")
+            return
 
         pygame.mixer.init()
-        sound = pygame.mixer.Sound(buffer=audio_data)
+        try:
+            sound = pygame.mixer.Sound('received_audio.wav')
+        except pygame.error as pe:
+            logging.error(f"Failed to load audio: {pe}")
+            return
+
         duration = sound.get_length()
         
-        if duration < 0.5:  # Augmenté à 0.5 secondes
+        if duration < 0.5:
             logging.warning(f"Audio duration ({duration} seconds) seems too short, might be invalid")
             return
 
         logging.info(f"Playing audio of duration: {duration} seconds")
         sound.play()
         pygame.time.wait(int(duration * 1000))
-    except pygame.error as e:
-        logging.error(f"Failed to play audio: {e}")
     except Exception as e:
         logging.error(f"Unexpected error while playing audio: {e}")
 
