@@ -79,3 +79,6 @@ if __name__ == "__main__":
         main(args.interval)
     except KeyboardInterrupt:
         logging.info("Program terminated by user")
+
+# Ajout d'un message pour indiquer comment exécuter le script
+print("Pour exécuter ce script, utilisez la commande : python main.py")
