@@ -40,12 +40,26 @@ def send_screenshot_to_api(screenshot_bytes):
 def play_audio(audio_data):
     """Play the audio from binary data."""
     try:
+        logging.info(f"Received audio data of size: {len(audio_data)} bytes")
+        if len(audio_data) < 100:  # Ajustez cette valeur selon vos besoins
+            logging.warning("Audio data seems too small, might be invalid")
+            return
+
         pygame.mixer.init()
         sound = pygame.mixer.Sound(buffer=audio_data)
+        duration = sound.get_length()
+        
+        if duration < 0.1:  # Ajustez cette valeur selon vos besoins
+            logging.warning(f"Audio duration ({duration} seconds) seems too short, might be invalid")
+            return
+
+        logging.info(f"Playing audio of duration: {duration} seconds")
         sound.play()
-        pygame.time.wait(int(sound.get_length() * 1000))
+        pygame.time.wait(int(duration * 1000))
     except pygame.error as e:
         logging.error(f"Failed to play audio: {e}")
+    except Exception as e:
+        logging.error(f"Unexpected error while playing audio: {e}")
 
 def main(interval):
     logging.info(f"Starting CK3 AI Character POC with {interval} second interval")
