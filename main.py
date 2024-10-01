@@ -19,7 +19,7 @@ def take_screenshot():
     screenshot = pyautogui.screenshot()
     
     # Resize the image to reduce file size (adjust dimensions as needed)
-    max_size = (1280, 882)
+    max_size = (2048, 768)
     screenshot.thumbnail(max_size, Image.LANCZOS)
     
     img_byte_arr = io.BytesIO()
