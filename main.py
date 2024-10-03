@@ -42,6 +42,9 @@ if not OPENAI_API_KEY:
     logging.error("La clé API OpenAI n'est pas définie. Veuillez la configurer dans le fichier .env")
     exit(1)
 
+# Affichage des premiers caractères de la clé API pour vérification
+logging.info(f"Clé API chargée : {OPENAI_API_KEY[:5]}...")
+
 def take_screenshot():
     """Capture a screenshot, resize it, and return it as base64 string."""
     screenshot = pyautogui.screenshot()
@@ -113,6 +116,7 @@ async def websocket_client(interval):
                 "Authorization": f"Bearer {OPENAI_API_KEY}",
                 "OpenAI-Beta": "realtime=v1"
             }
+            logging.info(f"Tentative de connexion à {WEBSOCKET_URL}")
             async with websockets.connect(
                 f"{WEBSOCKET_URL}?model=gpt-4o-realtime-preview-2024-10-01",
                 extra_headers=headers
