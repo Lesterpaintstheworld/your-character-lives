@@ -31,6 +31,9 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
   - python-dotenv pour la gestion des variables d'environnement
   - pyaudio pour la capture audio du microphone
 - API endpoint : wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01
+- Headers requis :
+  - Authorization: Bearer YOUR_API_KEY
+  - OpenAI-Beta: realtime=v1
 
 ## Fonctionnalités
 - Capture d'écran et redimensionnement pour optimiser la taille
@@ -41,6 +44,9 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
 - Gestion des erreurs et reconnexion en cas de problème
 - Configuration via fichier .env pour la sécurité de l'API key
 - Utilisation de prompts système et de personnage pour définir le comportement de l'IA
+- Support pour les formats audio PCM 16 bits à 24kHz et G.711 à 8kHz (u-law et a-law)
+- Gestion des interruptions pendant les réponses audio
+- Support pour les appels de fonction (tool calls)
 
 ## Fonctionnalités implémentées
 - Intégration complète de l'API Real-Time d'OpenAI
@@ -54,10 +60,10 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
 - Amélioration de la précision de l'analyse d'image
 - Personnalisation de la voix du personnage AI via les options de l'API OpenAI
 - Intégration plus profonde avec le jeu (si possible)
-- Gestion des interruptions et reprises de la parole
-- Implémentation des appels de fonction (tool calls)
-- Gestion de l'historique des conversations
 - Optimisation de la détection des tours de parole
+- Implémentation complète des appels de fonction (tool calls)
+- Gestion avancée de l'historique des conversations
+- Support pour la continuation des conversations à travers plusieurs sessions
 
 ## Considérations de performance
 - Optimisation de la taille et de la fréquence des captures d'écran
@@ -65,6 +71,7 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
 - Mise en mémoire tampon audio pour une lecture fluide
 - Gestion asynchrone pour une meilleure réactivité
 - Troncature automatique des conversations longues
+- Gestion des limites de taux de l'API
 
 ## Utilisation
 1. Configurer les variables d'environnement (OPENAI_API_KEY)
@@ -78,3 +85,5 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
 - Assurez-vous que les fichiers de prompts (system.md et character.md) sont présents dans le dossier 'prompts'
 - Le script utilise l'API Real-Time d'OpenAI, qui est encore en version bêta et peut être sujette à des changements
 - Veillez à respecter les conditions d'utilisation de l'API OpenAI et les limites de taux
+- Implémentez des garde-fous dans vos instructions et inspectez la sortie du modèle pour une utilisation robuste
+- Gérez correctement les erreurs renvoyées par le serveur via l'événement "error"
