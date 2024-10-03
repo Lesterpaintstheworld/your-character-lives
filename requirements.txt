@@ -1,0 +1,6 @@
+websockets==11.0.3
+pyautogui==0.9.54
+Pillow==10.0.0
+pygame==2.5.1
+python-dotenv==1.0.0
+PyAudio==0.2.13
