@@ -79,26 +79,29 @@ async def websocket_client(interval):
                 }))
                 
                 while True:
-                    logging.info("Taking screenshot")
-                    screenshot_base64 = take_screenshot()
+                    # logging.info("Taking screenshot")
+                    # screenshot_base64 = take_screenshot()
                     
-                    # Send the screenshot
-                    await websocket.send(json.dumps({
-                        "type": "conversation.append",
-                        "conversation": {
-                            "messages": [
-                                {
-                                    "role": "user",
-                                    "content": [
-                                        {
-                                            "type": "image",
-                                            "image": screenshot_base64
-                                        }
-                                    ]
-                                }
-                            ]
-                        }
-                    }))
+                    # # Send the screenshot
+                    # # Note: The Real-Time API doesn't directly accept images as input
+                    # # This feature needs to be implemented differently, possibly by
+                    # # processing the image separately and sending relevant text information
+                    # await websocket.send(json.dumps({
+                    #     "type": "conversation.append",
+                    #     "conversation": {
+                    #         "messages": [
+                    #             {
+                    #                 "role": "user",
+                    #                 "content": [
+                    #                     {
+                    #                         "type": "text",
+                    #                         "text": "Describe the current game state based on the screenshot."
+                    #                     }
+                    #                 ]
+                    #             }
+                    #         ]
+                    #     }
+                    # }))
                     
                     # Create a new response
                     await websocket.send(json.dumps({
