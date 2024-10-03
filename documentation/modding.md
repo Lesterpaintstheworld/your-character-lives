@@ -99,3 +99,35 @@ L'ordre de chargement est important lorsque deux mods ou plus modifient les mêm
 Les fichiers de sauvegarde peuvent être édités manuellement, mais cela nécessite de lancer le jeu en mode debug et de suivre une procédure spécifique pour extraire et modifier les fichiers.
 
 Ce guide devrait vous aider à démarrer avec le modding de Crusader Kings III. N'oubliez pas de toujours vérifier la documentation officielle et les ressources de la communauté pour les informations les plus à jour.
+
+## Format des fichiers de sauvegarde
+
+Les fichiers de sauvegarde de CK3 peuvent être manipulés, mais cela nécessite une certaine compréhension de leur structure :
+
+1. Emplacement des sauvegardes locales (sur PC) : 
+   `Users\<votre nom d'utilisateur>\Documents\Paradox Interactive\Crusader Kings III\save games\`
+
+2. Structure du fichier de sauvegarde :
+   - Une partie texte en haut contenant des métadonnées
+   - Suivie d'une partie compressée (zip) contenant les données de jeu réelles
+
+3. Pour accéder aux données de jeu :
+   - Supprimez la partie texte du haut
+   - Renommez le fichier avec l'extension .zip
+   - Décompressez le fichier
+   - Vous trouverez un fichier nommé "gamestate"
+
+4. Le fichier "gamestate" :
+   - C'est un fichier texte similaire aux sauvegardes de CK2
+   - Peut être modifié directement
+
+5. Pour utiliser le fichier modifié :
+   - Ajoutez simplement l'extension .ck3 au fichier "gamestate"
+   - Le jeu pourra le charger directement sans recompression
+
+6. Remarques importantes :
+   - Cette méthode fonctionne mieux avec les sauvegardes manuelles
+   - Les sauvegardes automatiques peuvent avoir un format légèrement différent
+   - Assurez-vous de décocher l'option de sauvegarde dans le cloud pour les sauvegardes manuelles
+
+Attention : La modification des fichiers de sauvegarde peut entraîner des problèmes de jeu ou affecter votre expérience. Procédez avec prudence et à vos propres risques.
