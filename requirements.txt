@@ -4,3 +4,4 @@ Pillow==10.0.0
 pygame==2.5.1
 python-dotenv==1.0.0
 PyAudio==0.2.13
+pydub==0.25.1
