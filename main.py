@@ -32,7 +32,7 @@ CHARACTER_PROMPT = read_prompt('prompts/character.md')
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-WEBSOCKET_URL = "wss://api.openai.com/v1/realtime"
+WEBSOCKET_URL = "wss://api.openai.com/v1/audio/speech"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -119,12 +119,12 @@ async def websocket_client(interval):
         try:
             headers = {
                 "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "OpenAI-Beta": "realtime=v1"
+                "Content-Type": "application/json"
             }
             logging.info(f"Tentative de connexion à {WEBSOCKET_URL}")
             logging.info(f"Headers utilisés : {headers}")
             async with websockets.connect(
-                f"{WEBSOCKET_URL}?model=gpt-4o-realtime-preview-2024-10-01",
+                WEBSOCKET_URL,
                 extra_headers=headers
             ) as websocket:
                 logging.info(f"Connecté au WebSocket. Démarrage de CK3 AI Character avec un intervalle de {interval} secondes")
