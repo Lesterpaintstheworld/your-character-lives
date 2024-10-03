@@ -10,9 +10,18 @@ import base64
 import json
 import os
 from dotenv import load_dotenv
+import pyaudio
+import wave
+import audioop
 
 # Load environment variables
 load_dotenv()
+
+# Audio recording constants
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 24000  # 24kHz as required by the API
 
 # Read system prompts
 def read_prompt(file_path):
@@ -51,6 +60,30 @@ async def process_audio_chunk(chunk):
         await asyncio.sleep(sound.get_length())
     except pygame.error as e:
         logging.error(f"Failed to play audio chunk: {e}")
+
+def record_audio(duration):
+    """Record audio from the microphone for a specified duration."""
+    p = pyaudio.PyAudio()
+    stream = p.open(format=FORMAT,
+                    channels=CHANNELS,
+                    rate=RATE,
+                    input=True,
+                    frames_per_buffer=CHUNK)
+
+    logging.info(f"Recording for {duration} seconds...")
+    frames = []
+
+    for i in range(0, int(RATE / CHUNK * duration)):
+        data = stream.read(CHUNK)
+        frames.append(data)
+
+    logging.info("Recording finished")
+
+    stream.stop_stream()
+    stream.close()
+    p.terminate()
+
+    return b''.join(frames)
 
 async def handle_server_event(event):
     """Handle server events."""
@@ -92,7 +125,11 @@ async def websocket_client(interval):
                     logging.info("Taking screenshot")
                     screenshot_base64 = take_screenshot()
                     
-                    # Send the screenshot description
+                    # Record audio
+                    audio_data = record_audio(5)  # Record for 5 seconds
+                    audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                    
+                    # Send the screenshot description and audio
                     await websocket.send(json.dumps({
                         "type": "conversation.item.create",
                         "item": {
@@ -101,7 +138,11 @@ async def websocket_client(interval):
                             "content": [
                                 {
                                     "type": "input_text",
-                                    "text": "Describe the current game state based on this screenshot."
+                                    "text": "Describe the current game state based on this screenshot and respond to my audio input."
+                                },
+                                {
+                                    "type": "input_audio",
+                                    "audio": audio_base64
                                 }
                             ]
                         }
