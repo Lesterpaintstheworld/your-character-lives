@@ -32,7 +32,7 @@ CHARACTER_PROMPT = read_prompt('prompts/character.md')
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-WEBSOCKET_URL = "wss://api.openai.com/v1/audio/speech"
+WEBSOCKET_URL = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -119,7 +119,7 @@ async def websocket_client(interval):
         try:
             headers = {
                 "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "Content-Type": "application/json"
+                "OpenAI-Beta": "realtime=v1"
             }
             logging.info(f"Tentative de connexion à {WEBSOCKET_URL}")
             masked_headers = headers.copy()
