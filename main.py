@@ -32,7 +32,7 @@ CHARACTER_PROMPT = read_prompt('prompts/character.md')
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-WEBSOCKET_URL = "wss://api.openai.com/v1/audio/speech"
+WEBSOCKET_URL = "wss://api.openai.com/v1/realtime"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -86,45 +86,41 @@ def record_audio(duration):
 async def handle_server_event(event):
     """Handle server events."""
     event_type = event.get('type')
-    if event_type == 'text':
-        logging.info(f"Received text: {event.get('text', '')}")
-    elif event_type == 'audio':
-        await process_audio_chunk(base64.b64decode(event.get('audio', '')))
+    if event_type == 'response.text.delta':
+        logging.info(f"Received text delta: {event.get('delta', '')}")
+    elif event_type == 'response.audio.delta':
+        await process_audio_chunk(base64.b64decode(event.get('delta', '')))
     elif event_type == 'error':
-        logging.error(f"Received error: {event.get('error', '')}")
-    elif event_type == 'done':
+        logging.error(f"Received error: {event.get('error', {})}")
+    elif event_type == 'response.done':
         logging.info("Response completed")
-    elif event_type == 'start':
-        logging.info("Stream started")
-    elif event_type == 'meta':
-        logging.info(f"Received metadata: {event.get('meta', {})}")
-    elif event_type == 'function_call':
-        logging.info(f"Function call received: {event.get('function_call', {})}")
+    elif event_type == 'response.created':
+        logging.info("Response started")
+    elif event_type == 'response.function_call_arguments.delta':
+        logging.info(f"Function call arguments delta: {event.get('delta', {})}")
     else:
-        logging.warning(f"Unknown event type: {event_type}")
+        logging.info(f"Received event: {event_type}")
 
 async def websocket_client(interval):
     while True:
         try:
             async with websockets.connect(
-                WEBSOCKET_URL,
+                f"{WEBSOCKET_URL}?model=gpt-4o-realtime-preview-2024-10-01",
                 extra_headers={
                     "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "OpenAI-Beta": "realtime=v1",
-                    "Content-Type": "application/json"
+                    "OpenAI-Beta": "realtime=v1"
                 }
             ) as websocket:
                 logging.info(f"Connected to WebSocket. Starting CK3 AI Character with {interval} second interval")
-                
+    
                 # Initialize the session
                 await websocket.send(json.dumps({
-                    "type": "start",
-                    "model": "gpt-4",
-                    "stream": True,
-                    "messages": [
-                        {"role": "system", "content": SYSTEM_PROMPT},
-                        {"role": "system", "content": CHARACTER_PROMPT}
-                    ]
+                    "type": "session.update",
+                    "session": {
+                        "instructions": SYSTEM_PROMPT + "\n" + CHARACTER_PROMPT,
+                        "modalities": ["text", "audio"],
+                        "voice": "alloy"
+                    }
                 }))
                 
                 while True:
@@ -136,13 +132,33 @@ async def websocket_client(interval):
                     audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                     
                     # Send the screenshot description and audio
-                    await websocket.send(json.dumps({
-                        "type": "message",
-                        "message": {
+                    await websocket.send(json.stringify({
+                        "type": "conversation.item.create",
+                        "item": {
+                            "type": "message",
                             "role": "user",
-                            "content": "Describe the current game state based on this screenshot and respond to my audio input.",
-                            "image": screenshot_base64,
-                            "audio": audio_base64
+                            "content": [
+                                {
+                                    "type": "input_text",
+                                    "text": "Describe the current game state based on this screenshot and respond to my audio input."
+                                },
+                                {
+                                    "type": "input_image",
+                                    "image": screenshot_base64
+                                },
+                                {
+                                    "type": "input_audio",
+                                    "audio": audio_base64
+                                }
+                            ]
+                        }
+                    }))
+    
+                    # Request a response from the model
+                    await websocket.send(json.stringify({
+                        "type": "response.create",
+                        "response": {
+                            "modalities": ["text", "audio"]
                         }
                     }))
                     
