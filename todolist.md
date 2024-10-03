@@ -10,11 +10,14 @@
 - [x] Add support for handling interruptions in audio responses
 
 ## Pending Tasks
+- [ ] Update WebSocket URL and headers to match new Real-Time API specifications
+- [ ] Implement complete server event handling, especially for audio processing
 - [ ] Optimize screenshot capture and processing for better performance
 - [ ] Implement audio buffering for smoother playback
 - [ ] Add support for customizing AI character voice using OpenAI API options
-- [ ] Implement function calling feature as described in the Real-Time API documentation
-- [ ] Implement conversation history management for long-running sessions
+- [ ] Implement function calling feature (tool calls) as described in the Real-Time API documentation
+- [ ] Improve conversation history management for long-running sessions
+- [ ] Implement automatic truncation of long conversations
 - [ ] Add moderation checks on model output for safer usage
 - [ ] Create a user-friendly interface for configuring the AI character
 - [ ] Implement logging and telemetry for debugging and performance monitoring
@@ -22,14 +25,13 @@
 - [ ] Create unit tests for core functionalities
 - [ ] Optimize code for better resource usage and responsiveness
 - [ ] Implement full support for both text and audio modalities in input and output
-- [ ] Add support for handling interruptions during audio responses
+- [ ] Improve handling of interruptions during audio responses
 - [ ] Implement turn detection configuration for more natural conversation flow
 - [ ] Add support for G.711 audio format (8kHz, u-law and a-law)
 - [ ] Implement robust error handling for all possible server events
 - [ ] Add support for continuing conversations across sessions
-- [ ] Implement automatic truncation of long conversations
 - [ ] Create a system for managing and updating session-wide instructions
-- [ ] Implement a mechanism for handling tool calls (function calls)
+- [ ] Update system and character prompts to better match new capabilities
 
 ## Future Enhancements
 - [ ] Explore deeper integration with Crusader Kings 3 game mechanics
