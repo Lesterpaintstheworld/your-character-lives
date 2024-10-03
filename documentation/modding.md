@@ -131,3 +131,33 @@ Les fichiers de sauvegarde de CK3 peuvent être manipulés, mais cela nécessite
    - Assurez-vous de décocher l'option de sauvegarde dans le cloud pour les sauvegardes manuelles
 
 Attention : La modification des fichiers de sauvegarde peut entraîner des problèmes de jeu ou affecter votre expérience. Procédez avec prudence et à vos propres risques.
+
+## Gestion des fichiers de sauvegarde avec SavefileManager
+
+Pour faciliter la manipulation des fichiers de sauvegarde de CK3, nous avons développé une classe `SavefileManager`. Voici un aperçu de ses principales fonctionnalités :
+
+1. Initialisation :
+   - Le gestionnaire est initialisé avec le chemin du répertoire des sauvegardes.
+   - Il garde en mémoire les dernières données lues pour permettre des comparaisons.
+
+2. Lecture des sauvegardes :
+   - La méthode `read()` lit le fichier de sauvegarde le plus récent.
+   - Elle extrait et décompresse automatiquement les données du fichier.
+   - Les données sont renvoyées sous forme de chaîne de caractères.
+
+3. Détection des différences :
+   - La méthode `readiff()` compare les nouvelles données avec les précédentes.
+   - Elle renvoie un tuple contenant les nouvelles données et un dictionnaire des différences.
+   - Les différences sont calculées ligne par ligne, indiquant les ajouts, suppressions et modifications.
+
+4. Gestion des erreurs :
+   - Le gestionnaire inclut une gestion basique des erreurs pour les cas où les fichiers sont inaccessibles ou corrompus.
+
+Utilisation du SavefileManager :
+```python
+manager = SavefileManager("chemin/vers/dossier/sauvegardes")
+data = manager.read()  # Lit les données les plus récentes
+new_data, diff = manager.readiff()  # Lit les nouvelles données et calcule les différences
+```
+
+Ces fonctionnalités permettent une interaction plus facile et plus robuste avec les fichiers de sauvegarde de CK3, facilitant ainsi le développement de mods et d'outils d'analyse.
