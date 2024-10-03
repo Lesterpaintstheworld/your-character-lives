@@ -127,28 +127,34 @@ async def websocket_client(interval):
                 f"{WEBSOCKET_URL}?model=gpt-4o-realtime-preview-2024-10-01",
                 extra_headers=headers
             ) as websocket:
-                logging.info(f"Connected to WebSocket. Starting CK3 AI Character with {interval} second interval")
+                logging.info(f"Connecté au WebSocket. Démarrage de CK3 AI Character avec un intervalle de {interval} secondes")
     
                 # Initialize the session
-                await websocket.send(json.dumps({
+                session_init = {
                     "type": "session.create",
                     "session": {
                         "instructions": SYSTEM_PROMPT + "\n" + CHARACTER_PROMPT,
                         "modalities": ["text", "audio"],
                         "voice": "alloy"
                     }
-                }))
+                }
+                logging.info(f"Initialisation de la session avec : {session_init}")
+                await websocket.send(json.dumps(session_init))
+                logging.info("Session initialisée")
                 
                 while True:
-                    logging.info("Taking screenshot")
+                    logging.info("Capture d'écran en cours")
                     screenshot_base64 = take_screenshot()
+                    logging.info("Capture d'écran terminée")
                     
                     # Record audio
+                    logging.info("Enregistrement audio en cours")
                     audio_data = record_audio(5)  # Record for 5 seconds
                     audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+                    logging.info("Enregistrement audio terminé")
                     
                     # Send the screenshot description and audio
-                    await websocket.send(json.stringify({
+                    conversation_item = {
                         "type": "conversation.item.create",
                         "item": {
                             "type": "message",
@@ -168,23 +174,32 @@ async def websocket_client(interval):
                                 }
                             ]
                         }
-                    }))
+                    }
+                    logging.info("Envoi de la capture d'écran et de l'audio à l'API")
+                    await websocket.send(json.dumps(conversation_item))
+                    logging.info("Capture d'écran et audio envoyés avec succès")
     
                     # Request a response from the model
-                    await websocket.send(json.stringify({
+                    response_request = {
                         "type": "response.create",
                         "response": {
                             "modalities": ["text", "audio"]
                         }
-                    }))
+                    }
+                    logging.info("Demande de réponse au modèle")
+                    await websocket.send(json.dumps(response_request))
+                    logging.info("Demande de réponse envoyée")
                     
                     # Process server events
                     async for message in websocket:
                         event = json.loads(message)
+                        logging.info(f"Événement reçu du serveur : {event.get('type')}")
                         await handle_server_event(event)
                         if event.get('type') == 'done':
+                            logging.info("Traitement de la réponse terminé")
                             break
                     
+                    logging.info(f"Attente de {interval} secondes avant la prochaine itération")
                     await asyncio.sleep(interval)
                 
         except websockets.exceptions.ConnectionClosed:
