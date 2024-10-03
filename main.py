@@ -15,6 +15,7 @@ import wave
 import xata
 import difflib
 from datetime import datetime
+import threading
 # Load environment variables
 load_dotenv()
 
@@ -140,23 +141,42 @@ def record_audio(duration):
 
     return b''.join(frames)
 
+import tkinter as tk
+from tkinter import scrolledtext
+
+# Créer une fenêtre Tkinter globale
+root = tk.Tk()
+root.title("CK3 AI Character Response")
+text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
+text_widget.pack(expand=True, fill='both')
+
 async def handle_server_event(event):
     """Handle server events."""
     event_type = event.get('type')
     if event_type == 'response.text.delta':
-        logging.info(f"Received text delta: {event.get('delta', '')}")
+        delta_text = event.get('delta', '')
+        logging.info(f"Received text delta: {delta_text}")
+        # Mettre à jour l'interface graphique avec le texte reçu
+        root.after(0, lambda: text_widget.insert(tk.END, delta_text))
     elif event_type == 'response.audio.delta':
         await process_audio_chunk(base64.b64decode(event.get('delta', '')))
     elif event_type == 'error':
-        logging.error(f"Received error: {event.get('error', {})}")
+        error_message = f"Received error: {event.get('error', {})}"
+        logging.error(error_message)
+        root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {error_message}\n"))
     elif event_type == 'response.done':
         logging.info("Response completed")
+        root.after(0, lambda: text_widget.insert(tk.END, "\n--- Response completed ---\n\n"))
     elif event_type == 'response.created':
         logging.info("Response started")
+        root.after(0, lambda: text_widget.insert(tk.END, "\n--- New response ---\n"))
     elif event_type == 'response.function_call_arguments.delta':
-        logging.info(f"Function call arguments delta: {event.get('delta', {})}")
+        func_call_delta = f"Function call arguments delta: {event.get('delta', {})}"
+        logging.info(func_call_delta)
+        root.after(0, lambda: text_widget.insert(tk.END, f"\n{func_call_delta}\n"))
     else:
         logging.info(f"Received event: {event_type}")
+        root.after(0, lambda: text_widget.insert(tk.END, f"\nReceived event: {event_type}\n"))
 
 async def websocket_client(interval):
     while True:
@@ -267,8 +287,15 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     try:
-        asyncio.run(websocket_client(args.interval))
+        # Lancer le client WebSocket dans un thread séparé
+        websocket_thread = threading.Thread(target=lambda: asyncio.run(websocket_client(args.interval)))
+        websocket_thread.start()
+        
+        # Lancer la boucle principale Tkinter
+        root.mainloop()
     except KeyboardInterrupt:
         logging.info("Program terminated by user")
+    finally:
+        root.quit()
 
 print("Pour exécuter ce script, utilisez la commande : python main.py")
