@@ -8,12 +8,16 @@ import argparse
 from PIL import Image
 import base64
 import json
-import openai
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
-OPENAI_API_KEY = "your_openai_api_key_here"  # Remplacez par votre clé API OpenAI
-WEBSOCKET_URL = "wss://api.openai.com/v1/audio/speech"  # URL à confirmer avec OpenAI
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+WEBSOCKET_URL = os.getenv("WEBSOCKET_URL", "wss://api.openai.com/v1/audio/speech")  # URL à confirmer avec OpenAI
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -41,36 +45,42 @@ async def process_audio_chunk(chunk):
         logging.error(f"Failed to play audio chunk: {e}")
 
 async def websocket_client(interval):
-    async with websockets.connect(WEBSOCKET_URL) as websocket:
-        logging.info(f"Connected to WebSocket. Starting CK3 AI Character with {interval} second interval")
-        
-        while True:
-            try:
-                logging.info("Taking screenshot")
-                screenshot_base64 = take_screenshot()
+    while True:
+        try:
+            async with websockets.connect(WEBSOCKET_URL) as websocket:
+                logging.info(f"Connected to WebSocket. Starting CK3 AI Character with {interval} second interval")
                 
-                # Prepare the message to send
-                message = {
-                    "type": "image",
-                    "image": screenshot_base64,
-                    "api_key": OPENAI_API_KEY
-                }
-                
-                logging.info("Sending screenshot to API")
-                await websocket.send(json.dumps(message))
-                
-                # Receive and process audio chunks
                 while True:
                     try:
-                        chunk = await asyncio.wait_for(websocket.recv(), timeout=1.0)
-                        await process_audio_chunk(chunk)
-                    except asyncio.TimeoutError:
-                        break  # No more chunks, exit the inner loop
-                
-                await asyncio.sleep(interval)
-            except Exception as e:
-                logging.error(f"An error occurred: {e}")
-                await asyncio.sleep(interval)
+                        logging.info("Taking screenshot")
+                        screenshot_base64 = take_screenshot()
+                        
+                        # Prepare the message to send
+                        message = {
+                            "type": "image",
+                            "image": screenshot_base64,
+                            "api_key": OPENAI_API_KEY
+                        }
+                        
+                        logging.info("Sending screenshot to API")
+                        await websocket.send(json.dumps(message))
+                        
+                        # Receive and process audio chunks
+                        while True:
+                            try:
+                                chunk = await asyncio.wait_for(websocket.recv(), timeout=1.0)
+                                await process_audio_chunk(chunk)
+                            except asyncio.TimeoutError:
+                                break  # No more chunks, exit the inner loop
+                        
+                        await asyncio.sleep(interval)
+                    except websockets.exceptions.ConnectionClosed:
+                        logging.error("WebSocket connection closed. Attempting to reconnect...")
+                        break
+        except Exception as e:
+            logging.error(f"An error occurred: {e}")
+            logging.info("Attempting to reconnect in 5 seconds...")
+            await asyncio.sleep(5)
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="CK3 AI Character with OpenAI Real-Time Voice API")
