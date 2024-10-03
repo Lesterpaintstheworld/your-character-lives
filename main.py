@@ -14,6 +14,7 @@ import pyaudio
 import wave
 import xata
 import difflib
+from datetime import datetime
 # Load environment variables
 load_dotenv()
 
