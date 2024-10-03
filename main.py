@@ -34,7 +34,7 @@ CHARACTER_PROMPT = read_prompt('prompts/character.md')
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-WEBSOCKET_URL = "wss://api.openai.com/v1/audio/speech"
+WEBSOCKET_URL = "wss://api.openai.com/v1/audio/realtime"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -44,11 +44,11 @@ def take_screenshot():
     screenshot = pyautogui.screenshot()
     
     # Resize the image to reduce file size (adjust dimensions as needed)
-    max_size = (2048, 768)
+    max_size = (1024, 576)  # Reduced size for faster processing
     screenshot.thumbnail(max_size, Image.LANCZOS)
     
     img_byte_arr = io.BytesIO()
-    screenshot.save(img_byte_arr, format='PNG', optimize=True)
+    screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)  # Use JPEG for smaller file size
     return base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
 
 async def process_audio_chunk(chunk):
@@ -96,6 +96,12 @@ async def handle_server_event(event):
         logging.error(f"Received error: {event.get('error', '')}")
     elif event_type == 'done':
         logging.info("Response completed")
+    elif event_type == 'start':
+        logging.info("Stream started")
+    elif event_type == 'meta':
+        logging.info(f"Received metadata: {event.get('meta', {})}")
+    elif event_type == 'function_call':
+        logging.info(f"Function call received: {event.get('function_call', {})}")
     else:
         logging.warning(f"Unknown event type: {event_type}")
 
@@ -106,7 +112,8 @@ async def websocket_client(interval):
                 WEBSOCKET_URL,
                 extra_headers={
                     "Authorization": f"Bearer {OPENAI_API_KEY}",
-                    "OpenAI-Beta": "realtime=v1"
+                    "OpenAI-Beta": "realtime=v1",
+                    "Content-Type": "application/json"
                 }
             ) as websocket:
                 logging.info(f"Connected to WebSocket. Starting CK3 AI Character with {interval} second interval")
