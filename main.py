@@ -12,6 +12,8 @@ import os
 from dotenv import load_dotenv
 import pyaudio
 import wave
+import xata
+import difflib
 # Load environment variables
 load_dotenv()
 
@@ -20,6 +22,14 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 24000  # 24kHz as required by the API
+
+# Xata client initialization
+XATA_API_KEY = os.getenv("XATA_API_KEY")
+XATA_DATABASE_URL = os.getenv("XATA_DATABASE_URL")
+xata_client = xata.XataClient(api_key=XATA_API_KEY, db_url=XATA_DATABASE_URL)
+
+# Game state cache
+game_state_cache = {}
 
 # Read system prompts
 def read_prompt(file_path):
@@ -49,6 +59,39 @@ logging.info(f"Clé API chargée : sk-...{OPENAI_API_KEY[-4:]}")
 if not OPENAI_API_KEY.startswith("sk-"):
     logging.error("La clé API OpenAI semble invalide. Assurez-vous qu'elle commence par 'sk-'")
     exit(1)
+
+def parse_ck3_save(save_file_path):
+    """Parse the CK3 save file and return relevant game state data."""
+    # This is a placeholder function. Implement the actual parsing logic here.
+    # You'll need to read the save file and extract the relevant information.
+    with open(save_file_path, 'r') as file:
+        # Implement parsing logic here
+        game_state = {}  # Populate this dictionary with parsed data
+    return game_state
+
+def detect_game_state_changes(old_state, new_state):
+    """Detect changes between two game states."""
+    changes = {}
+    for key in set(old_state.keys()) | set(new_state.keys()):
+        if key not in old_state:
+            changes[key] = f"Added: {new_state[key]}"
+        elif key not in new_state:
+            changes[key] = "Removed"
+        elif old_state[key] != new_state[key]:
+            changes[key] = f"Changed: {old_state[key]} -> {new_state[key]}"
+    return changes
+
+def update_game_state_cache(new_state):
+    """Update the game state cache and store changes in Xata."""
+    global game_state_cache
+    changes = detect_game_state_changes(game_state_cache, new_state)
+    game_state_cache = new_state
+    
+    # Store changes in Xata
+    xata_client.create_record("game_state_changes", {
+        "timestamp": datetime.now().isoformat(),
+        "changes": json.dumps(changes)
+    })
 
 def take_screenshot():
     """Capture a screenshot, resize it, and return it as base64 string."""
@@ -145,6 +188,11 @@ async def websocket_client(interval):
                 logging.info("Session initialisée")
                 
                 while True:
+                    logging.info("Analyse du fichier de sauvegarde CK3 en cours")
+                    new_game_state = parse_ck3_save("path/to/ck3/save/file.ck3")  # Remplacer par le chemin réel
+                    update_game_state_cache(new_game_state)
+                    logging.info("Analyse du fichier de sauvegarde terminée")
+                    
                     logging.info("Capture d'écran en cours")
                     screenshot_base64 = take_screenshot()
                     logging.info("Capture d'écran terminée")
@@ -155,7 +203,7 @@ async def websocket_client(interval):
                     audio_base64 = base64.b64encode(audio_data).decode('utf-8')
                     logging.info("Enregistrement audio terminé")
                     
-                    # Send the screenshot description and audio
+                    # Send the game state, screenshot description and audio
                     conversation_item = {
                         "type": "conversation.item.create",
                         "item": {
@@ -164,7 +212,7 @@ async def websocket_client(interval):
                             "content": [
                                 {
                                     "type": "input_text",
-                                    "text": "Describe the current game state based on this screenshot and respond to my audio input."
+                                    "text": f"Current game state: {json.dumps(game_state_cache)}. Describe the current game state based on this information and the screenshot, then respond to my audio input."
                                 },
                                 {
                                     "type": "input_image",
@@ -177,9 +225,9 @@ async def websocket_client(interval):
                             ]
                         }
                     }
-                    logging.info("Envoi de la capture d'écran et de l'audio à l'API")
+                    logging.info("Envoi de l'état du jeu, de la capture d'écran et de l'audio à l'API")
                     await websocket.send(json.dumps(conversation_item))
-                    logging.info("Capture d'écran et audio envoyés avec succès")
+                    logging.info("Données envoyées avec succès")
     
                     # Request a response from the model
                     response_request = {
