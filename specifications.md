@@ -9,15 +9,17 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
 3. Génération de réponse vocale en temps réel (via OpenAI API)
 4. Communication WebSocket
 5. Lecture audio en streaming
+6. Capture audio du microphone
 
 ## Flux de travail
 1. Établir une connexion WebSocket avec l'API Real-Time d'OpenAI
 2. Initialiser la session avec les instructions système et de personnage
 3. Capturer périodiquement des captures d'écran du jeu
-4. Envoyer une description de la capture d'écran à l'API OpenAI pour analyse
-5. Recevoir et traiter les événements du serveur (texte et audio)
-6. Lire en streaming la réponse audio de l'API
-7. Maintenir la connexion WebSocket pour une communication continue
+4. Enregistrer l'audio du microphone pendant une durée définie
+5. Envoyer une description de la capture d'écran et l'audio enregistré à l'API OpenAI pour analyse
+6. Recevoir et traiter les événements du serveur (texte et audio)
+7. Lire en streaming la réponse audio de l'API
+8. Maintenir la connexion WebSocket pour une communication continue
 
 ## Détails techniques
 - Utilisation de Python pour le script principal
@@ -27,13 +29,15 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
   - pygame pour la lecture audio en streaming
   - PIL (Python Imaging Library) pour le traitement d'image
   - python-dotenv pour la gestion des variables d'environnement
+  - pyaudio pour la capture audio du microphone
 - API endpoint : wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01
 
 ## Fonctionnalités
 - Capture d'écran et redimensionnement pour optimiser la taille
-- Envoi de la description de la capture d'écran via WebSocket à l'API OpenAI
+- Capture audio du microphone de l'utilisateur
+- Envoi de la description de la capture d'écran et de l'audio enregistré via WebSocket à l'API OpenAI
 - Gestion des événements serveur pour le texte et l'audio
-- Réception et lecture en temps réel des chunks audio
+- Réception et lecture en temps réel des chunks audio de réponse
 - Gestion des erreurs et reconnexion en cas de problème
 - Configuration via fichier .env pour la sécurité de l'API key
 - Utilisation de prompts système et de personnage pour définir le comportement de l'IA
@@ -43,6 +47,8 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
 - Gestion des événements serveur pour le texte et l'audio
 - Utilisation de prompts système et de personnage
 - Capture d'écran et envoi de description textuelle
+- Capture audio du microphone et envoi à l'API
+- Lecture en streaming de la réponse audio de l'API
 
 ## Fonctionnalités futures
 - Amélioration de la précision de l'analyse d'image
@@ -64,7 +70,9 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
 1. Configurer les variables d'environnement (OPENAI_API_KEY)
 2. Exécuter le script principal : `python main.py`
 3. Le script capturera périodiquement des captures d'écran du jeu CK3
-4. L'IA analysera la capture d'écran et fournira des commentaires vocaux et textuels
+4. Le script enregistrera l'audio du microphone pendant une durée définie (par défaut 5 secondes)
+5. L'IA analysera la capture d'écran et l'audio enregistré, puis fournira des commentaires vocaux et textuels
+6. La réponse vocale de l'IA sera lue en streaming via les haut-parleurs de l'ordinateur
 
 ## Notes importantes
 - Assurez-vous que les fichiers de prompts (system.md et character.md) sont présents dans le dossier 'prompts'
