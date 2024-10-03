@@ -5,14 +5,15 @@
 - [x] Implement WebSocket communication in main script
 - [x] Implement real-time audio processing and playback
 - [x] Update project structure to use environment variables for API keys and URLs
+- [x] Implement proper Real-Time API integration
+- [x] Implement error handling and reconnection logic for WebSocket connection
+- [x] Add support for handling interruptions in audio responses
 
 ## Pending Tasks
-- [ ] Implement error handling and reconnection logic for WebSocket connection
 - [ ] Optimize screenshot capture and processing for better performance
 - [ ] Implement audio buffering for smoother playback
 - [ ] Add support for customizing AI character voice using OpenAI API options
 - [ ] Implement function calling feature as described in the Real-Time API documentation
-- [ ] Add support for handling interruptions in audio responses
 - [ ] Implement conversation history management for long-running sessions
 - [ ] Add moderation checks on model output for safer usage
 - [ ] Create a user-friendly interface for configuring the AI character
