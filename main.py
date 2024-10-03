@@ -34,7 +34,7 @@ CHARACTER_PROMPT = read_prompt('prompts/character.md')
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-WEBSOCKET_URL = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"
+WEBSOCKET_URL = "wss://api.openai.com/v1/audio/speech"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -88,15 +88,16 @@ def record_audio(duration):
 async def handle_server_event(event):
     """Handle server events."""
     event_type = event.get('type')
-    if event_type == 'response.text.delta':
-        logging.info(f"Received text delta: {event.get('delta', '')}")
-    elif event_type == 'response.audio.delta':
-        await process_audio_chunk(base64.b64decode(event.get('delta', '')))
+    if event_type == 'text':
+        logging.info(f"Received text: {event.get('text', '')}")
+    elif event_type == 'audio':
+        await process_audio_chunk(base64.b64decode(event.get('audio', '')))
     elif event_type == 'error':
-        logging.error(f"Received error: {event.get('error', {}).get('message', '')}")
-    elif event_type == 'response.done':
+        logging.error(f"Received error: {event.get('error', '')}")
+    elif event_type == 'done':
         logging.info("Response completed")
-    # Add more event handlers as needed
+    else:
+        logging.warning(f"Unknown event type: {event_type}")
 
 async def websocket_client(interval):
     while True:
@@ -112,13 +113,13 @@ async def websocket_client(interval):
                 
                 # Initialize the session
                 await websocket.send(json.dumps({
-                    "type": "session.update",
-                    "session": {
-                        "default_response": {
-                            "modalities": ["text", "audio"],
-                            "instructions": f"{SYSTEM_PROMPT}\n\n{CHARACTER_PROMPT}"
-                        }
-                    }
+                    "type": "start",
+                    "model": "gpt-4",
+                    "stream": True,
+                    "messages": [
+                        {"role": "system", "content": SYSTEM_PROMPT},
+                        {"role": "system", "content": CHARACTER_PROMPT}
+                    ]
                 }))
                 
                 while True:
@@ -131,40 +132,20 @@ async def websocket_client(interval):
                     
                     # Send the screenshot description and audio
                     await websocket.send(json.dumps({
-                        "type": "conversation.item.create",
-                        "item": {
-                            "type": "message",
+                        "type": "message",
+                        "message": {
                             "role": "user",
-                            "content": [
-                                {
-                                    "type": "input_text",
-                                    "text": "Describe the current game state based on this screenshot and respond to my audio input."
-                                },
-                                {
-                                    "type": "input_audio",
-                                    "audio": audio_base64
-                                }
-                            ]
-                        }
-                    }))
-                    
-                    # Create a new response
-                    await websocket.send(json.dumps({
-                        "type": "response.create",
-                        "response": {
-                            "modalities": ["text", "audio"]
+                            "content": "Describe the current game state based on this screenshot and respond to my audio input.",
+                            "image": screenshot_base64,
+                            "audio": audio_base64
                         }
                     }))
                     
                     # Process server events
-                    while True:
-                        try:
-                            message = await asyncio.wait_for(websocket.recv(), timeout=1.0)
-                            event = json.loads(message)
-                            await handle_server_event(event)
-                            if event.get('type') == 'response.done':
-                                break
-                        except asyncio.TimeoutError:
+                    async for message in websocket:
+                        event = json.loads(message)
+                        await handle_server_event(event)
+                        if event.get('type') == 'done':
                             break
                     
                     await asyncio.sleep(interval)
