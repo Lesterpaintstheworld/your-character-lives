@@ -52,29 +52,36 @@
    c. Implement necessary folder structure (events, interface, localization, etc.)
 
 ### 2.2. Game Data Access
-   a. Utilize CK3's modding API to access game state
-   b. Implement event listeners for relevant game events (character actions, decisions, etc.)
-   c. Create custom scripted triggers and effects for AI interaction
-   d. Use CK3's scripting language to query game state:
-      - Access character data (traits, skills, relationships, etc.)
-      - Retrieve information about titles, holdings, and realm structure
-      - Get current date, culture, religion, and other contextual information
-   e. Implement a periodic state snapshot system:
-      - Create an event that fires at regular intervals (e.g., monthly)
-      - In this event, collect relevant game state data
-      - Store this data in a format easily accessible by the AI system
-   f. Use on_action hooks to capture important game events in real-time:
-      - Monitor character interactions, wars, births, deaths, etc.
-      - Update AI-relevant data structures when these events occur
-   g. Implement a custom console command for manual game state updates:
-      - Allow developers and testers to force a game state update
+   a. Implement a save file parser to extract game state information:
+      - Develop a robust parser capable of reading CK3 save file format
+      - Extract relevant data such as character information, realm structure, and game events
+   b. Create a periodic save file monitoring system:
+      - Set up a file watcher to detect changes in the save file
+      - Implement a system to read and parse the save file at regular intervals (e.g., every few minutes)
+   c. Develop a diff system to identify changes between save file versions:
+      - Compare consecutive save file snapshots to detect relevant changes
+      - Optimize to only process and store changed data
+   d. Implement custom events and triggers within the mod:
+      - Use CK3's modding capabilities to create events that capture important game state changes
+      - Develop custom triggers to detect specific conditions or actions in the game
+   e. Create a data caching system:
+      - Store parsed game state data in a local cache for quick access
+      - Implement an efficient update mechanism to keep the cache current with the latest save file data
+   f. Develop a query system for AI interactions:
+      - Create functions to retrieve specific game state information from the cached data
+      - Implement methods to access character data, relationships, realm information, etc.
+   g. Set up an event logging system:
+      - Log important game events and state changes for AI decision-making
+      - Implement a system to summarize and prioritize logged events for AI processing
+   h. Create a custom console command for manual updates:
+      - Allow developers and testers to force a game state update on demand
       - Useful for debugging and testing AI responses to specific scenarios
-   h. Create a data serialization system:
-      - Convert game state data into a format suitable for API transmission
-      - Implement efficient encoding/decoding to minimize performance impact
-   i. Set up a local cache system:
-      - Store recent game states to reduce redundant API calls
-      - Implement a smart update system that only sends changed data
+   i. Implement data serialization for external processing:
+      - Convert parsed game state data into a format suitable for transmission to n8n or other external systems
+      - Ensure efficient encoding/decoding to minimize performance impact
+   j. Develop a fallback system for incomplete data:
+      - Implement methods to handle scenarios where save file data might be incomplete or corrupted
+      - Create estimations or predictions for missing data based on historical trends
 
 ### 2.3. User Interface Integration
    a. Design a new UI window for AI character interaction
