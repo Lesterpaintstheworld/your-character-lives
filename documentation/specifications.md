@@ -55,6 +55,26 @@
    a. Utilize CK3's modding API to access game state
    b. Implement event listeners for relevant game events (character actions, decisions, etc.)
    c. Create custom scripted triggers and effects for AI interaction
+   d. Use CK3's scripting language to query game state:
+      - Access character data (traits, skills, relationships, etc.)
+      - Retrieve information about titles, holdings, and realm structure
+      - Get current date, culture, religion, and other contextual information
+   e. Implement a periodic state snapshot system:
+      - Create an event that fires at regular intervals (e.g., monthly)
+      - In this event, collect relevant game state data
+      - Store this data in a format easily accessible by the AI system
+   f. Use on_action hooks to capture important game events in real-time:
+      - Monitor character interactions, wars, births, deaths, etc.
+      - Update AI-relevant data structures when these events occur
+   g. Implement a custom console command for manual game state updates:
+      - Allow developers and testers to force a game state update
+      - Useful for debugging and testing AI responses to specific scenarios
+   h. Create a data serialization system:
+      - Convert game state data into a format suitable for API transmission
+      - Implement efficient encoding/decoding to minimize performance impact
+   i. Set up a local cache system:
+      - Store recent game states to reduce redundant API calls
+      - Implement a smart update system that only sends changed data
 
 ### 2.3. User Interface Integration
    a. Design a new UI window for AI character interaction
