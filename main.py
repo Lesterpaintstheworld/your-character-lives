@@ -42,7 +42,7 @@ if not OPENAI_API_KEY:
     logging.error("La clé API OpenAI n'est pas définie. Veuillez la configurer dans le fichier .env")
     exit(1)
 
-# Affichage des premiers caractères de la clé API pour vérification
+# Affichage des premiers et derniers caractères de la clé API pour vérification
 logging.info(f"Clé API chargée : sk-...{OPENAI_API_KEY[-4:]}")
 
 # Vérification supplémentaire de la clé API
@@ -122,7 +122,9 @@ async def websocket_client(interval):
                 "Content-Type": "application/json"
             }
             logging.info(f"Tentative de connexion à {WEBSOCKET_URL}")
-            logging.info(f"Headers utilisés : {headers}")
+            masked_headers = headers.copy()
+            masked_headers["Authorization"] = f"Bearer sk-...{OPENAI_API_KEY[-4:]}"
+            logging.info(f"Headers utilisés : {masked_headers}")
             async with websockets.connect(
                 WEBSOCKET_URL,
                 extra_headers=headers
