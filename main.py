@@ -43,7 +43,7 @@ if not OPENAI_API_KEY:
     exit(1)
 
 # Affichage des premiers caractères de la clé API pour vérification
-logging.info(f"Clé API chargée : {OPENAI_API_KEY[:5]}...")
+logging.info(f"Clé API chargée : sk-...{OPENAI_API_KEY[-4:]}")
 
 # Vérification supplémentaire de la clé API
 if not OPENAI_API_KEY.startswith("sk-"):
