@@ -1,22 +1,25 @@
-import time
-import requests
+import asyncio
+import websockets
 import pyautogui
 import io
 import pygame
 import logging
 import argparse
 from PIL import Image
-import io
+import base64
+import json
+import openai
 
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
-API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
+OPENAI_API_KEY = "your_openai_api_key_here"  # Remplacez par votre clé API OpenAI
+WEBSOCKET_URL = "wss://api.openai.com/v1/audio/speech"  # URL à confirmer avec OpenAI
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
 
 def take_screenshot():
-    """Capture a screenshot, resize it, and return it as bytes."""
+    """Capture a screenshot, resize it, and return it as base64 string."""
     screenshot = pyautogui.screenshot()
     
     # Resize the image to reduce file size (adjust dimensions as needed)
@@ -25,81 +28,58 @@ def take_screenshot():
     
     img_byte_arr = io.BytesIO()
     screenshot.save(img_byte_arr, format='PNG', optimize=True)
-    return img_byte_arr.getvalue()
+    return base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
 
-def send_screenshot_to_api(screenshot_bytes):
-    """Send the screenshot to the API and return the audio data."""
-    files = {'image': ('screenshot.png', screenshot_bytes, 'image/png')}
+async def process_audio_chunk(chunk):
+    """Process and play an audio chunk."""
     try:
-        response = requests.post(API_ENDPOINT, files=files, timeout=30)
-        response.raise_for_status()
-        content_type = response.headers.get('Content-Type', '')
-        logging.info(f"API response content type: {content_type}")
-        logging.info(f"API response size: {len(response.content)} bytes")
-        
-        # Vérifier si le contenu est un fichier audio MP3
-        if content_type in ['audio/mpeg', 'audio/mp3']:
-            return response.content
-        else:
-            logging.error(f"Unexpected content type: {content_type}")
-            return None
-    except requests.exceptions.RequestException as e:
-        logging.error(f"API request failed: {e}")
-        return None
-
-def play_audio(data):
-    """Play the audio from binary MP3 data."""
-    try:
-        logging.info(f"Received audio data of size: {len(data)} bytes")
-        if len(data) < 1000:
-            logging.warning("Audio data seems too small, might be invalid")
-            return
-
         pygame.mixer.init()
-        sound = pygame.mixer.Sound(io.BytesIO(data))
-        duration = sound.get_length()
-
-        if duration < 0.5:
-            logging.warning(f"Audio duration ({duration} seconds) seems too short, might be invalid")
-            return
-
-        logging.info(f"Playing audio of duration: {duration} seconds")
+        sound = pygame.mixer.Sound(buffer=chunk)
         sound.play()
-        pygame.time.wait(int(duration * 1000))
+        await asyncio.sleep(sound.get_length())
     except pygame.error as e:
-        logging.error(f"Failed to play audio: {e}")
-    except Exception as e:
-        logging.error(f"Unexpected error while processing or playing audio: {e}")
+        logging.error(f"Failed to play audio chunk: {e}")
 
-def main(interval):
-    logging.info(f"Starting CK3 AI Character POC with {interval} second interval")
-    while True:
-        try:
-            logging.info("Taking screenshot")
-            screenshot_bytes = take_screenshot()
-            
-            logging.info("Sending screenshot to API")
-            api_response = send_screenshot_to_api(screenshot_bytes)
-            
-            if api_response:
-                logging.info("Playing audio response")
-                play_audio(api_response)
-            else:
-                logging.warning("No audio data received from API")
-            
-            time.sleep(interval)
-        except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            time.sleep(interval)
+async def websocket_client(interval):
+    async with websockets.connect(WEBSOCKET_URL) as websocket:
+        logging.info(f"Connected to WebSocket. Starting CK3 AI Character with {interval} second interval")
+        
+        while True:
+            try:
+                logging.info("Taking screenshot")
+                screenshot_base64 = take_screenshot()
+                
+                # Prepare the message to send
+                message = {
+                    "type": "image",
+                    "image": screenshot_base64,
+                    "api_key": OPENAI_API_KEY
+                }
+                
+                logging.info("Sending screenshot to API")
+                await websocket.send(json.dumps(message))
+                
+                # Receive and process audio chunks
+                while True:
+                    try:
+                        chunk = await asyncio.wait_for(websocket.recv(), timeout=1.0)
+                        await process_audio_chunk(chunk)
+                    except asyncio.TimeoutError:
+                        break  # No more chunks, exit the inner loop
+                
+                await asyncio.sleep(interval)
+            except Exception as e:
+                logging.error(f"An error occurred: {e}")
+                await asyncio.sleep(interval)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CK3 AI Character POC")
+    parser = argparse.ArgumentParser(description="CK3 AI Character with OpenAI Real-Time Voice API")
     parser.add_argument("--interval", type=int, default=DEFAULT_SCREENSHOT_INTERVAL,
                         help=f"Screenshot interval in seconds (default: {DEFAULT_SCREENSHOT_INTERVAL})")
     args = parser.parse_args()
     
     try:
-        main(args.interval)
+        asyncio.run(websocket_client(args.interval))
     except KeyboardInterrupt:
         logging.info("Program terminated by user")
 
