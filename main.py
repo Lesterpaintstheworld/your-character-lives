@@ -16,6 +16,7 @@ import xata
 import difflib
 from datetime import datetime
 import threading
+import queue
 # Load environment variables
 load_dotenv()
 
@@ -107,15 +108,34 @@ def take_screenshot():
     screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)  # Use JPEG for smaller file size
     return base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
 
+import queue
+
+audio_queue = queue.Queue()
+is_playing = False
+
 async def process_audio_chunk(chunk):
     """Process and play an audio chunk."""
+    global is_playing
+    audio_queue.put(chunk)
+    
+    if not is_playing:
+        is_playing = True
+        await play_audio_queue()
+
+async def play_audio_queue():
+    """Play audio chunks from the queue."""
+    global is_playing
     try:
         pygame.mixer.init()
-        sound = pygame.mixer.Sound(buffer=chunk)
-        sound.play()
-        await asyncio.sleep(sound.get_length())
+        while not audio_queue.empty():
+            chunk = audio_queue.get()
+            sound = pygame.mixer.Sound(buffer=chunk)
+            sound.play()
+            await asyncio.sleep(sound.get_length())
     except pygame.error as e:
         logging.error(f"Failed to play audio chunk: {e}")
+    finally:
+        is_playing = False
 
 def record_audio(duration):
     """Record audio from the microphone for a specified duration."""
@@ -159,7 +179,9 @@ async def handle_server_event(event):
         # Mettre à jour l'interface graphique avec le texte reçu
         root.after(0, lambda: text_widget.insert(tk.END, delta_text))
     elif event_type == 'response.audio.delta':
-        await process_audio_chunk(base64.b64decode(event.get('delta', '')))
+        audio_chunk = base64.b64decode(event.get('delta', ''))
+        # Jouer l'audio immédiatement
+        asyncio.create_task(process_audio_chunk(audio_chunk))
     elif event_type == 'error':
         error_message = f"Received error: {event.get('error', {})}"
         logging.error(error_message)
