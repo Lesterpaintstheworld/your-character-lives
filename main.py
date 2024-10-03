@@ -12,8 +12,6 @@ import os
 from dotenv import load_dotenv
 import pyaudio
 import wave
-import audioop
-
 # Load environment variables
 load_dotenv()
 
@@ -34,7 +32,7 @@ CHARACTER_PROMPT = read_prompt('prompts/character.md')
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-WEBSOCKET_URL = "wss://api.openai.com/v1/audio/realtime"
+WEBSOCKET_URL = "wss://api.openai.com/v1/audio/speech"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
