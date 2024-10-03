@@ -24,28 +24,24 @@
   - [ ] Create English localization file
   - [ ] Add placeholder strings for mod UI elements
 
-## 3. n8n Integration
-- [x] Set up n8n server
-  - [x] Install n8n on a local or cloud server
-  - [x] Configure n8n for external access (if needed)
-- [x] Create basic workflow for handling API requests
-  - [x] Design workflow for receiving mod requests
-  - [ ] Implement node for processing mod data
-  - [x] Set up node for sending requests to GPT-4o-mini
-- [ ] Implement error handling and logging in n8n
-  - [ ] Add error handling nodes to the workflow
-  - [ ] Set up logging for workflow execution
-
-## 4. GPT-4o-mini Integration
-- [x] Set up API access to GPT-4o-mini
+## 3. OpenAI Real-Time Voice API Integration
+- [x] Set up API access to OpenAI Real-Time Voice API
   - [x] Obtain API credentials
   - [x] Test API connection
-- [x] Create basic prompt template for character responses
-  - [x] Design prompt structure for character interaction
-  - [ ] Implement dynamic elements in the prompt
-- [x] Implement function to send requests to GPT-4o-mini via n8n
-  - [x] Create n8n node for GPT-4o-mini API calls
-  - [ ] Implement response parsing
+- [x] Implement WebSocket communication in main script
+- [x] Implement real-time audio processing and playback
+- [ ] Update WebSocket URL and headers to match new Real-Time API specifications
+- [ ] Implement complete server event handling, especially for audio processing
+- [ ] Implement function calling feature (tool calls) as described in the Real-Time API documentation
+- [ ] Add support for customizing AI character voice using OpenAI API options
+- [ ] Implement turn detection configuration for more natural conversation flow
+- [ ] Add support for G.711 audio format (8kHz, u-law and a-law)
+
+## 4. Error Handling and Logging
+- [x] Implement error handling and reconnection logic for WebSocket connection
+- [ ] Implement robust error handling for all possible server events
+- [ ] Implement logging and telemetry for debugging and performance monitoring
+- [ ] Add moderation checks on model output for safer usage
 
 ## 5. Basic Character Personality Modeling
 - [ ] Define a simple personality model
@@ -69,16 +65,16 @@
   - [ ] Add input field to UI
   - [ ] Implement input handling function
 
-## 7. Local Data Storage
-- [ ] Set up local SQLite database
-  - [ ] Design database schema
-  - [ ] Create initialization script for the database
-- [ ] Implement functions for storing and retrieving conversation history
-  - [ ] Write function to save new conversation entries
-  - [ ] Create query function for retrieving recent conversations
-- [ ] Create system for caching recent game state data
-  - [ ] Design cache structure
-  - [ ] Implement cache updating function
+## 7. Data Management and Performance Optimization
+- [x] Update project structure to use environment variables for API keys and URLs
+- [ ] Implement conversation history management for long-running sessions
+- [ ] Implement automatic truncation of long conversations
+- [ ] Add support for continuing conversations across sessions
+- [ ] Create a system for managing and updating session-wide instructions
+- [ ] Implement a caching system for frequently accessed game state data
+- [ ] Optimize screenshot capture and processing for better performance
+- [ ] Implement audio buffering for smoother playback
+- [ ] Optimize code for better resource usage and responsiveness
 
 ## 8. Basic CK3 Integration
 - [ ] Implement function to extract relevant game state data
@@ -91,13 +87,12 @@
   - [ ] Design trigger conditions
   - [ ] Implement triggering mechanism
 
-## 9. Simple Text-based AI Interaction
-- [ ] Implement main interaction loop
-  - [ ] Create main function for handling player input
-  - [ ] Implement AI response generation and display
-- [ ] Create function to process player input and generate appropriate context
-  - [ ] Design context generation rules
-  - [ ] Implement context formatting for AI prompt
+## 9. AI Interaction and User Interface
+- [x] Implement full support for both text and audio modalities in input and output
+- [x] Add support for handling interruptions in audio responses
+- [ ] Improve handling of interruptions during audio responses
+- [ ] Create a user-friendly interface for configuring the AI character
+- [ ] Update system and character prompts to better match new capabilities
 - [ ] Implement system to display AI responses in the UI
   - [ ] Create function to update UI with new responses
   - [ ] Implement basic animation for text appearance
