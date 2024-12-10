@@ -3,7 +3,9 @@ import requests
 import pyautogui
 import io
 import pygame
-from pydub import AudioSegment
+import tempfile
+import os
+import ffmpeg
 import logging
 import argparse
 from PIL import Image
@@ -80,20 +82,23 @@ async def process_audio_chunk(chunk):
     """Process and play an audio chunk."""
     global is_playing
     try:
-        # Convert MP3 to WAV with lower bitrate
-        audio = AudioSegment.from_mp3(io.BytesIO(chunk))
+        # Create a temporary file for the MP3
+        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_mp3:
+            temp_mp3.write(chunk)
+            temp_mp3_path = temp_mp3.name
+            
+        # Convert with ffmpeg specifying all parameters explicitly
+        stream = ffmpeg.input(temp_mp3_path)
+        stream = ffmpeg.output(stream, 'pipe:', 
+                             acodec='pcm_s16le',  # PCM 16-bit format
+                             ar=8000,             # Sample rate
+                             ac=1,                # Mono
+                             format='wav',
+                             audio_bitrate='64k'  # Fixed bitrate
+                             )
+        wav_data, _ = ffmpeg.run(stream, capture_stdout=True)
         
-        # Set a lower target sample rate to slow down playback
-        target_frame_rate = 8000  # Reduced from 12000 to 8000 Hz
-        
-        # Explicitly convert audio format
-        audio = audio.set_frame_rate(target_frame_rate)
-        audio = audio.set_channels(1)  # Mono
-        audio = audio.set_sample_width(2)  # 16 bits
-        
-        wav_io = io.BytesIO()
-        audio.export(wav_io, format='wav')
-        wav_data = wav_io.getvalue()
+        os.unlink(temp_mp3_path)  # Clean up temporary file
         
         audio_queue.put(wav_data)
         

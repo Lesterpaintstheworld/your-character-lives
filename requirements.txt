@@ -8,3 +8,4 @@ pydub==0.25.1
 asyncio==3.4.3
 argparse
 ffmpeg-python==0.2.0
+ffmpeg-python==0.2.0
