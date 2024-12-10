@@ -26,13 +26,12 @@ CHANNELS = 1
 RATE = 24000  # 24kHz as required by the API
 
 
-# Read system prompts
+# Read investment prompt
 def read_prompt(file_path):
     with open(file_path, 'r', encoding='utf-8') as file:
         return file.read().strip()
 
-SYSTEM_PROMPT = read_prompt('prompts/system.md')
-CHARACTER_PROMPT = read_prompt('prompts/character.md')
+INVESTMENT_PROMPT = read_prompt('prompts/investment.md')
 
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
@@ -181,9 +180,9 @@ async def websocket_client(interval):
                 session_init = {
                     "type": "session.create",
                     "session": {
-                        "instructions": SYSTEM_PROMPT + "\n" + CHARACTER_PROMPT,
+                        "instructions": INVESTMENT_PROMPT,
                         "modalities": ["text", "audio"],
-                        "voice": "alloy"
+                        "voice": "alloy"  # Using alloy voice for KinKong character
                     }
                 }
                 logging.info("Initialisation de la session WebSocket...")
