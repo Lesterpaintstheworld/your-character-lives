@@ -1,4 +1,4 @@
-setuptools==65.5.1
+setuptools>=68.0.0
 wheel
 websockets==11.0.3
 pyautogui==0.9.54
