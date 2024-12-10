@@ -4,30 +4,27 @@
 Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps réel aux événements du jeu en utilisant la vision par ordinateur et la synthèse vocale, en utilisant l'API Real-Time d'OpenAI.
 
 ## Composants principaux
-1. Parseur de fichier de sauvegarde CK3
-2. Système de surveillance périodique des fichiers de sauvegarde
-3. Système de différenciation pour détecter les changements entre les versions de sauvegarde
-4. Système de mise en cache des données de jeu
-5. Système de requête pour récupérer des informations spécifiques du jeu
-6. Système de journalisation des événements
-7. Commande console personnalisée pour les mises à jour manuelles
-8. Sérialisation des données pour la transmission externe
-9. Système de repli pour gérer les données incomplètes ou corrompues
-10. Intégration avec n8n pour l'orchestration des flux de travail
-11. Interface utilisateur pour les interactions vocales et textuelles
-12. Intégration avec Xata pour le stockage des données
+1. Système de capture d'écran et d'analyse d'image
+2. Système de mise en cache des données de jeu
+3. Système de requête pour récupérer des informations spécifiques du jeu
+4. Système de journalisation des événements
+5. Commande console personnalisée pour les mises à jour manuelles
+6. Sérialisation des données pour la transmission externe
+7. Système de repli pour gérer les données incomplètes ou corrompues
+8. Intégration avec n8n pour l'orchestration des flux de travail
+9. Interface utilisateur pour les interactions vocales et textuelles
+10. Intégration avec Xata pour le stockage des données
 
 ## Flux de travail
-1. Surveiller périodiquement les changements dans le fichier de sauvegarde CK3
-2. Parser le fichier de sauvegarde pour extraire les données pertinentes
-3. Comparer avec la version précédente pour identifier les changements
-4. Mettre à jour le cache local des données de jeu
-5. Envoyer les données mises à jour à n8n via des appels REST
-6. n8n traite les données et interagit avec le modèle de langage GPT-4o-mini
-7. n8n envoie les réponses générées au mod CK3
-8. Le mod CK3 affiche les réponses et lit l'audio via l'interface utilisateur
-9. Capturer les entrées vocales/textuelles de l'utilisateur et les envoyer au mod CK3
-10. Répéter le processus pour maintenir une interaction continue
+1. Capturer périodiquement l'écran du jeu
+2. Analyser l'image pour extraire les informations pertinentes
+3. Mettre à jour le cache local des données de jeu
+4. Envoyer les données mises à jour à n8n via des appels REST
+5. n8n traite les données et interagit avec le modèle de langage GPT-4o-mini
+6. n8n envoie les réponses générées au mod CK3
+7. Le mod CK3 affiche les réponses et lit l'audio via l'interface utilisateur
+8. Capturer les entrées vocales/textuelles de l'utilisateur et les envoyer au mod CK3
+9. Répéter le processus pour maintenir une interaction continue
 
 ## Détails techniques
 - Utilisation de C++ pour le mod CK3 principal
