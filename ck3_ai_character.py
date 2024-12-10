@@ -1,4 +1,7 @@
 import sys
+import asyncio
+import websockets
+import pyautogui
 print("WARNING: This script is deprecated. Please use 'main.py' instead.", file=sys.stderr)
 print("Run 'python main.py --help' for usage information.", file=sys.stderr)
 sys.exit(1)
