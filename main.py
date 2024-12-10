@@ -102,7 +102,7 @@ async def play_audio_queue():
     global is_playing
     try:
         pygame.mixer.quit()  # Close existing mixer
-        pygame.mixer.init(frequency=12000)  # Initialize with slower sample rate
+        pygame.mixer.init(frequency=12000, size=-16, channels=1)  # Initialize with slower sample rate and 16-bit audio
         while not audio_queue.empty():
             chunk = audio_queue.get()
             sound = pygame.mixer.Sound(buffer=chunk)
