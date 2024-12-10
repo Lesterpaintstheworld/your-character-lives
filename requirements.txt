@@ -7,3 +7,5 @@ PyAudio==0.2.13
 pydub==0.25.1
 xata==1.0.0
 asyncio==3.4.3
+tkinter
+argparse

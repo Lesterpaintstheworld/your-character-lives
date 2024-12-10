@@ -303,7 +303,12 @@ async def websocket_client(interval):
             await asyncio.sleep(5)
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="CK3 AI Character with OpenAI Real-Time API")
+    parser = argparse.ArgumentParser(
+        description="CK3 AI Character with OpenAI Real-Time API",
+        epilog="Before running, ensure you have:\n"
+               "1. Installed dependencies: pip install -r requirements.txt\n"
+               "2. Created .env file with OPENAI_API_KEY, XATA_API_KEY, and XATA_DATABASE_URL"
+    )
     parser.add_argument("--interval", type=int, default=DEFAULT_SCREENSHOT_INTERVAL,
                         help=f"Screenshot interval in seconds (default: {DEFAULT_SCREENSHOT_INTERVAL})")
     args = parser.parse_args()
