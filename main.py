@@ -1,5 +1,5 @@
 import asyncio
-import websockets
+import requests
 import pyautogui
 running = True  # Global control variable
 import io
@@ -37,7 +37,7 @@ INVESTMENT_PROMPT = read_prompt('prompts/investment.md')
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
-WEBSOCKET_URL = "wss://api.openai.com/v1/realtime?model=gpt-4o-realtime-preview-2024-10-01"
+N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -168,99 +168,59 @@ async def handle_server_event(event):
         logging.info(f"Received event: {event_type}")
         root.after(0, lambda: text_widget.insert(tk.END, f"\nReceived event: {event_type}\n"))
 
-async def websocket_client(interval):
+async def api_client(interval):
     global running
     while running:
         try:
-            headers = {
-                "Authorization": f"Bearer {OPENAI_API_KEY}",
-                "OpenAI-Beta": "realtime=v1"
+            # Capture d'écran
+            logging.info("Capture d'écran en cours")
+            screenshot_base64 = take_screenshot()
+            logging.info("Capture d'écran terminée")
+            
+            # Enregistrement audio
+            logging.info("Enregistrement audio en cours")
+            audio_data = record_audio(5)  # 5 secondes d'enregistrement
+            audio_base64 = base64.b64encode(audio_data).decode('utf-8')
+            logging.info("Enregistrement audio terminé")
+            
+            # Préparation des données pour l'API
+            payload = {
+                "screenshot": screenshot_base64,
+                "audio": audio_base64,
+                "instructions": INVESTMENT_PROMPT
             }
-            logging.info(f"Tentative de connexion à {WEBSOCKET_URL}")
-            masked_headers = headers.copy()
-            masked_headers["Authorization"] = f"Bearer sk-...{OPENAI_API_KEY[-4:]}"
-            logging.info(f"Headers utilisés : {masked_headers}")
-            async with websockets.connect(
-                WEBSOCKET_URL,
-                extra_headers=headers
-            ) as websocket:
-                logging.info(f"Connecté au WebSocket. Démarrage de CK3 AI Character avec un intervalle de {interval} secondes")
-    
-                # Initialize the session
-                session_init = {
-                    "type": "session.create",
-                    "session": {
-                        "instructions": INVESTMENT_PROMPT,
-                        "modalities": ["text", "audio"],
-                        "voice": "alloy"  # Using alloy voice for KinKong character
-                    }
-                }
-                logging.info("Initialisation de la session WebSocket...")
-                await websocket.send(json.dumps(session_init))
-                logging.info("Session initialisée avec succès")
+            
+            # Envoi de la requête à n8n
+            logging.info("Envoi des données à n8n")
+            response = requests.post(N8N_ENDPOINT, json=payload)
+            
+            if response.status_code == 200:
+                # Traitement de la réponse
+                response_data = response.json()
                 
-                while running:
-                    logging.info("Capture d'écran en cours")
-                    screenshot_base64 = take_screenshot()
-                    logging.info("Capture d'écran terminée")
-                    
-                    # Record audio
-                    logging.info("Enregistrement audio en cours")
-                    audio_data = record_audio(5)  # Record for 5 seconds
-                    audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-                    logging.info("Enregistrement audio terminé")
-                    
-                    # Send the game state, screenshot description and audio
-                    conversation_item = {
-                        "type": "conversation.item.create",
-                        "item": {
-                            "type": "message",
-                            "role": "user",
-                            "content": [
-                                {
-                                    "type": "input_image",
-                                    "image": screenshot_base64
-                                },
-                                {
-                                    "type": "input_audio",
-                                    "audio": audio_base64
-                                }
-                            ]
-                        }
-                    }
-                    logging.info("Envoi de l'état du jeu, de la capture d'écran et de l'audio à l'API")
-                    await websocket.send(json.dumps(conversation_item))
-                    logging.info("Données envoyées avec succès")
-    
-                    # Request a response from the model
-                    response_request = {
-                        "type": "response.create",
-                        "response": {
-                            "modalities": ["text", "audio"]
-                        }
-                    }
-                    logging.info("Demande de réponse au modèle")
-                    await websocket.send(json.dumps(response_request))
-                    logging.info("Demande de réponse envoyée")
-                    
-                    # Process server events
-                    async for message in websocket:
-                        event = json.loads(message)
-                        logging.info(f"Événement reçu du serveur : {event.get('type')}")
-                        await handle_server_event(event)
-                        if event.get('type') == 'done':
-                            logging.info("Traitement de la réponse terminé")
-                            break
-                    
-                    logging.info(f"Attente de {interval} secondes avant la prochaine itération")
-                    await asyncio.sleep(interval)
+                # Mise à jour de l'interface utilisateur avec le texte
+                if 'text' in response_data:
+                    root.after(0, lambda: text_widget.insert(tk.END, f"\n{response_data['text']}\n"))
                 
-        except websockets.exceptions.ConnectionClosed:
-            logging.error("WebSocket connection closed. Attempting to reconnect...")
+                # Lecture de l'audio si présent
+                if 'audio' in response_data:
+                    audio_bytes = base64.b64decode(response_data['audio'])
+                    await process_audio_chunk(audio_bytes)
+                
+                logging.info("Réponse traitée avec succès")
+            else:
+                error_message = f"Erreur API: {response.status_code} - {response.text}"
+                logging.error(error_message)
+                root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {error_message}\n"))
+            
+            # Attente avant la prochaine itération
+            logging.info(f"Attente de {interval} secondes avant la prochaine itération")
+            await asyncio.sleep(interval)
+            
         except Exception as e:
-            logging.error(f"An error occurred: {e}")
-            logging.info("Attempting to reconnect in 5 seconds...")
-            await asyncio.sleep(5)
+            logging.error(f"Une erreur est survenue: {e}")
+            root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
+            await asyncio.sleep(5)  # Attente avant nouvelle tentative
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -278,9 +238,9 @@ if __name__ == "__main__":
         root.protocol("WM_DELETE_WINDOW", on_closing)
         
         # Lancer le client WebSocket dans un thread séparé
-        websocket_thread = threading.Thread(target=lambda: asyncio.run(websocket_client(args.interval)))
-        websocket_thread.daemon = True  # Marquer le thread comme daemon
-        websocket_thread.start()
+        api_thread = threading.Thread(target=lambda: asyncio.run(api_client(args.interval)))
+        api_thread.daemon = True  # Marquer le thread comme daemon
+        api_thread.start()
         
         # Lancer la boucle principale Tkinter
         root.mainloop()
