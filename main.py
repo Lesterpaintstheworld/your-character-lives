@@ -82,15 +82,17 @@ async def process_audio_chunk(chunk):
     try:
         # Convert MP3 to WAV with lower bitrate
         audio = AudioSegment.from_mp3(io.BytesIO(chunk))
-        # Set target sample rate
-        target_frame_rate = 12000
+        
+        # Set a lower target sample rate to slow down playback
+        target_frame_rate = 8000  # Reduced from 12000 to 8000 Hz
+        
+        # Explicitly convert audio format
         audio = audio.set_frame_rate(target_frame_rate)
+        audio = audio.set_channels(1)  # Mono
+        audio = audio.set_sample_width(2)  # 16 bits
+        
         wav_io = io.BytesIO()
-        # Export with lower bitrate
-        audio.export(wav_io, format='wav', parameters=[
-            "-ab", "16k",  # 16 kbps bitrate
-            "-ar", str(target_frame_rate)  # Sample rate
-        ])
+        audio.export(wav_io, format='wav')
         wav_data = wav_io.getvalue()
         
         audio_queue.put(wav_data)
