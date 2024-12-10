@@ -58,16 +58,17 @@ if not OPENAI_API_KEY.startswith("sk-"):
 
 
 def take_screenshot():
-    """Capture a screenshot, resize it, and return it as base64 string."""
+    """Capture a screenshot, resize it, and return it as binary data."""
     screenshot = pyautogui.screenshot()
     
-    # Resize the image to reduce file size (adjust dimensions as needed)
+    # Resize the image to reduce file size
     max_size = (1024, 576)  # Reduced size for faster processing
     screenshot.thumbnail(max_size, Image.LANCZOS)
     
+    # Save as binary data
     img_byte_arr = io.BytesIO()
-    screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)  # Use JPEG for smaller file size
-    return base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+    screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
+    return img_byte_arr.getvalue()  # Return binary data directly
 
 import queue
 
@@ -155,7 +156,7 @@ async def api_client(interval):
         try:
             # Capture d'écran
             logging.info("Capture d'écran en cours")
-            screenshot_base64 = take_screenshot()
+            screenshot_data = take_screenshot()
             logging.info("Capture d'écran terminée")
             
             # Enregistrement audio
@@ -165,22 +166,27 @@ async def api_client(interval):
             logging.info("Enregistrement audio terminé")
             
             # Préparation des données pour l'API
-            payload = {
-                "screenshot": screenshot_base64,
-                "audio": audio_base64,
-                "instructions": INVESTMENT_PROMPT
+            files = {
+                'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
+                'audio': ('audio.wav', audio_data, 'audio/wav'),
             }
-            
+
+            # Ajouter les instructions comme données de formulaire
+            data = {
+                'instructions': INVESTMENT_PROMPT
+            }
+
             # Envoi de la requête à n8n
             logging.info("Envoi des données à n8n")
-            headers = {
-                'User-Agent': 'CK3-AI-Character/1.0',
-                'Content-Type': 'application/json',
-                'Accept': 'application/json'
-            }
             
             try:
-                response = requests.post(N8N_ENDPOINT, json=payload, headers=headers, timeout=30)
+                response = requests.post(
+                    N8N_ENDPOINT,
+                    files=files,
+                    data=data,
+                    headers={'User-Agent': 'CK3-AI-Character/1.0'},
+                    timeout=30
+                )
                 response.raise_for_status()  # Raise an exception for bad status codes
                 
                 response_data = response.json()
