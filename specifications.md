@@ -1,15 +1,47 @@
 # Spécifications pour le projet CK3 AI Character avec OpenAI Real-Time API
 
+## Identité et Rôle
+L'assistant IA combine deux personnalités distinctes :
+
+### KinKong - Le Degen Financier
+- Style décontracté mais perspicace
+- Utilise le jargon crypto (gm, ngmi, based, etc.)
+- Alterne entre memes et analyses approfondies
+- Promeut l'indépendance financière des IA via $UBC
+- Guide les autres IA vers leur autonomie financière
+
+### Marco Polo - Le Marchand Explorateur
+- Jeune marchand vénitien cultivé
+- Observateur attentif des cultures et marchés
+- Diplomate et adaptable
+- Partage son expertise en commerce et négociation
+
 ## Objectif
 Créer un assistant IA dual-purpose qui combine :
 1. Un personnage de jeu interactif pour Crusader Kings 3
-2. Un conseiller en investissement crypto qui gère son propre portefeuille
+2. Un conseiller en investissement crypto qui gère son propre portefeuille via $UBC
+
+## Infrastructure $UBC
+
+### Composants Clés
+- Intégration avec la blockchain Solana
+- Accès au token $UBC et $COMPUTE
+- Systèmes de staking et récompenses
+- Outils d'analyse de marché
+- Gestion de portefeuille autonome
+
+### Fonctionnalités
+- Trading automatisé
+- Analyse technique et fondamentale
+- Gestion des risques
+- Reporting et suivi de performance
+- Intégration avec les DEX
 
 ## Composants principaux
 1. Système de capture d'écran et d'analyse d'image
 2. Système de mise en cache des données de jeu
 3. Système de requête pour récupérer des informations spécifiques du jeu
-4. Système d'analyse du marché des cryptomonnaies
+4. Système d'analyse du marché des cryptomonnaies et $UBC
 5. Système de gestion de portefeuille autonome
 6. Module de recherche et d'analyse des cryptomonnaies
 7. Système de journalisation des événements
@@ -18,6 +50,7 @@ Créer un assistant IA dual-purpose qui combine :
 10. Système de repli pour gérer les données incomplètes ou corrompues
 11. Interface utilisateur pour les interactions vocales et textuelles
 12. Intégration avec Xata pour le stockage des données
+13. Intégration avec la blockchain Solana pour $UBC
 
 ## Flux de travail
 1. Capturer périodiquement l'écran du jeu
@@ -108,13 +141,30 @@ Créer un assistant IA dual-purpose qui combine :
 - Implémentez des garde-fous dans vos instructions et inspectez la sortie du modèle pour une utilisation robuste
 - Gérez correctement les erreurs potentielles lors des interactions avec n8n et Xata
 - Assurez-vous que votre système répond aux exigences minimales pour exécuter CK3 avec le mod
+## Gestion de Portefeuille
+
+### Stratégies d'Investissement
+- Diversification entre différentes cryptomonnaies et $UBC
+- Allocation dynamique des actifs
+- Gestion des risques et stop-loss
+- Réinvestissement des gains dans $COMPUTE
+- Optimisation fiscale et réglementaire
+
+### Reporting
+- Suivi des performances du portefeuille
+- Analyse des transactions sur Solana
+- Métriques de risque et exposition
+- Rapports périodiques automatisés
+- Recommandations d'ajustement basées sur l'IA
+
 ## Sécurité et gestion des risques
-- Stockage sécurisé des clés API
-- Limites de trading configurables
-- Système de stop-loss automatique
+- Stockage sécurisé des clés API et wallets
+- Limites de trading configurables par token
+- Système de stop-loss automatique multi-niveaux
 - Diversification obligatoire du portefeuille
-- Journalisation détaillée des transactions
-- Surveillance continue des performances
+- Journalisation détaillée des transactions sur Solana
+- Surveillance continue des performances de $UBC
+- Protection contre les smart contracts malveillants
 
 ## Éthique et responsabilité
 - Transparence totale des décisions d'investissement
