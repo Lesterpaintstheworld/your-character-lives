@@ -1,6 +1,7 @@
 import asyncio
 import websockets
 import pyautogui
+running = True  # Global control variable
 import io
 import pygame
 import logging
@@ -129,6 +130,14 @@ root.title("CK3 AI Character Response")
 text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
 text_widget.pack(expand=True, fill='both')
 
+def on_closing():
+    """Handle application shutdown."""
+    global running
+    running = False
+    logging.info("Shutting down application...")
+    root.quit()
+    root.destroy()
+
 async def handle_server_event(event):
     """Handle server events."""
     event_type = event.get('type')
@@ -160,7 +169,8 @@ async def handle_server_event(event):
         root.after(0, lambda: text_widget.insert(tk.END, f"\nReceived event: {event_type}\n"))
 
 async def websocket_client(interval):
-    while True:
+    global running
+    while running:
         try:
             headers = {
                 "Authorization": f"Bearer {OPENAI_API_KEY}",
@@ -189,7 +199,7 @@ async def websocket_client(interval):
                 await websocket.send(json.dumps(session_init))
                 logging.info("Session initialisée avec succès")
                 
-                while True:
+                while running:
                     logging.info("Capture d'écran en cours")
                     screenshot_base64 = take_screenshot()
                     logging.info("Capture d'écran terminée")
@@ -264,15 +274,21 @@ if __name__ == "__main__":
     args = parser.parse_args()
     
     try:
+        # Configurer la gestion de la fermeture
+        root.protocol("WM_DELETE_WINDOW", on_closing)
+        
         # Lancer le client WebSocket dans un thread séparé
         websocket_thread = threading.Thread(target=lambda: asyncio.run(websocket_client(args.interval)))
+        websocket_thread.daemon = True  # Marquer le thread comme daemon
         websocket_thread.start()
         
         # Lancer la boucle principale Tkinter
         root.mainloop()
     except KeyboardInterrupt:
         logging.info("Program terminated by user")
+        on_closing()
     finally:
-        root.quit()
+        if running:
+            on_closing()
 
 print("Pour exécuter ce script, utilisez la commande : python main.py")
