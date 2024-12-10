@@ -1,9 +1,11 @@
+setuptools==65.5.1
+wheel
 websockets==11.0.3
 pyautogui==0.9.54
 Pillow==10.4.0
 pygame==2.5.1
 python-dotenv==1.0.1
-PyAudio==0.2.13
+PyAudio @ https://download.lfd.uci.edu/pythonlibs/archived/PyAudio-0.2.13-cp312-cp312-win_amd64.whl
 pydub==0.25.1
 xata==1.0.0
 asyncio==3.4.3
