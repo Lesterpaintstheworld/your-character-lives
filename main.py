@@ -1,7 +1,6 @@
 import asyncio
 import requests
 import pyautogui
-running = True  # Global control variable
 import io
 import pygame
 import logging
@@ -17,6 +16,8 @@ import difflib
 from datetime import datetime
 import threading
 import queue
+
+running = True  # Global control variable
 # Load environment variables
 load_dotenv()
 
@@ -130,43 +131,23 @@ root.title("CK3 AI Character Response")
 text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
 text_widget.pack(expand=True, fill='both')
 
+def clear_audio_queue():
+    """Clear the audio queue when stopping."""
+    while not audio_queue.empty():
+        try:
+            audio_queue.get_nowait()
+        except queue.Empty:
+            break
+
 def on_closing():
     """Handle application shutdown."""
     global running
     running = False
+    clear_audio_queue()
     logging.info("Shutting down application...")
     root.quit()
     root.destroy()
 
-async def handle_server_event(event):
-    """Handle server events."""
-    event_type = event.get('type')
-    if event_type == 'response.text.delta':
-        delta_text = event.get('delta', '')
-        logging.info(f"Received text delta: {delta_text}")
-        # Mettre à jour l'interface graphique avec le texte reçu
-        root.after(0, lambda: text_widget.insert(tk.END, delta_text))
-    elif event_type == 'response.audio.delta':
-        audio_chunk = base64.b64decode(event.get('delta', ''))
-        # Jouer l'audio immédiatement
-        asyncio.create_task(process_audio_chunk(audio_chunk))
-    elif event_type == 'error':
-        error_message = f"Received error: {event.get('error', {})}"
-        logging.error(error_message)
-        root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {error_message}\n"))
-    elif event_type == 'response.done':
-        logging.info("Response completed")
-        root.after(0, lambda: text_widget.insert(tk.END, "\n--- Response completed ---\n\n"))
-    elif event_type == 'response.created':
-        logging.info("Response started")
-        root.after(0, lambda: text_widget.insert(tk.END, "\n--- New response ---\n"))
-    elif event_type == 'response.function_call_arguments.delta':
-        func_call_delta = f"Function call arguments delta: {event.get('delta', {})}"
-        logging.info(func_call_delta)
-        root.after(0, lambda: text_widget.insert(tk.END, f"\n{func_call_delta}\n"))
-    else:
-        logging.info(f"Received event: {event_type}")
-        root.after(0, lambda: text_widget.insert(tk.END, f"\nReceived event: {event_type}\n"))
 
 async def api_client(interval):
     global running
@@ -192,11 +173,36 @@ async def api_client(interval):
             
             # Envoi de la requête à n8n
             logging.info("Envoi des données à n8n")
-            response = requests.post(N8N_ENDPOINT, json=payload)
+            headers = {
+                'User-Agent': 'CK3-AI-Character/1.0',
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
             
-            if response.status_code == 200:
-                # Traitement de la réponse
+            try:
+                response = requests.post(N8N_ENDPOINT, json=payload, headers=headers, timeout=30)
+                response.raise_for_status()  # Raise an exception for bad status codes
+                
                 response_data = response.json()
+                if not all(field in response_data for field in ['text']):
+                    raise ValueError("La réponse du serveur ne contient pas tous les champs requis")
+                    
+            except requests.exceptions.Timeout:
+                logging.error("La requête a expiré")
+                root.after(0, lambda: text_widget.insert(tk.END, "\nERROR: La requête a expiré\n"))
+                continue
+            except requests.exceptions.ConnectionError:
+                logging.error("Erreur de connexion au serveur")
+                root.after(0, lambda: text_widget.insert(tk.END, "\nERROR: Impossible de se connecter au serveur\n"))
+                continue
+            except requests.exceptions.RequestException as e:
+                logging.error(f"Erreur de requête: {e}")
+                root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
+                continue
+            except ValueError as e:
+                logging.error(f"Erreur de validation: {e}")
+                root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
+                continue
                 
                 # Mise à jour de l'interface utilisateur avec le texte
                 if 'text' in response_data:

@@ -31,11 +31,11 @@ def take_screenshot():
     screenshot = pyautogui.screenshot()
     
     # Resize the image to reduce file size (adjust dimensions as needed)
-    max_size = (2048, 768)
+    max_size = (1024, 576)  # Reduced size for faster processing
     screenshot.thumbnail(max_size, Image.LANCZOS)
     
     img_byte_arr = io.BytesIO()
-    screenshot.save(img_byte_arr, format='PNG', optimize=True)
+    screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)  # Use JPEG for smaller file size
     return base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
 
 async def process_audio_chunk(chunk):
