@@ -106,12 +106,12 @@ async def play_audio_queue():
     global is_playing
     try:
         pygame.mixer.quit()  # Close existing mixer
-        pygame.mixer.init(frequency=12000, size=-16, channels=1)  # Initialize with 16-bit audio
+        pygame.mixer.init(frequency=8000, size=-16, channels=1)  # Lower frequency for slower playback
         while not audio_queue.empty():
             chunk = audio_queue.get()
             sound = pygame.mixer.Sound(buffer=chunk)
             sound.play()
-            await asyncio.sleep(sound.get_length())  # No additional slowdown
+            await asyncio.sleep(sound.get_length() * 1.1)  # Add slight delay between chunks
     except pygame.error as e:
         logging.error(f"Failed to play audio chunk: {e}")
     finally:
