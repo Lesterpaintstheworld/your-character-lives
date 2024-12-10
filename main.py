@@ -219,7 +219,7 @@ async def api_client(interval):
             
         except Exception as e:
             logging.error(f"Une erreur est survenue: {e}")
-            root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
+            root.after(0, lambda e=e: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
             await asyncio.sleep(5)  # Attente avant nouvelle tentative
 
 if __name__ == "__main__":
