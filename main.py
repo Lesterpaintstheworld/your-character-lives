@@ -186,9 +186,9 @@ async def websocket_client(interval):
                         "voice": "alloy"
                     }
                 }
-                logging.info(f"Initialisation de la session avec : {session_init}")
+                logging.info("Initialisation de la session WebSocket...")
                 await websocket.send(json.dumps(session_init))
-                logging.info("Session initialisée")
+                logging.info("Session initialisée avec succès")
                 
                 while True:
                     logging.info("Capture d'écran en cours")
