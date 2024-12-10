@@ -197,11 +197,11 @@ async def api_client(interval):
                 continue
             except requests.exceptions.RequestException as e:
                 logging.error(f"Erreur de requête: {e}")
-                root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
+                root.after(0, lambda e=e: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
                 continue
             except ValueError as e:
                 logging.error(f"Erreur de validation: {e}")
-                root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
+                root.after(0, lambda e=e: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
                 continue
                 
                 # Mise à jour de l'interface utilisateur avec le texte
