@@ -1,41 +1,48 @@
 # Spécifications pour le projet CK3 AI Character avec OpenAI Real-Time API
 
 ## Objectif
-Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps réel aux événements du jeu en utilisant la vision par ordinateur et la synthèse vocale, en utilisant l'API Real-Time d'OpenAI.
+Créer un assistant IA dual-purpose qui combine :
+1. Un personnage de jeu interactif pour Crusader Kings 3
+2. Un conseiller en investissement crypto qui gère son propre portefeuille
 
 ## Composants principaux
 1. Système de capture d'écran et d'analyse d'image
 2. Système de mise en cache des données de jeu
 3. Système de requête pour récupérer des informations spécifiques du jeu
-4. Système de journalisation des événements
-5. Commande console personnalisée pour les mises à jour manuelles
-6. Sérialisation des données pour la transmission externe
-7. Système de repli pour gérer les données incomplètes ou corrompues
-8. Intégration avec n8n pour l'orchestration des flux de travail
-9. Interface utilisateur pour les interactions vocales et textuelles
-10. Intégration avec Xata pour le stockage des données
+4. Système d'analyse du marché des cryptomonnaies
+5. Système de gestion de portefeuille autonome
+6. Module de recherche et d'analyse des cryptomonnaies
+7. Système de journalisation des événements
+8. Commande console personnalisée pour les mises à jour manuelles
+9. Sérialisation des données pour la transmission externe
+10. Système de repli pour gérer les données incomplètes ou corrompues
+11. Interface utilisateur pour les interactions vocales et textuelles
+12. Intégration avec Xata pour le stockage des données
 
 ## Flux de travail
 1. Capturer périodiquement l'écran du jeu
 2. Analyser l'image pour extraire les informations pertinentes
-3. Mettre à jour le cache local des données de jeu
-4. Envoyer les données mises à jour à n8n via des appels REST
-5. n8n traite les données et interagit avec le modèle de langage GPT-4o-mini
-6. n8n envoie les réponses générées au mod CK3
-7. Le mod CK3 affiche les réponses et lit l'audio via l'interface utilisateur
-8. Capturer les entrées vocales/textuelles de l'utilisateur et les envoyer au mod CK3
-9. Répéter le processus pour maintenir une interaction continue
+3. Analyser en parallèle les marchés crypto
+4. Générer des recommandations d'investissement
+5. Exécuter les stratégies de trading définies
+6. Mettre à jour le cache local des données
+7. Envoyer les données mises à jour à l'API
+8. L'IA traite les données et génère des réponses
+9. Afficher les réponses et lire l'audio via l'interface utilisateur
+10. Capturer les entrées vocales/textuelles de l'utilisateur
+11. Répéter le processus pour maintenir une interaction continue
 
 ## Détails techniques
-- Utilisation de C++ pour le mod CK3 principal
-- Utilisation de Python pour les scripts auxiliaires et l'intégration avec n8n
+- Utilisation de Python pour le script principal
+- Intégration avec des APIs de trading crypto
 - Bibliothèques :
-  - Boost pour les fonctionnalités C++ avancées
-  - nlohmann/json pour le traitement JSON en C++
-  - requests pour les appels REST en Python
+  - ccxt pour l'interaction avec les exchanges
+  - pandas pour l'analyse de données
+  - ta-lib pour l'analyse technique
+  - requests pour les appels REST
   - python-dotenv pour la gestion des variables d'environnement
   - PyAudio pour la capture audio
-- API endpoint pour n8n : à définir lors de la configuration de n8n
+- API endpoint : à définir lors de la configuration
 - Intégration avec Xata pour le stockage cloud
 - Utilisation de l'API de modding CK3 pour les événements et triggers personnalisés
 
@@ -101,3 +108,17 @@ Créer un personnage AI pour le jeu Crusader Kings 3 qui peut réagir en temps r
 - Implémentez des garde-fous dans vos instructions et inspectez la sortie du modèle pour une utilisation robuste
 - Gérez correctement les erreurs potentielles lors des interactions avec n8n et Xata
 - Assurez-vous que votre système répond aux exigences minimales pour exécuter CK3 avec le mod
+## Sécurité et gestion des risques
+- Stockage sécurisé des clés API
+- Limites de trading configurables
+- Système de stop-loss automatique
+- Diversification obligatoire du portefeuille
+- Journalisation détaillée des transactions
+- Surveillance continue des performances
+
+## Éthique et responsabilité
+- Transparence totale des décisions d'investissement
+- Respect des réglementations en vigueur
+- Gestion responsable des risques
+- Documentation claire des stratégies utilisées
+- Avertissements sur les risques liés aux cryptomonnaies
