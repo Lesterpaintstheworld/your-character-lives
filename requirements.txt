@@ -1,11 +1,13 @@
 websockets==11.0.3
 pyautogui==0.9.54
-Pillow==10.0.0
+Pillow==10.4.0
 pygame==2.5.1
-python-dotenv==1.0.0
+python-dotenv==1.0.1
 PyAudio==0.2.13
 pydub==0.25.1
 xata==1.0.0
 asyncio==3.4.3
+psutil==5.9.6
+tiktoken==0.7.0
 tkinter
 argparse
