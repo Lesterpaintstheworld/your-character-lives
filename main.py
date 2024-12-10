@@ -80,13 +80,17 @@ async def process_audio_chunk(chunk):
     """Process and play an audio chunk."""
     global is_playing
     try:
-        # Convert MP3 to WAV with slower sample rate
+        # Convert MP3 to WAV with slower sample rate and lower bitrate
         audio = AudioSegment.from_mp3(io.BytesIO(chunk))
         # Slow down audio by reducing sample rate
         target_frame_rate = 12000  # Slower playback
         audio = audio.set_frame_rate(target_frame_rate)
         wav_io = io.BytesIO()
-        audio.export(wav_io, format='wav')
+        # Export with lower bitrate
+        audio.export(wav_io, format='wav', parameters=[
+            "-ab", "16k",  # 16 kbps bitrate
+            "-ar", str(target_frame_rate)  # Sample rate
+        ])
         wav_data = wav_io.getvalue()
         
         audio_queue.put(wav_data)
