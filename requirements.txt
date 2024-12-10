@@ -11,5 +11,4 @@ xata==1.0.0
 asyncio==3.4.3
 psutil==5.9.6
 tiktoken==0.7.0
-tkinter
 argparse
