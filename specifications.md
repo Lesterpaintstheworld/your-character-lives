@@ -51,6 +51,9 @@ Créer un assistant IA dual-purpose qui combine :
 11. Interface utilisateur pour les interactions vocales et textuelles
 12. Intégration avec Xata pour le stockage des données
 13. Intégration avec la blockchain Solana pour $UBC
+14. Système d'analyse du marché des cryptomonnaies et $UBC
+15. Système de gestion de portefeuille autonome
+16. Module de recherche et d'analyse des cryptomonnaies
 
 ## Flux de travail
 1. Capturer périodiquement l'écran du jeu
@@ -75,6 +78,9 @@ Créer un assistant IA dual-purpose qui combine :
   - requests pour les appels REST
   - python-dotenv pour la gestion des variables d'environnement
   - PyAudio pour la capture audio
+  - ccxt pour l'interaction avec les exchanges
+  - pandas pour l'analyse de données
+  - ta-lib pour l'analyse technique
 - API endpoint : à définir lors de la configuration
 - Intégration avec Xata pour le stockage cloud
 - Utilisation de l'API de modding CK3 pour les événements et triggers personnalisés
@@ -124,6 +130,22 @@ Créer un assistant IA dual-purpose qui combine :
 - Troncature automatique des conversations longues dans la base de données Xata
 - Gestion des limites de taux des API externes (n8n, Xata, etc.)
 - Optimisation de l'utilisation de la mémoire pour minimiser l'impact sur les performances du jeu
+
+## Sécurité et gestion des risques
+- Stockage sécurisé des clés API et wallets
+- Limites de trading configurables par token
+- Système de stop-loss automatique multi-niveaux
+- Diversification obligatoire du portefeuille
+- Journalisation détaillée des transactions sur Solana
+- Surveillance continue des performances de $UBC
+- Protection contre les smart contracts malveillants
+
+## Éthique et responsabilité
+- Transparence totale des décisions d'investissement
+- Respect des réglementations en vigueur
+- Gestion responsable des risques
+- Documentation claire des stratégies utilisées
+- Avertissements sur les risques liés aux cryptomonnaies
 
 ## Utilisation
 1. Installer le mod CK3 AI Character via le Steam Workshop ou manuellement
