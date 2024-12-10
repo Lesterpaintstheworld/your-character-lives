@@ -187,43 +187,15 @@ async def api_client(interval):
                     headers={'User-Agent': 'CK3-AI-Character/1.0'},
                     timeout=30
                 )
-                response.raise_for_status()  # Raise an exception for bad status codes
+                response.raise_for_status()
                 
-                response_data = response.json()
-                if not all(field in response_data for field in ['text']):
-                    raise ValueError("La réponse du serveur ne contient pas tous les champs requis")
-                    
-            except requests.exceptions.Timeout:
-                logging.error("La requête a expiré")
-                root.after(0, lambda: text_widget.insert(tk.END, "\nERROR: La requête a expiré\n"))
-                continue
-            except requests.exceptions.ConnectionError:
-                logging.error("Erreur de connexion au serveur")
-                root.after(0, lambda: text_widget.insert(tk.END, "\nERROR: Impossible de se connecter au serveur\n"))
-                continue
+                # Traiter directement l'audio reçu
+                await process_audio_chunk(response.content)
+                logging.info("Audio traité avec succès")
+                
             except requests.exceptions.RequestException as e:
                 logging.error(f"Erreur de requête: {e}")
                 root.after(0, lambda e=e: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
-                continue
-            except ValueError as e:
-                logging.error(f"Erreur de validation: {e}")
-                root.after(0, lambda e=e: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
-                continue
-                
-                # Mise à jour de l'interface utilisateur avec le texte
-                if 'text' in response_data:
-                    root.after(0, lambda: text_widget.insert(tk.END, f"\n{response_data['text']}\n"))
-                
-                # Lecture de l'audio si présent
-                if 'audio' in response_data:
-                    audio_bytes = base64.b64decode(response_data['audio'])
-                    await process_audio_chunk(audio_bytes)
-                
-                logging.info("Réponse traitée avec succès")
-            else:
-                error_message = f"Erreur API: {response.status_code} - {response.text}"
-                logging.error(error_message)
-                root.after(0, lambda: text_widget.insert(tk.END, f"\nERROR: {error_message}\n"))
             
             # Attente avant la prochaine itération
             logging.info(f"Attente de {interval} secondes avant la prochaine itération")
