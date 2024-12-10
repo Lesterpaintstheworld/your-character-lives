@@ -12,7 +12,6 @@ import os
 from dotenv import load_dotenv
 import pyaudio
 import wave
-import xata
 import difflib
 from datetime import datetime
 import threading
@@ -25,11 +24,6 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 24000  # 24kHz as required by the API
-
-# Xata client initialization
-XATA_API_KEY = os.getenv("XATA_API_KEY")
-XATA_DATABASE_URL = os.getenv("XATA_DATABASE_URL")
-xata_client = xata.XataClient(api_key=XATA_API_KEY, db_url=XATA_DATABASE_URL)
 
 # Game state cache
 game_state_cache = {}
@@ -85,16 +79,10 @@ def detect_game_state_changes(old_state, new_state):
     return changes
 
 def update_game_state_cache(new_state):
-    """Update the game state cache and store changes in Xata."""
+    """Update the game state cache."""
     global game_state_cache
     changes = detect_game_state_changes(game_state_cache, new_state)
     game_state_cache = new_state
-    
-    # Store changes in Xata
-    xata_client.create_record("game_state_changes", {
-        "timestamp": datetime.now().isoformat(),
-        "changes": json.dumps(changes)
-    })
 
 def take_screenshot():
     """Capture a screenshot, resize it, and return it as base64 string."""
