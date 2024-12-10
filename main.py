@@ -3,6 +3,7 @@ import requests
 import pyautogui
 import io
 import pygame
+from pydub import AudioSegment
 import logging
 import argparse
 from PIL import Image
@@ -78,11 +79,20 @@ is_playing = False
 async def process_audio_chunk(chunk):
     """Process and play an audio chunk."""
     global is_playing
-    audio_queue.put(chunk)
-    
-    if not is_playing:
-        is_playing = True
-        await play_audio_queue()
+    try:
+        # Convert MP3 to WAV
+        audio = AudioSegment.from_mp3(io.BytesIO(chunk))
+        wav_io = io.BytesIO()
+        audio.export(wav_io, format='wav')
+        wav_data = wav_io.getvalue()
+        
+        audio_queue.put(wav_data)
+        
+        if not is_playing:
+            is_playing = True
+            await play_audio_queue()
+    except Exception as e:
+        logging.error(f"Failed to process audio chunk: {e}")
 
 async def play_audio_queue():
     """Play audio chunks from the queue."""
