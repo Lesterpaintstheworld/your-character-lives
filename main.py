@@ -123,46 +123,85 @@ def update_status(message):
     root.after(0, lambda: text_widget.insert(tk.END, f"\n{message}\n"))
     root.after(0, text_widget.see, tk.END)
 
+def mix_audio(mic_data, desktop_data):
+    """Mix microphone and desktop audio data."""
+    import numpy as np
+    mic_array = np.frombuffer(mic_data, dtype=np.int16)
+    desktop_array = np.frombuffer(desktop_data, dtype=np.int16)
+    
+    # Mix the two sources (70% mic, 30% desktop)
+    mixed = (mic_array * 0.7 + desktop_array * 0.3).astype(np.int16)
+    return mixed.tobytes()
+
 def record_audio(duration):
-    """Record audio from the microphone for a specified duration and return raw PCM data."""
+    """Record both microphone and desktop audio for a specified duration."""
     update_status("🎤 Enregistrement en cours...")
     p = pyaudio.PyAudio()
     
-    # Ouvrir le flux avec les paramètres requis par l'API (24kHz, 16-bit, 1 canal)
-    stream = p.open(format=FORMAT,
-                   channels=CHANNELS,
-                   rate=RATE,
-                   input=True,
-                   frames_per_buffer=CHUNK)
+    # Open microphone stream
+    mic_stream = p.open(format=FORMAT,
+                       channels=CHANNELS,
+                       rate=RATE,
+                       input=True,
+                       input_device_index=None,  # Default microphone
+                       frames_per_buffer=CHUNK)
+    
+    # Find loopback device index
+    loopback_index = None
+    for i in range(p.get_device_count()):
+        device_info = p.get_device_info_by_index(i)
+        if 'Stereo Mix' in device_info['name'] or 'Loopback' in device_info['name']:
+            loopback_index = i
+            break
+    
+    # Open desktop audio stream if available
+    if loopback_index is not None:
+        desktop_stream = p.open(format=FORMAT,
+                              channels=CHANNELS,
+                              rate=RATE,
+                              input=True,
+                              input_device_index=loopback_index,
+                              frames_per_buffer=CHUNK)
+        logging.info("Desktop audio capture enabled")
+    else:
+        logging.warning("Loopback device not found. Recording microphone only.")
+        desktop_stream = None
 
     logging.info(f"Recording for {duration} seconds...")
     frames = []
 
     try:
-        # Enregistrement
         for i in range(0, int(RATE / CHUNK * duration)):
-            data = stream.read(CHUNK, exception_on_overflow=False)
-            frames.append(data)
+            # Record microphone
+            mic_data = mic_stream.read(CHUNK, exception_on_overflow=False)
+            
+            # Record and mix desktop audio if available
+            if desktop_stream:
+                desktop_data = desktop_stream.read(CHUNK, exception_on_overflow=False)
+                frames.append(mix_audio(mic_data, desktop_data))
+            else:
+                frames.append(mic_data)
         
         logging.info("Recording finished")
         
-        # Créer un buffer temporaire pour le WAV
+        # Create temporary WAV buffer
         wav_buffer = io.BytesIO()
         
-        # Créer un fichier WAV en mémoire avec les bons headers
         with wave.open(wav_buffer, 'wb') as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(p.get_sample_size(FORMAT))
             wf.setframerate(RATE)
             wf.writeframes(b''.join(frames))
         
-        # Récupérer les données WAV complètes
         wav_data = wav_buffer.getvalue()
         
     finally:
-        # Nettoyage
-        stream.stop_stream()
-        stream.close()
+        # Cleanup
+        mic_stream.stop_stream()
+        mic_stream.close()
+        if desktop_stream:
+            desktop_stream.stop_stream()
+            desktop_stream.close()
         p.terminate()
 
     update_status("✅ Enregistrement terminé")
