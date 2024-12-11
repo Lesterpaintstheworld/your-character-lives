@@ -189,7 +189,12 @@ def on_closing():
 
 async def api_client(interval):
     global running
-    previous_audio = None  # Initialize previous_audio
+    
+    # Faire le premier enregistrement audio avant de commencer la boucle
+    logging.info("Starting initial 30-second recording...")
+    previous_audio = record_audio(30)  # Premier enregistrement de 30 secondes
+    logging.info("Initial recording completed")
+    
     while running:
         try:
             # Capture d'écran
@@ -200,11 +205,8 @@ async def api_client(interval):
             # Préparation des données pour l'API
             files = {
                 'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
+                'audio': ('audio.wav', previous_audio, 'audio/wav')  # On aura toujours de l'audio
             }
-            
-            # Si nous avons un enregistrement audio précédent, l'ajouter
-            if 'previous_audio' in locals():
-                files['audio'] = ('audio.wav', previous_audio, 'audio/wav')
 
             # Ajouter les instructions comme données de formulaire
             data = {
