@@ -16,8 +16,15 @@ import difflib
 from datetime import datetime
 import threading
 import queue
+import tkinter as tk
+from tkinter import scrolledtext
 
 running = True  # Global control variable
+
+# Initialize text-to-speech engine
+engine = pyttsx3.init()
+engine.setProperty('rate', 150)  # Speech rate (default is 200)
+engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 # Load environment variables
 load_dotenv()
 
