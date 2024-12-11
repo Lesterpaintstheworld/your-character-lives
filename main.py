@@ -83,24 +83,23 @@ async def process_audio_chunk(chunk):
     """Process and play an audio chunk."""
     global is_playing
     try:
-        # Create a temporary file for the MP3
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_mp3:
             temp_mp3.write(chunk)
             temp_mp3_path = temp_mp3.name
             
-        # Convert with ffmpeg keeping original sample rate
+        # Utiliser une chaîne de filtres plus complexe pour un meilleur contrôle
         stream = ffmpeg.input(temp_mp3_path)
         stream = ffmpeg.output(stream, 'pipe:', 
-                             acodec='pcm_s16le',    # PCM 16-bit format
-                             ar=24000,              # Keep original sample rate
-                             ac=1,                  # Mono
+                             acodec='pcm_s16le',
+                             ar=24000,
+                             ac=1,
                              format='wav',
-                             audio_bitrate='160k',  # Keep original bitrate
-                             filter_complex='atempo=0.85'  # Slow down playback
+                             audio_bitrate='160k',
+                             filter_complex='atempo=0.65,aresample=24000:filter_size=256:phase_shift=90'  # Ralentissement plus important
                              )
         wav_data, _ = ffmpeg.run(stream, capture_stdout=True)
         
-        os.unlink(temp_mp3_path)  # Clean up temporary file
+        os.unlink(temp_mp3_path)
         
         audio_queue.put(wav_data)
         
@@ -115,14 +114,20 @@ async def play_audio_queue():
     global is_playing
     try:
         pygame.mixer.quit()
-        pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=4096)  # Increased buffer size
+        pygame.mixer.init(frequency=24000, 
+                         size=-16, 
+                         channels=1, 
+                         buffer=8192)  # Buffer size doublé
         
         while not audio_queue.empty():
             chunk = audio_queue.get()
             sound = pygame.mixer.Sound(buffer=chunk)
             sound.play()
-            # Add more delay between chunks
-            await asyncio.sleep(sound.get_length() * 1.2)  # Increased delay factor
+            # Délai plus important entre les chunks
+            await asyncio.sleep(sound.get_length() * 1.5)  # Augmentation du délai
+            # Attendre que le son soit terminé avant de continuer
+            while pygame.mixer.get_busy():
+                await asyncio.sleep(0.1)
     except pygame.error as e:
         logging.error(f"Failed to play audio chunk: {e}")
     finally:
