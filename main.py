@@ -119,28 +119,47 @@ async def process_audio_chunk(response_data):
             logging.error(f"Type de données reçues: {type(response_data)}")
 
 def record_audio(duration):
-    """Record audio from the microphone for a specified duration."""
+    """Record audio from the microphone for a specified duration and return raw PCM data."""
     p = pyaudio.PyAudio()
+    
+    # Ouvrir le flux avec les paramètres requis par l'API (24kHz, 16-bit, 1 canal)
     stream = p.open(format=FORMAT,
-                    channels=CHANNELS,
-                    rate=RATE,
-                    input=True,
-                    frames_per_buffer=CHUNK)
+                   channels=CHANNELS,
+                   rate=RATE,
+                   input=True,
+                   frames_per_buffer=CHUNK)
 
     logging.info(f"Recording for {duration} seconds...")
     frames = []
 
-    for i in range(0, int(RATE / CHUNK * duration)):
-        data = stream.read(CHUNK)
-        frames.append(data)
+    try:
+        # Enregistrement
+        for i in range(0, int(RATE / CHUNK * duration)):
+            data = stream.read(CHUNK, exception_on_overflow=False)
+            frames.append(data)
+        
+        logging.info("Recording finished")
+        
+        # Créer un buffer temporaire pour le WAV
+        wav_buffer = io.BytesIO()
+        
+        # Créer un fichier WAV en mémoire avec les bons headers
+        with wave.open(wav_buffer, 'wb') as wf:
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(p.get_sample_size(FORMAT))
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(frames))
+        
+        # Récupérer les données WAV complètes
+        wav_data = wav_buffer.getvalue()
+        
+    finally:
+        # Nettoyage
+        stream.stop_stream()
+        stream.close()
+        p.terminate()
 
-    logging.info("Recording finished")
-
-    stream.stop_stream()
-    stream.close()
-    p.terminate()
-
-    return b''.join(frames)
+    return wav_data
 
 import tkinter as tk
 from tkinter import scrolledtext
