@@ -3,6 +3,8 @@ import requests
 import pyautogui
 import io
 import pyttsx3
+import pygame
+import os
 import logging
 import argparse
 from PIL import Image
@@ -86,37 +88,35 @@ engine.setProperty('rate', 150)  # Speech rate (default is 200)
 engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
 async def process_audio_chunk(response_data):
-    """Process and play text using text-to-speech."""
+    """Process and play audio data."""
     try:
-        # Vérifier si response_data est déjà un dict ou doit être parsé
-        if isinstance(response_data, bytes):
-            response_json = json.loads(response_data.decode('utf-8'))
-        elif isinstance(response_data, str):
-            response_json = json.loads(response_data)
-        else:
-            response_json = response_data
-
-        # Extraire le texte de différentes structures JSON possibles
-        text = None
-        if 'text' in response_json:
-            text = response_json['text']
-        elif 'choices' in response_json and len(response_json['choices']) > 0:
-            text = response_json['choices'][0].get('text', '')
-        elif isinstance(response_json, str):
-            text = response_json
-
-        if text:
-            # Afficher le texte dans l'UI
-            root.after(0, lambda: text_widget.insert(tk.END, f"\nAI: {text}\n"))
-            # Synthèse vocale
-            engine.say(text)
-            engine.runAndWait()
-        else:
-            logging.error("Aucun texte trouvé dans la réponse")
+        # Sauvegarder temporairement l'audio
+        temp_file = 'temp_audio.mp3'
+        with open(temp_file, 'wb') as f:
+            if isinstance(response_data, bytes):
+                f.write(response_data)
+            else:
+                f.write(response_data.encode())
+        
+        # Initialiser pygame pour la lecture audio
+        pygame.mixer.init()
+        pygame.mixer.music.load(temp_file)
+        pygame.mixer.music.play()
+        
+        # Attendre la fin de la lecture
+        while pygame.mixer.music.get_busy():
+            await asyncio.sleep(0.1)
+        
+        # Nettoyer
+        pygame.mixer.music.unload()
+        os.remove(temp_file)
             
     except Exception as e:
-        logging.error(f"Erreur lors du traitement de la réponse: {e}")
-        logging.error(f"Contenu de la réponse: {response_data}")
+        logging.error(f"Erreur lors du traitement de l'audio: {e}")
+        if isinstance(response_data, bytes):
+            logging.error(f"Taille des données reçues: {len(response_data)} bytes")
+        else:
+            logging.error(f"Type de données reçues: {type(response_data)}")
 
 def record_audio(duration):
     """Record audio from the microphone for a specified duration."""
