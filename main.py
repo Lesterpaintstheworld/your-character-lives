@@ -40,6 +40,7 @@ INVESTMENT_PROMPT = read_prompt('prompts/investment.md')
 
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
+REQUEST_TIMEOUT = 120  # Timeout in seconds for API requests
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
@@ -210,7 +211,7 @@ async def api_client(interval):
                     files=files,
                     data=data,
                     headers={'User-Agent': 'CK3-AI-Character/1.0'},
-                    timeout=30
+                    timeout=REQUEST_TIMEOUT
                 )
                 response.raise_for_status()
                 
