@@ -2,10 +2,7 @@ import asyncio
 import requests
 import pyautogui
 import io
-import pygame
-import tempfile
-import os
-import ffmpeg
+import pyttsx3
 import logging
 import argparse
 from PIL import Image
@@ -76,62 +73,25 @@ def take_screenshot():
 
 import queue
 
-audio_queue = queue.Queue()
-is_playing = False
+# Initialize text-to-speech engine
+engine = pyttsx3.init()
+engine.setProperty('rate', 150)  # Speech rate (default is 200)
+engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
-async def process_audio_chunk(chunk):
-    """Process and play an audio chunk."""
-    global is_playing
+async def process_audio_chunk(response_data):
+    """Process and play text using text-to-speech."""
     try:
-        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_mp3:
-            temp_mp3.write(chunk)
-            temp_mp3_path = temp_mp3.name
-            
-        # Application d'un ralentissement plus important avec une chaîne de filtres en cascade
-        stream = ffmpeg.input(temp_mp3_path)
-        stream = ffmpeg.output(stream, 'pipe:', 
-                             acodec='pcm_s16le',
-                             ar=24000,
-                             ac=1,
-                             format='wav',
-                             audio_bitrate='192k',
-                             filter_complex='atempo=0.5,atempo=0.5'  # Double ralentissement pour un effet x4 plus lent
-                             )
-        wav_data, _ = ffmpeg.run(stream, capture_stdout=True)
-        
-        os.unlink(temp_mp3_path)
-        
-        audio_queue.put(wav_data)
-        
-        if not is_playing:
-            is_playing = True
-            await play_audio_queue()
+        # Assuming response_data is JSON containing text
+        response_json = json.loads(response_data)
+        if 'text' in response_json:
+            text = response_json['text']
+            # Display text in UI
+            root.after(0, lambda: text_widget.insert(tk.END, f"\nAI: {text}\n"))
+            # Speak text
+            engine.say(text)
+            engine.runAndWait()
     except Exception as e:
-        logging.error(f"Failed to process audio chunk: {e}")
-
-async def play_audio_queue():
-    """Play audio chunks from the queue."""
-    global is_playing
-    try:
-        pygame.mixer.quit()
-        pygame.mixer.init(frequency=24000, 
-                         size=-16, 
-                         channels=1, 
-                         buffer=8192)  # Buffer size doublé
-        
-        while not audio_queue.empty():
-            chunk = audio_queue.get()
-            sound = pygame.mixer.Sound(buffer=chunk)
-            sound.play()
-            # Délai plus important entre les chunks
-            await asyncio.sleep(sound.get_length() * 1.5)  # Augmentation du délai
-            # Attendre que le son soit terminé avant de continuer
-            while pygame.mixer.get_busy():
-                await asyncio.sleep(0.1)
-    except pygame.error as e:
-        logging.error(f"Failed to play audio chunk: {e}")
-    finally:
-        is_playing = False
+        logging.error(f"Failed to process response: {e}")
 
 def record_audio(duration):
     """Record audio from the microphone for a specified duration."""
@@ -166,13 +126,6 @@ root.title("CK3 AI Character Response")
 text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
 text_widget.pack(expand=True, fill='both')
 
-def clear_audio_queue():
-    """Clear the audio queue when stopping."""
-    while not audio_queue.empty():
-        try:
-            audio_queue.get_nowait()
-        except queue.Empty:
-            break
 
 def on_closing():
     """Handle application shutdown."""
@@ -223,9 +176,9 @@ async def api_client(interval):
                 )
                 response.raise_for_status()
                 
-                # Traiter directement l'audio reçu
+                # Process the response as JSON containing text
                 await process_audio_chunk(response.content)
-                logging.info("Audio traité avec succès")
+                logging.info("Response processed successfully")
                 
             except requests.exceptions.RequestException as e:
                 logging.error(f"Erreur de requête: {e}")
