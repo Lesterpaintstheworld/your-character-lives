@@ -87,14 +87,14 @@ async def process_audio_chunk(chunk):
             temp_mp3.write(chunk)
             temp_mp3_path = temp_mp3.name
             
-        # Convert with ffmpeg specifying all parameters explicitly
+        # Convert with ffmpeg with adjusted parameters for higher quality
         stream = ffmpeg.input(temp_mp3_path)
         stream = ffmpeg.output(stream, 'pipe:', 
-                             acodec='pcm_s16le',  # PCM 16-bit format
-                             ar=8000,             # Sample rate
-                             ac=1,                # Mono
+                             acodec='pcm_s16le',    # PCM 16-bit format
+                             ar=16000,              # Increased to 16kHz for better handling
+                             ac=1,                  # Mono
                              format='wav',
-                             audio_bitrate='64k'  # Fixed bitrate
+                             audio_bitrate='160k'   # Matches input bitrate
                              )
         wav_data, _ = ffmpeg.run(stream, capture_stdout=True)
         
