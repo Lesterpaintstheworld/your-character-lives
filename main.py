@@ -95,7 +95,7 @@ async def process_audio_chunk(chunk):
                              ac=1,
                              format='wav',
                              audio_bitrate='160k',
-                             filter_complex='atempo=0.65,aresample=24000:filter_size=256:phase_shift=90'  # Ralentissement plus important
+                             filter_complex='atempo=0.65,aresample=24000:filter_size=128:phase_shift=20'  # Valeurs corrigées
                              )
         wav_data, _ = ffmpeg.run(stream, capture_stdout=True)
         
