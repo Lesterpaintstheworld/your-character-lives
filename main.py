@@ -191,8 +191,8 @@ async def api_client(interval):
     global running
     
     # Faire le premier enregistrement audio avant de commencer la boucle
-    logging.info("Starting initial 30-second recording...")
-    previous_audio = record_audio(30)  # Premier enregistrement de 30 secondes
+    logging.info("Starting initial 20-second recording...")
+    previous_audio = record_audio(20)  # Premier enregistrement de 20 secondes
     logging.info("Initial recording completed")
     
     while running:
@@ -231,8 +231,8 @@ async def api_client(interval):
                 logging.info("Audio response played")
                 
                 # Enregistrer l'audio pour la prochaine requête
-                logging.info("Starting 30-second recording...")
-                previous_audio = record_audio(30)  # 30 secondes d'enregistrement
+                logging.info("Starting 20-second recording...")
+                previous_audio = record_audio(20)  # 20 secondes d'enregistrement
                 logging.info("Recording completed")
                 
             except requests.exceptions.RequestException as e:
