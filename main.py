@@ -118,8 +118,14 @@ async def process_audio_chunk(response_data):
         else:
             logging.error(f"Type de données reçues: {type(response_data)}")
 
+def update_status(message):
+    """Update status in UI"""
+    root.after(0, lambda: text_widget.insert(tk.END, f"\n{message}\n"))
+    root.after(0, text_widget.see, tk.END)
+
 def record_audio(duration):
     """Record audio from the microphone for a specified duration and return raw PCM data."""
+    update_status("🎤 Enregistrement en cours...")
     p = pyaudio.PyAudio()
     
     # Ouvrir le flux avec les paramètres requis par l'API (24kHz, 16-bit, 1 canal)
@@ -159,6 +165,7 @@ def record_audio(duration):
         stream.close()
         p.terminate()
 
+    update_status("✅ Enregistrement terminé")
     return wav_data
 
 import tkinter as tk
@@ -189,17 +196,14 @@ async def api_client(interval):
             screenshot_data = take_screenshot()
             logging.info("Capture d'écran terminée")
             
-            # Enregistrement audio
-            logging.info("Enregistrement audio en cours")
-            audio_data = record_audio(5)  # 5 secondes d'enregistrement
-            audio_base64 = base64.b64encode(audio_data).decode('utf-8')
-            logging.info("Enregistrement audio terminé")
-            
             # Préparation des données pour l'API
             files = {
                 'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
-                'audio': ('audio.wav', audio_data, 'audio/wav'),
             }
+            
+            # Si nous avons un enregistrement audio précédent, l'ajouter
+            if 'previous_audio' in locals():
+                files['audio'] = ('audio.wav', previous_audio, 'audio/wav')
 
             # Ajouter les instructions comme données de formulaire
             data = {
@@ -219,17 +223,20 @@ async def api_client(interval):
                 )
                 response.raise_for_status()
                 
-                # Process the response as JSON containing text
+                # Jouer l'audio reçu
                 await process_audio_chunk(response.content)
-                logging.info("Response processed successfully")
+                logging.info("Audio response played")
+                
+                # Enregistrer l'audio pour la prochaine requête
+                logging.info("Starting 30-second recording...")
+                previous_audio = record_audio(30)  # 30 secondes d'enregistrement
+                logging.info("Recording completed")
                 
             except requests.exceptions.RequestException as e:
                 logging.error(f"Erreur de requête: {e}")
                 root.after(0, lambda e=e: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
-            
-            # Attente avant la prochaine itération
-            logging.info(f"Attente de {interval} secondes avant la prochaine itération")
-            await asyncio.sleep(interval)
+                await asyncio.sleep(5)  # Courte pause avant de réessayer
+                continue
             
         except Exception as e:
             logging.error(f"Une erreur est survenue: {e}")
