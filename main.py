@@ -88,14 +88,15 @@ async def process_audio_chunk(chunk):
             temp_mp3.write(chunk)
             temp_mp3_path = temp_mp3.name
             
-        # Convert with ffmpeg with adjusted parameters for higher quality
+        # Convert with ffmpeg keeping original sample rate
         stream = ffmpeg.input(temp_mp3_path)
         stream = ffmpeg.output(stream, 'pipe:', 
                              acodec='pcm_s16le',    # PCM 16-bit format
-                             ar=16000,              # Increased to 16kHz for better handling
+                             ar=24000,              # Keep original sample rate
                              ac=1,                  # Mono
                              format='wav',
-                             audio_bitrate='160k'   # Matches input bitrate
+                             audio_bitrate='160k',  # Keep original bitrate
+                             filter_complex='atempo=0.85'  # Slow down playback
                              )
         wav_data, _ = ffmpeg.run(stream, capture_stdout=True)
         
@@ -113,13 +114,15 @@ async def play_audio_queue():
     """Play audio chunks from the queue."""
     global is_playing
     try:
-        pygame.mixer.quit()  # Close existing mixer
-        pygame.mixer.init(frequency=16000, size=-16, channels=1)  # Increased frequency for better quality
+        pygame.mixer.quit()
+        pygame.mixer.init(frequency=24000, size=-16, channels=1, buffer=4096)  # Increased buffer size
+        
         while not audio_queue.empty():
             chunk = audio_queue.get()
             sound = pygame.mixer.Sound(buffer=chunk)
             sound.play()
-            await asyncio.sleep(sound.get_length() * 1.1)  # Add slight delay between chunks
+            # Add more delay between chunks
+            await asyncio.sleep(sound.get_length() * 1.2)  # Increased delay factor
     except pygame.error as e:
         logging.error(f"Failed to play audio chunk: {e}")
     finally:
