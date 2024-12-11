@@ -87,15 +87,15 @@ async def process_audio_chunk(chunk):
             temp_mp3.write(chunk)
             temp_mp3_path = temp_mp3.name
             
-        # Utiliser une chaîne de filtres plus complexe pour un meilleur contrôle
+        # Application d'un ralentissement plus important avec une chaîne de filtres en cascade
         stream = ffmpeg.input(temp_mp3_path)
         stream = ffmpeg.output(stream, 'pipe:', 
                              acodec='pcm_s16le',
                              ar=24000,
                              ac=1,
                              format='wav',
-                             audio_bitrate='160k',
-                             filter_complex='atempo=0.65,aresample=24000:filter_size=128:phase_shift=20'  # Valeurs corrigées
+                             audio_bitrate='192k',
+                             filter_complex='atempo=0.5,atempo=0.5'  # Double ralentissement pour un effet x4 plus lent
                              )
         wav_data, _ = ffmpeg.run(stream, capture_stdout=True)
         
