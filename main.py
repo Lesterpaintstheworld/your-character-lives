@@ -131,7 +131,6 @@ def on_closing():
     """Handle application shutdown."""
     global running
     running = False
-    clear_audio_queue()
     logging.info("Shutting down application...")
     root.quit()
     root.destroy()
