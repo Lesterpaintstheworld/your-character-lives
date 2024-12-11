@@ -6,5 +6,3 @@ PyAudio
 asyncio==3.4.3
 argparse
 pyttsx3==2.90
-psutil==5.9.6
-tiktoken==0.7.0
