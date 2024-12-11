@@ -189,6 +189,7 @@ def on_closing():
 
 async def api_client(interval):
     global running
+    previous_audio = None  # Initialize previous_audio
     while running:
         try:
             # Capture d'écran
