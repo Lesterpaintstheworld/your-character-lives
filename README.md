@@ -4,6 +4,16 @@ A dual-purpose AI assistant that combines Crusader Kings III game interaction wi
 
 ## Quick Start (Investment Features)
 
+### Option 1: Using the Executable (Windows)
+1. Download the latest release from GitHub
+2. Create a `.env` file in the same folder as the executable with:
+```env
+OPENAI_API_KEY=your_openai_api_key
+SOLANA_WALLET_KEY=your_solana_wallet_key
+```
+3. Double-click CK3_AI_Assistant.exe to run
+
+### Option 2: Running from Source
 1. **Install Python Dependencies**
 ```bash
 pip install -r requirements.txt

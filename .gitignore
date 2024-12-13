@@ -3,3 +3,7 @@
 
 *.wav
 *.mp3
+build/
+dist/
+*.spec
+__pycache__/

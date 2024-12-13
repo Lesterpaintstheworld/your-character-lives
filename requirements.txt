@@ -7,3 +7,4 @@ asyncio==3.4.3
 argparse
 pyttsx3==2.90
 numpy==1.24.3
+pyinstaller==6.3.0
