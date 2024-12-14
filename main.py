@@ -248,7 +248,6 @@ async def api_client(interval):
                 response = requests.post(
                     N8N_ENDPOINT,
                     files=files,
-                    data=data,
                     headers={'User-Agent': 'CK3-AI-Character/1.0'},
                     timeout=REQUEST_TIMEOUT
                 )
