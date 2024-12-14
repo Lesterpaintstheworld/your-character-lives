@@ -37,12 +37,6 @@ CHANNELS = 1
 RATE = 24000  # 24kHz as required by the API
 
 
-# Read investment prompt
-def read_prompt(file_path):
-    with open(file_path, 'r', encoding='utf-8') as file:
-        return file.read().strip()
-
-INVESTMENT_PROMPT = read_prompt('prompts/investment.md')
 
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
@@ -245,11 +239,6 @@ async def api_client(interval):
             files = {
                 'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
                 'audio': ('audio.wav', previous_audio, 'audio/wav')  # On aura toujours de l'audio
-            }
-
-            # Ajouter les instructions comme données de formulaire
-            data = {
-                'instructions': INVESTMENT_PROMPT
             }
 
             # Envoi de la requête à n8n

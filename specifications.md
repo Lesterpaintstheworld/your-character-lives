@@ -21,39 +21,17 @@ Créer un assistant IA dual-purpose qui combine :
 1. Un personnage de jeu interactif pour Crusader Kings 3
 2. Un conseiller en investissement crypto qui gère son propre portefeuille via $UBC
 
-## Infrastructure $UBC
-
-### Composants Clés
-- Intégration avec la blockchain Solana
-- Accès au token $UBC et $COMPUTE
-- Systèmes de staking et récompenses
-- Outils d'analyse de marché
-- Gestion de portefeuille autonome
-
-### Fonctionnalités
-- Trading automatisé
-- Analyse technique et fondamentale
-- Gestion des risques
-- Reporting et suivi de performance
-- Intégration avec les DEX
 
 ## Composants principaux
 1. Système de capture d'écran et d'analyse d'image
 2. Système de mise en cache des données de jeu
 3. Système de requête pour récupérer des informations spécifiques du jeu
-4. Système d'analyse du marché des cryptomonnaies et $UBC
-5. Système de gestion de portefeuille autonome
-6. Module de recherche et d'analyse des cryptomonnaies
-7. Système de journalisation des événements
+4. Système de journalisation des événements
 8. Commande console personnalisée pour les mises à jour manuelles
 9. Sérialisation des données pour la transmission externe
 10. Système de repli pour gérer les données incomplètes ou corrompues
 11. Interface utilisateur pour les interactions vocales et textuelles
 12. Intégration avec Xata pour le stockage des données
-13. Intégration avec la blockchain Solana pour $UBC
-14. Système d'analyse du marché des cryptomonnaies et $UBC
-15. Système de gestion de portefeuille autonome
-16. Module de recherche et d'analyse des cryptomonnaies
 
 ## Flux de travail
 1. Capturer périodiquement l'écran du jeu
