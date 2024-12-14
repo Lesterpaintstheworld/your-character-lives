@@ -35,6 +35,10 @@
 
 ## Future Enhancements
 - [ ] Explore deeper integration with Crusader Kings 3 game mechanics
+- [ ] Implement market analysis features
+- [ ] Create portfolio management system
+- [ ] Implement risk management features
+- [ ] Add market analysis tools
 - [ ] Implement multi-language support for international users
 - [ ] Develop a plugin system for extending AI character capabilities
 - [ ] Create a web-based dashboard for managing AI characters and viewing analytics

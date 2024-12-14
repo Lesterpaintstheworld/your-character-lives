@@ -27,6 +27,9 @@ Créer un assistant IA dual-purpose qui combine :
 2. Système de mise en cache des données de jeu
 3. Système de requête pour récupérer des informations spécifiques du jeu
 4. Système de journalisation des événements
+5. Système d'analyse de marché
+6. Système de gestion de portefeuille
+7. Outils d'analyse technique
 8. Commande console personnalisée pour les mises à jour manuelles
 9. Sérialisation des données pour la transmission externe
 10. Système de repli pour gérer les données incomplètes ou corrompues

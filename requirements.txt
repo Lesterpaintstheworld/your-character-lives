@@ -7,3 +7,5 @@ asyncio==3.4.3
 argparse
 pyttsx3==2.90
 pygame
+ccxt==4.1.13
+ta-lib==0.4.28
