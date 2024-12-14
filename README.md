@@ -14,14 +14,7 @@ An AI assistant that enhances Crusader Kings III gameplay through intelligent ch
 pip install -r requirements.txt
 ```
 
-2. **Configure Environment**
-Create a `.env` file with:
-```env
-OPENAI_API_KEY=your_openai_api_key
-SOLANA_WALLET_KEY=your_solana_wallet_key
-```
-
-3. **Start the AI Assistant**
+2. **Start the AI Assistant**
 ```bash
 python main.py
 ```
@@ -37,14 +30,7 @@ If you want to also use the CK3 game integration features:
   - Linux: `~/.local/share/Paradox Interactive/Crusader Kings III/mod/`
 - Activate the mod in the CK3 launcher
 
-2. **Configure Additional Settings**
-Add to your `.env` file:
-```env
-XATA_API_KEY=your_xata_api_key
-XATA_DATABASE_URL=your_xata_database_url
-```
-
-3. **Start with Game Integration**
+2. **Start with Game Integration**
 ```bash
 python main.py --with-game
 ```
@@ -53,8 +39,6 @@ python main.py --with-game
 
 - Python 3.10 or higher
 - Active internet connection
-- Solana wallet
-- OpenAI API access
 - For game features: Crusader Kings III
 
 ## Configuration Options
