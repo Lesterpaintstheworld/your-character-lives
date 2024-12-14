@@ -1,17 +1,12 @@
-# CK3 AI Character with $UBC Integration
+# CK3 AI Character
 
-A dual-purpose AI assistant that combines Crusader Kings III game interaction with autonomous cryptocurrency portfolio management using $UBC (Universal Basic Compute).
+An AI assistant that enhances Crusader Kings III gameplay through intelligent character interactions and dynamic responses.
 
-## Quick Start (Investment Features)
+## Quick Start
 
 ### Option 1: Using the Executable (Windows)
 1. Download the latest release from GitHub
-2. Create a `.env` file in the same folder as the executable with:
-```env
-OPENAI_API_KEY=your_openai_api_key
-SOLANA_WALLET_KEY=your_solana_wallet_key
-```
-3. Double-click CK3_AI_Assistant.exe to run
+2. Double-click CK3_AI_Assistant.exe to run
 
 ### Option 2: Running from Source
 1. **Install Python Dependencies**
@@ -31,24 +26,6 @@ SOLANA_WALLET_KEY=your_solana_wallet_key
 python main.py
 ```
 
-## Investment Features
-
-- Autonomous portfolio management with $UBC
-- Real-time market analysis
-- Risk management and stop-loss automation
-- Investment recommendations
-- Performance tracking and reporting
-- Integration with Solana blockchain
-- Multi-token portfolio diversification
-
-## Security Features
-
-- Secure API key and wallet storage
-- Configurable trading limits
-- Multi-level stop-loss system
-- Malicious smart contract protection
-- Detailed transaction logging
-- Continuous $UBC performance monitoring
 
 ## Game Integration Installation (Optional)
 
@@ -89,8 +66,6 @@ python main.py --help
 Available options:
 - `--interval`: Screenshot interval in seconds (default: 30)
 - `--with-game`: Enable CK3 game integration
-- `--risk-level`: Set investment risk level (1-5)
-- `--max-allocation`: Maximum allocation per token (%)
 
 ## Project Structure
 
@@ -111,10 +86,6 @@ ck3-ai-character/
 - Check your internet connection
 - Ensure Solana wallet is properly configured
 
-2. **Trading Issues**
-- Verify sufficient $UBC balance
-- Check trading limits configuration
-- Ensure stop-loss settings are proper
 
 3. **Game Integration Issues**
 - Verify mod installation
