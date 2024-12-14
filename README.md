@@ -9,12 +9,23 @@ An AI assistant that enhances Crusader Kings III gameplay through intelligent ch
 2. Double-click CK3_AI_Assistant.exe to run
 
 ### Option 2: Running from Source
-1. **Install Python Dependencies**
+1. **Install Build Tools**
+```bash
+# Windows
+pip install wheel
+pip install --upgrade setuptools
+
+# For ta-lib
+# Download and install ta-lib: http://prdownloads.sourceforge.net/ta-lib/ta-lib-0.4.0-msvc.zip
+# Extract to C:\ta-lib
+```
+
+2. **Install Python Dependencies**
 ```bash
 pip install -r requirements.txt
 ```
 
-2. **Start the AI Assistant**
+3. **Start the AI Assistant**
 ```bash
 python main.py
 ```
