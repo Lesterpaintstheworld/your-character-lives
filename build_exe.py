@@ -8,7 +8,6 @@ PyInstaller.__main__.run([
     '--name', 'CK3_AI_Assistant',  # Separated name parameter
     '--add-data', 'prompts/*;prompts',
     '--add-data', 'documentation/*;documentation',
-    '--icon=assets/icon.ico',
     '--hidden-import=queue',
     '--hidden-import=pyttsx3.drivers',
     '--hidden-import=pyttsx3.drivers.sapi5',
