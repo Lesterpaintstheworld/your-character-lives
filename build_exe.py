@@ -4,11 +4,11 @@ import os
 PyInstaller.__main__.run([
     'main.py',
     '--onefile',
-    '--windowed',
-    '--name=CK3_AI_Assistant',
-    '--add-data=prompts/*;prompts',
-    '--add-data=documentation/*;documentation',
-    '--icon=assets/icon.ico',  # You'll need to create/add an icon file
+    '--noconsole',  # Changed from --windowed to --noconsole for Windows
+    '--name', 'CK3_AI_Assistant',  # Separated name parameter
+    '--add-data', 'prompts/*;prompts',
+    '--add-data', 'documentation/*;documentation',
+    '--icon=assets/icon.ico',
     '--hidden-import=queue',
     '--hidden-import=pyttsx3.drivers',
     '--hidden-import=pyttsx3.drivers.sapi5',
@@ -16,7 +16,7 @@ PyInstaller.__main__.run([
     '--hidden-import=pygame',
     '--hidden-import=PIL',
     '--hidden-import=requests',
-    '--hidden-import=dotenv',
+    '--hidden-import=python-dotenv',
     '--hidden-import=wave',
     '--hidden-import=numpy',
     '--hidden-import=tkinter',
