@@ -129,7 +129,7 @@ def mix_audio(mic_data, desktop_data):
 
 def record_audio(duration):
     """Record both microphone and desktop audio for a specified duration."""
-    update_status("🎤 Enregistrement en cours...")
+    update_status("🎤 Recording...")
     p = pyaudio.PyAudio()
     
     # Open microphone stream
@@ -198,7 +198,7 @@ def record_audio(duration):
             desktop_stream.close()
         p.terminate()
 
-    update_status("✅ Enregistrement terminé")
+    update_status("✅ Done")
     return wav_data
 
 import tkinter as tk
