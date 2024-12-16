@@ -46,7 +46,15 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
 # Set up logging
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+log_file = os.path.join(os.path.expanduser("~"), "CK3_AI_Assistant.log")
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.FileHandler(log_file),
+        logging.StreamHandler()
+    ]
+)
 
 # Vérification de la clé API
 if not OPENAI_API_KEY:
@@ -285,17 +293,37 @@ if __name__ == "__main__":
                         help=f"Screenshot interval in seconds (default: {DEFAULT_SCREENSHOT_INTERVAL})")
     args = parser.parse_args()
     
+    # Add startup logging
+    logging.info("Starting CK3 AI Assistant...")
+    
+    # Initialize UI first
     try:
+        logging.info("Initializing UI...")
         # Configurer la gestion de la fermeture
         root.protocol("WM_DELETE_WINDOW", on_closing)
         
+        # Add initial status message to UI
+        text_widget.insert(tk.END, "Initializing CK3 AI Assistant...\n")
+        root.update()
+        
+        logging.info("Starting API client thread...")
         # Lancer le client WebSocket dans un thread séparé
         api_thread = threading.Thread(target=lambda: asyncio.run(api_client(args.interval)))
         api_thread.daemon = True  # Marquer le thread comme daemon
         api_thread.start()
         
+        logging.info("Starting main UI loop...")
+        text_widget.insert(tk.END, "Ready! Waiting for game interaction...\n")
+        root.update()
+        
         # Lancer la boucle principale Tkinter
         root.mainloop()
+    except Exception as e:
+        logging.error(f"Startup error: {str(e)}")
+        # Show error in a simple messagebox since UI might not be ready
+        import tkinter.messagebox as messagebox
+        messagebox.showerror("Error", f"Failed to start: {str(e)}\nCheck the logs for details.")
+        sys.exit(1)
     except KeyboardInterrupt:
         logging.info("Program terminated by user")
         on_closing()
