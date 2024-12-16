@@ -1,8 +1,8 @@
 @echo off
 echo Installing build requirements...
-pip install wheel
-pip install --upgrade setuptools
-pip install pyinstaller
+pip install wheel==0.40.0
+pip install setuptools==65.5.1
+pip install pyinstaller==6.3.0
 
 echo Installing project dependencies...
 pip install -r requirements.txt
