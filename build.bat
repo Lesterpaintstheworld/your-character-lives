@@ -1,11 +1,11 @@
 @echo off
 echo Installing build requirements...
-pip install wheel==0.40.0
-pip install setuptools==65.5.1
-pip install pyinstaller==6.3.0
+pip install --user wheel==0.40.0
+pip install --user setuptools==65.5.1
+pip install --user pyinstaller==6.3.0
 
 echo Installing project dependencies...
-pip install -r requirements.txt
+pip install --user -r requirements.txt
 
 echo Building executable...
 python build_exe.py
