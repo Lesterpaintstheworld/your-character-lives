@@ -11,6 +11,7 @@ from PIL import Image
 import base64
 import json
 import os
+import sys
 from dotenv import load_dotenv
 import pyaudio
 import wave
@@ -50,7 +51,7 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 # Vérification de la clé API
 if not OPENAI_API_KEY:
     logging.error("La clé API OpenAI n'est pas définie. Veuillez la configurer dans le fichier .env")
-    exit(1)
+    sys.exit(1)
 
 # Affichage des premiers et derniers caractères de la clé API pour vérification
 logging.info(f"Clé API chargée : sk-...{OPENAI_API_KEY[-4:]}")
@@ -58,7 +59,7 @@ logging.info(f"Clé API chargée : sk-...{OPENAI_API_KEY[-4:]}")
 # Vérification supplémentaire de la clé API
 if not OPENAI_API_KEY.startswith("sk-"):
     logging.error("La clé API OpenAI semble invalide. Assurez-vous qu'elle commence par 'sk-'")
-    exit(1)
+    sys.exit(1)
 
 
 def take_screenshot():
@@ -218,6 +219,7 @@ def on_closing():
     logging.info("Shutting down application...")
     root.quit()
     root.destroy()
+    sys.exit(0)
 
 
 async def api_client(interval):
