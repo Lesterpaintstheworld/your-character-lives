@@ -108,19 +108,39 @@ def get_input_device():
     try:
         # Liste tous les périphériques audio
         logging.info("Scanning audio devices...")
+        devices_info = []
         for i in range(p.get_device_count()):
-            device_info = p.get_device_info_by_index(i)
-            logging.info(f"Device {i}: {device_info['name']}, inputs: {device_info['maxInputChannels']}")
-            
-            # Cherche un périphérique d'entrée valide
-            if device_info['maxInputChannels'] > 0:
-                input_device = i
-                logging.info(f"Selected input device: {device_info['name']}")
-                break
+            try:
+                device_info = p.get_device_info_by_index(i)
+                devices_info.append(f"Device {i}: {device_info['name']}, inputs: {device_info['maxInputChannels']}")
+                
+                # Cherche un périphérique d'entrée valide
+                if device_info['maxInputChannels'] > 0:
+                    # Test if device is actually accessible
+                    try:
+                        test_stream = p.open(
+                            format=FORMAT,
+                            channels=CHANNELS,
+                            rate=RATE,
+                            input=True,
+                            input_device_index=i,
+                            frames_per_buffer=CHUNK,
+                            start=False
+                        )
+                        test_stream.close()
+                        input_device = i
+                        logging.info(f"Selected input device: {device_info['name']}")
+                        break
+                    except Exception as e:
+                        logging.warning(f"Device {i} not usable: {e}")
+                        continue
+            except Exception as e:
+                logging.warning(f"Error querying device {i}: {e}")
+                continue
                 
         if input_device is None:
-            logging.error("No input device found!")
-            raise Exception("No microphone or input device detected")
+            logging.error("Available devices:\n" + "\n".join(devices_info))
+            raise Exception("No working microphone or input device detected")
             
         return input_device
         
@@ -130,6 +150,9 @@ def get_input_device():
 def record_audio(duration):
     """Record audio with improved error handling."""
     update_status("🎤 Initializing audio...")
+    
+    p = None
+    stream = None
     
     try:
         # Vérifier le périphérique d'entrée
@@ -145,40 +168,33 @@ def record_audio(duration):
                        input_device_index=input_device,
                        frames_per_buffer=CHUNK)
 
-        # Find loopback device index
-        loopback_index = None
-        for i in range(p.get_device_count()):
-            device_info = p.get_device_info_by_index(i)
-            if 'Stereo Mix' in device_info['name'] or 'Loopback' in device_info['name']:
-                loopback_index = i
-                break
-        
-        # Open desktop audio stream if available
-        if loopback_index is not None:
-            desktop_stream = p.open(format=FORMAT,
-                                  channels=CHANNELS,
-                                  rate=RATE,
-                                  input=True,
-                                  input_device_index=loopback_index,
-                                  frames_per_buffer=CHUNK)
-            logging.info("Desktop audio capture enabled")
-        else:
-            logging.warning("Loopback device not found. Recording microphone only.")
-            desktop_stream = None
-
         logging.info(f"Recording for {duration} seconds...")
         frames = []
 
         update_status("🎤 Recording...")
-        frames = []
         
         for i in range(0, int(RATE / CHUNK * duration)):
             try:
                 data = stream.read(CHUNK, exception_on_overflow=False)
                 frames.append(data)
+            except OSError as e:
+                logging.error(f"OSError during recording: {e}")
+                # Try to recover by reopening the stream
+                try:
+                    if stream:
+                        stream.close()
+                    stream = p.open(format=FORMAT,
+                                  channels=CHANNELS,
+                                  rate=RATE,
+                                  input=True,
+                                  input_device_index=input_device,
+                                  frames_per_buffer=CHUNK)
+                    continue
+                except Exception as e2:
+                    logging.error(f"Failed to recover from recording error: {e2}")
+                    raise
             except Exception as e:
                 logging.error(f"Error during recording: {e}")
-                update_status("❌ Recording error")
                 raise
         
         # Créer le buffer WAV
@@ -205,15 +221,17 @@ def record_audio(duration):
         return empty_buffer.getvalue()
         
     finally:
-        try:
-            stream.stop_stream()
-            stream.close()
-        except:
-            pass
-        try:
-            p.terminate()
-        except:
-            pass
+        if stream:
+            try:
+                stream.stop_stream()
+                stream.close()
+            except Exception as e:
+                logging.error(f"Error closing stream: {e}")
+        if p:
+            try:
+                p.terminate()
+            except Exception as e:
+                logging.error(f"Error terminating PyAudio: {e}")
 
 import tkinter as tk
 from tkinter import scrolledtext
