@@ -4,10 +4,11 @@ import os
 PyInstaller.__main__.run([
     'main.py',
     '--onefile',
-    '--noconsole',  # Changed from --windowed to --noconsole for Windows
-    '--name', 'CK3_AI_Assistant',  # Separated name parameter
+    '--noconsole',
+    '--name', 'CK3_AI_Assistant',
     '--add-data', 'prompts/*;prompts',
     '--add-data', 'documentation/*;documentation',
+    '--add-data', '.env;.',  # Add .env file
     '--log-level=DEBUG',
     '--hidden-import=queue',
     '--hidden-import=pyttsx3.drivers',
@@ -21,4 +22,9 @@ PyInstaller.__main__.run([
     '--hidden-import=numpy',
     '--hidden-import=tkinter',
     '--hidden-import=asyncio',
+    '--hidden-import=io',
+    '--hidden-import=threading',
+    '--hidden-import=logging',
+    '--hidden-import=argparse',
+    '--icon', 'icon.ico'  # Optional: add icon if you have one
 ])
