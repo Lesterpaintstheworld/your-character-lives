@@ -1,5 +1,7 @@
 """Audio recording and playback management"""
 
+import os
+import asyncio
 import pyaudio
 import wave
 import pygame
