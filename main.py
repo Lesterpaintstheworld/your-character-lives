@@ -31,7 +31,7 @@ CHANNELS = 1
 RATE = 24000
 DEFAULT_SCREENSHOT_INTERVAL = 30
 REQUEST_TIMEOUT = 120
-API_ENDPOINT = "https://api.openai.com/v1/audio/speech"
+API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
 # Load environment variables and initialize configuration
 load_dotenv()
@@ -235,11 +235,6 @@ def on_closing():
 async def api_client(interval):
     global running
     
-    # Faire le premier enregistrement audio avant de commencer la boucle
-    logging.info("Starting initial 15-second recording...")
-    previous_audio = record_audio(15)  # Premier enregistrement de 15 secondes
-    logging.info("Initial recording completed")
-    
     while running:
         try:
             # Capture d'écran
@@ -247,42 +242,32 @@ async def api_client(interval):
             screenshot_data = take_screenshot()
             logging.info("Capture d'écran terminée")
             
-            # Préparation des données pour l'API
+            # Enregistrement audio
+            logging.info("Starting 15-second recording...")
+            audio_data = record_audio(15)
+            logging.info("Recording completed")
+
+            # Préparation des données pour n8n
             files = {
                 'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
-                'audio': ('audio.wav', previous_audio, 'audio/wav')  # On aura toujours de l'audio
+                'audio': ('audio.wav', audio_data, 'audio/wav')
             }
 
-            # Envoi de la requête à l'API
-            logging.info("Envoi des données à l'API")
+            # Envoi à n8n
+            logging.info("Envoi des données à n8n")
+            response = requests.post(
+                "https://nlr.app.n8n.cloud/webhook/ycl-enpoint",
+                files=files,
+                timeout=REQUEST_TIMEOUT
+            )
+            response.raise_for_status()
             
-            try:
-                response = requests.post(
-                    API_ENDPOINT,
-                    files=files,
-                    headers={
-                        'Authorization': f'Bearer {config.OPENAI_API_KEY}',
-                        'Content-Type': 'multipart/form-data',
-                        'User-Agent': 'CK3-AI-Character/1.0'
-                    },
-                    timeout=REQUEST_TIMEOUT
-                )
-                response.raise_for_status()
-                
-                # Jouer l'audio reçu
-                await process_audio_chunk(response.content)
-                logging.info("Audio response played")
-                
-                # Enregistrer l'audio pour la prochaine requête
-                logging.info("Starting 15-second recording...")
-                previous_audio = record_audio(15)  # 15 secondes d'enregistrement
-                logging.info("Recording completed")
-                
-            except requests.exceptions.RequestException as e:
-                logging.error(f"Erreur de requête: {e}")
-                root.after(0, lambda e=e: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
-                await asyncio.sleep(5)  # Courte pause avant de réessayer
-                continue
+            # Traiter la réponse audio
+            await process_audio_chunk(response.content)
+            logging.info("Audio response played")
+
+            # Attendre l'intervalle configuré
+            await asyncio.sleep(interval)
             
         except Exception as e:
             logging.error(f"Une erreur est survenue: {e}")
