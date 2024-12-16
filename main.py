@@ -7,6 +7,22 @@ import io
 import wave
 import threading
 from pathlib import Path
+from tkinter import messagebox
+
+def initialize_audio():
+    """Test audio setup and return True if successful"""
+    try:
+        input_device = get_input_device()
+        logging.info(f"Audio input device found: {input_device}")
+        return True
+    except Exception as e:
+        logging.error(f"Audio initialization failed: {e}")
+        messagebox.showwarning(
+            "Audio Setup Warning",
+            "No microphone detected or audio error occurred. The application will continue but audio recording may not work.\n\n"
+            f"Error: {str(e)}"
+        )
+        return False
 
 # Global control variable
 running = True
@@ -308,43 +324,33 @@ if __name__ == "__main__":
                         help=f"Screenshot interval in seconds (default: {DEFAULT_SCREENSHOT_INTERVAL})")
     args = parser.parse_args()
     
-    # Vérifier l'audio au démarrage
-    try:
-        input_device = get_input_device()
-        logging.info(f"Audio input device found: {input_device}")
-    except Exception as e:
-        logging.error(f"Audio initialization failed: {e}")
-        import tkinter.messagebox as messagebox
-        messagebox.showwarning(
-            "Audio Setup Warning",
-            "No microphone detected. Please connect a microphone and restart the application."
-        )
-        sys.exit(1)
-    
-    # Add startup logging
+    # Initialize logging first
     logging.info("Starting CK3 AI Assistant...")
     
-    # Initialize UI first
+    # Initialize UI
     try:
         logging.info("Initializing UI...")
-        # Configurer la gestion de la fermeture
         root.protocol("WM_DELETE_WINDOW", on_closing)
-        
-        # Add initial status message to UI
         text_widget.insert(tk.END, "Initializing CK3 AI Assistant...\n")
         root.update()
         
+        # Test audio but don't exit if it fails
+        audio_ok = initialize_audio()
+        if audio_ok:
+            text_widget.insert(tk.END, "Audio initialization successful\n")
+        else:
+            text_widget.insert(tk.END, "Audio initialization failed - continuing without audio\n")
+        root.update()
+        
         logging.info("Starting API client thread...")
-        # Lancer le client WebSocket dans un thread séparé
         api_thread = threading.Thread(target=lambda: asyncio.run(api_client(args.interval)))
-        api_thread.daemon = True  # Marquer le thread comme daemon
+        api_thread.daemon = True
         api_thread.start()
         
         logging.info("Starting main UI loop...")
         text_widget.insert(tk.END, "Ready! Waiting for game interaction...\n")
         root.update()
         
-        # Lancer la boucle principale Tkinter
         root.mainloop()
     except Exception as e:
         logging.error(f"Startup error: {str(e)}")
