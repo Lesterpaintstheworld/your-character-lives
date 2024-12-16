@@ -46,11 +46,21 @@ OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
 def setup_logging():
-    """Set up logging with multiple fallback locations"""
+    """Set up logging with executable directory as primary location"""
+    
+    # Déterminer le dossier de l'exécutable
+    if getattr(sys, 'frozen', False):
+        # Si c'est un exe compilé avec PyInstaller
+        exe_dir = os.path.dirname(sys.executable)
+    else:
+        # Si c'est le script Python
+        exe_dir = os.getcwd()
+    
+    # Liste des emplacements possibles, avec le dossier exe en premier
     possible_locations = [
+        os.path.join(exe_dir, 'CK3_AI_Assistant.log'),  # Dossier de l'exe en premier
         os.path.join(os.path.expanduser('~'), 'CK3_AI_Assistant.log'),  # Home directory
         os.path.join(os.path.expanduser('~'), 'Desktop', 'CK3_AI_Assistant.log'),  # Desktop
-        os.path.join(os.getcwd(), 'CK3_AI_Assistant.log'),  # Current directory
         os.path.join(os.environ.get('TEMP', ''), 'CK3_AI_Assistant.log'),  # Temp directory
     ]
 
@@ -69,29 +79,14 @@ def setup_logging():
         except Exception as e:
             continue
 
-    # Si aucun emplacement ne fonctionne, essayer de créer un fichier dans le dossier de l'exécutable
-    try:
-        exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
-        last_resort_path = os.path.join(exe_dir, 'CK3_AI_Assistant.log')
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[
-                logging.FileHandler(last_resort_path),
-                logging.StreamHandler()
-            ]
-        )
-        logging.info(f"Log file created at last resort location: {last_resort_path}")
-        return last_resort_path
-    except Exception as e:
-        # Si même cela échoue, configurer uniquement le logging console
-        logging.basicConfig(
-            level=logging.DEBUG,
-            format='%(asctime)s - %(levelname)s - %(message)s',
-            handlers=[logging.StreamHandler()]
-        )
-        logging.error(f"Failed to create log file in any location. Error: {e}")
-        return None
+    # Si aucun emplacement ne fonctionne, utiliser uniquement le logging console
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(levelname)s - %(message)s',
+        handlers=[logging.StreamHandler()]
+    )
+    logging.warning("Running with console logging only - could not create log file")
+    return None
 
 # Initialize logging
 log_file_path = setup_logging()
