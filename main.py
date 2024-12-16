@@ -31,7 +31,7 @@ CHANNELS = 1
 RATE = 24000
 DEFAULT_SCREENSHOT_INTERVAL = 30
 REQUEST_TIMEOUT = 120
-N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
+API_ENDPOINT = "https://api.openai.com/v1/audio/speech"
 
 # Load environment variables and initialize configuration
 load_dotenv()
@@ -61,36 +61,26 @@ engine = pyttsx3.init()
 engine.setProperty('rate', 150)  # Speech rate (default is 200)
 engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
-async def process_audio_chunk(response_data):
+async def process_audio_chunk(audio_data: bytes):
     """Process and play audio data."""
     try:
-        # Sauvegarder temporairement l'audio
+        # Save and play audio
         temp_file = 'temp_audio.mp3'
         with open(temp_file, 'wb') as f:
-            if isinstance(response_data, bytes):
-                f.write(response_data)
-            else:
-                f.write(response_data.encode())
+            f.write(audio_data)
         
-        # Initialiser pygame pour la lecture audio
         pygame.mixer.init()
         pygame.mixer.music.load(temp_file)
         pygame.mixer.music.play()
         
-        # Attendre la fin de la lecture
         while pygame.mixer.music.get_busy():
             await asyncio.sleep(0.1)
-        
-        # Nettoyer
+            
         pygame.mixer.music.unload()
         os.remove(temp_file)
-            
+        
     except Exception as e:
-        logging.error(f"Erreur lors du traitement de l'audio: {e}")
-        if isinstance(response_data, bytes):
-            logging.error(f"Taille des données reçues: {len(response_data)} bytes")
-        else:
-            logging.error(f"Type de données reçues: {type(response_data)}")
+        logging.error(f"Error playing audio: {e}")
 
 def update_status(message):
     """Update status in UI"""
@@ -263,14 +253,18 @@ async def api_client(interval):
                 'audio': ('audio.wav', previous_audio, 'audio/wav')  # On aura toujours de l'audio
             }
 
-            # Envoi de la requête à n8n
-            logging.info("Envoi des données à n8n")
+            # Envoi de la requête à l'API
+            logging.info("Envoi des données à l'API")
             
             try:
                 response = requests.post(
-                    N8N_ENDPOINT,
+                    API_ENDPOINT,
                     files=files,
-                    headers={'User-Agent': 'CK3-AI-Character/1.0'},
+                    headers={
+                        'Authorization': f'Bearer {config.OPENAI_API_KEY}',
+                        'Content-Type': 'multipart/form-data',
+                        'User-Agent': 'CK3-AI-Character/1.0'
+                    },
                     timeout=REQUEST_TIMEOUT
                 )
                 response.raise_for_status()
