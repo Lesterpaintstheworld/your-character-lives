@@ -26,6 +26,14 @@ class Config:
 
     def validate(self):
         """Validate configuration settings"""
+        if not isinstance(self.SCREENSHOT_INTERVAL, int) or self.SCREENSHOT_INTERVAL <= 0:
+            raise ValueError("Invalid screenshot interval")
+        if not isinstance(self.AUDIO_FORMAT, int):
+            raise ValueError("Invalid audio format")
+        if not isinstance(self.CHANNELS, int) or self.CHANNELS <= 0:
+            raise ValueError("Invalid number of channels")
+        if not isinstance(self.SAMPLE_RATE, int) or self.SAMPLE_RATE <= 0:
+            raise ValueError("Invalid sample rate")
         if not self.OPENAI_API_KEY:
             raise ValueError("OpenAI API key not found in environment")
         if not self.OPENAI_API_KEY.startswith("sk-"):

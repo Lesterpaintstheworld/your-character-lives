@@ -2,10 +2,8 @@ requests==2.32.3
 pyautogui==0.9.54
 Pillow==10.4.0
 python-dotenv==1.0.1
-PyAudio
+PyAudio==0.2.13
 asyncio==3.4.3
-argparse
+argparse==1.4.0
 pyttsx3==2.90
-pygame
-ccxt==4.1.13
-# ta-lib==0.4.28  # Temporarily commented out
+pygame==2.5.2

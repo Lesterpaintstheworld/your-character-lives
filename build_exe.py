@@ -20,4 +20,5 @@ PyInstaller.__main__.run([
     '--hidden-import=wave',
     '--hidden-import=numpy',
     '--hidden-import=tkinter',
+    '--hidden-import=asyncio',
 ])

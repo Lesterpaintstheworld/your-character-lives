@@ -19,23 +19,16 @@ from config import Config
 from audio_manager import AudioManager
 
 
-# Load environment variables
+from log_manager import LogManager
+from config import Config
+
+# Load environment variables and initialize configuration
 load_dotenv()
+config = Config()
+log_manager = LogManager()
+logger = log_manager.get_logger(__name__)
 
-# Audio recording constants
-CHUNK = 1024
-FORMAT = pyaudio.paInt16
-CHANNELS = 1
-RATE = 24000  # 24kHz as required by the API
-
-
-
-# Configuration
-DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
-REQUEST_TIMEOUT = 120  # Timeout in seconds for API requests
-N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
-
-def setup_logging():
+def initialize_app():
     """Set up logging with executable directory as primary location"""
     
     # Déterminer le dossier de l'exécutable
