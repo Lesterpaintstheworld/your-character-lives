@@ -180,17 +180,49 @@ def mix_audio(mic_data, desktop_data):
     mixed = (mic_array * 0.7 + desktop_array * 0.3).astype(np.int16)
     return mixed.tobytes()
 
-def record_audio(duration):
-    """Record both microphone and desktop audio for a specified duration."""
-    update_status("🎤 Recording...")
+def get_input_device():
+    """Find and verify the input audio device."""
     p = pyaudio.PyAudio()
+    input_device = None
     
-    # Open microphone stream
-    mic_stream = p.open(format=FORMAT,
+    try:
+        # Liste tous les périphériques audio
+        logging.info("Scanning audio devices...")
+        for i in range(p.get_device_count()):
+            device_info = p.get_device_info_by_index(i)
+            logging.info(f"Device {i}: {device_info['name']}, inputs: {device_info['maxInputChannels']}")
+            
+            # Cherche un périphérique d'entrée valide
+            if device_info['maxInputChannels'] > 0:
+                input_device = i
+                logging.info(f"Selected input device: {device_info['name']}")
+                break
+                
+        if input_device is None:
+            logging.error("No input device found!")
+            raise Exception("No microphone or input device detected")
+            
+        return input_device
+        
+    finally:
+        p.terminate()
+
+def record_audio(duration):
+    """Record audio with improved error handling."""
+    update_status("🎤 Initializing audio...")
+    
+    try:
+        # Vérifier le périphérique d'entrée
+        input_device = get_input_device()
+        
+        p = pyaudio.PyAudio()
+        
+        # Ouvrir le flux audio avec le périphérique sélectionné
+        stream = p.open(format=FORMAT,
                        channels=CHANNELS,
                        rate=RATE,
                        input=True,
-                       input_device_index=None,  # Default microphone
+                       input_device_index=input_device,
                        frames_per_buffer=CHUNK)
     
     # Find loopback device index
@@ -217,42 +249,51 @@ def record_audio(duration):
     logging.info(f"Recording for {duration} seconds...")
     frames = []
 
-    try:
+        update_status("🎤 Recording...")
+        frames = []
+        
         for i in range(0, int(RATE / CHUNK * duration)):
-            # Record microphone
-            mic_data = mic_stream.read(CHUNK, exception_on_overflow=False)
-            
-            # Record and mix desktop audio if available
-            if desktop_stream:
-                desktop_data = desktop_stream.read(CHUNK, exception_on_overflow=False)
-                frames.append(mix_audio(mic_data, desktop_data))
-            else:
-                frames.append(mic_data)
+            try:
+                data = stream.read(CHUNK, exception_on_overflow=False)
+                frames.append(data)
+            except Exception as e:
+                logging.error(f"Error during recording: {e}")
+                update_status("❌ Recording error")
+                raise
         
-        logging.info("Recording finished")
-        
-        # Create temporary WAV buffer
+        # Créer le buffer WAV
         wav_buffer = io.BytesIO()
-        
         with wave.open(wav_buffer, 'wb') as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(p.get_sample_size(FORMAT))
             wf.setframerate(RATE)
             wf.writeframes(b''.join(frames))
         
-        wav_data = wav_buffer.getvalue()
+        update_status("✅ Recording complete")
+        return wav_buffer.getvalue()
+        
+    except Exception as e:
+        logging.error(f"Failed to record audio: {e}")
+        update_status(f"❌ Audio recording failed: {str(e)}")
+        # Retourner un fichier audio vide plutôt que de planter
+        empty_buffer = io.BytesIO()
+        with wave.open(empty_buffer, 'wb') as wf:
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(2)  # 16-bit
+            wf.setframerate(RATE)
+            wf.writeframes(b'\x00' * RATE)  # 1 seconde de silence
+        return empty_buffer.getvalue()
         
     finally:
-        # Cleanup
-        mic_stream.stop_stream()
-        mic_stream.close()
-        if desktop_stream:
-            desktop_stream.stop_stream()
-            desktop_stream.close()
-        p.terminate()
-
-    update_status("✅ Done")
-    return wav_data
+        try:
+            stream.stop_stream()
+            stream.close()
+        except:
+            pass
+        try:
+            p.terminate()
+        except:
+            pass
 
 import tkinter as tk
 from tkinter import scrolledtext
@@ -336,6 +377,19 @@ if __name__ == "__main__":
     parser.add_argument("--interval", type=int, default=DEFAULT_SCREENSHOT_INTERVAL,
                         help=f"Screenshot interval in seconds (default: {DEFAULT_SCREENSHOT_INTERVAL})")
     args = parser.parse_args()
+    
+    # Vérifier l'audio au démarrage
+    try:
+        input_device = get_input_device()
+        logging.info(f"Audio input device found: {input_device}")
+    except Exception as e:
+        logging.error(f"Audio initialization failed: {e}")
+        import tkinter.messagebox as messagebox
+        messagebox.showwarning(
+            "Audio Setup Warning",
+            "No microphone detected. Please connect a microphone and restart the application."
+        )
+        sys.exit(1)
     
     # Add startup logging
     logging.info("Starting CK3 AI Assistant...")
