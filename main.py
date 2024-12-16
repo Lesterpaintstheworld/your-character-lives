@@ -44,7 +44,6 @@ RATE = 24000  # 24kHz as required by the API
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 REQUEST_TIMEOUT = 120  # Timeout in seconds for API requests
-OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
 def setup_logging():
@@ -97,18 +96,6 @@ if log_file_path:
 else:
     logging.warning("Running with console logging only - could not create log file")
 
-# Vérification de la clé API
-if not OPENAI_API_KEY:
-    logging.error("La clé API OpenAI n'est pas définie. Veuillez la configurer dans le fichier .env")
-    sys.exit(1)
-
-# Affichage des premiers et derniers caractères de la clé API pour vérification
-logging.info(f"Clé API chargée : sk-...{OPENAI_API_KEY[-4:]}")
-
-# Vérification supplémentaire de la clé API
-if not OPENAI_API_KEY.startswith("sk-"):
-    logging.error("La clé API OpenAI semble invalide. Assurez-vous qu'elle commence par 'sk-'")
-    sys.exit(1)
 
 
 def take_screenshot():
