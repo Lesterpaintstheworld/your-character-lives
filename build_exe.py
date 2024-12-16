@@ -18,6 +18,5 @@ PyInstaller.__main__.run([
     '--hidden-import=io',
     '--hidden-import=threading',
     '--hidden-import=logging',
-    '--hidden-import=argparse',
-    '--icon', 'icon.ico'  # Optional: add icon if you have one
+    '--hidden-import=argparse'
 ])
