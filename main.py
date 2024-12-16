@@ -18,18 +18,7 @@ from dotenv import load_dotenv
 from config import Config
 from audio_manager import AudioManager
 
-class CK3AIAssistant:
-    def __init__(self):
-        self.running = True
-        self.config = Config()
-        self.setup_logging()
-        self.setup_ui()
-        self.audio_manager = None  # Initialized in run()
 
-# Initialize text-to-speech engine
-engine = pyttsx3.init()
-engine.setProperty('rate', 150)  # Speech rate (default is 200)
-engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 # Load environment variables
 load_dotenv()
 
