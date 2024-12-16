@@ -1,28 +1,23 @@
 import asyncio
-import requests
-import pyautogui
-import io
-import pyttsx3
-import pygame
-import os
 import logging
 import argparse
-from PIL import Image
-import base64
-import json
-import os
 import sys
-from dotenv import load_dotenv
-import pyaudio
-import wave
-import difflib
-from datetime import datetime
-import threading
-import queue
 import tkinter as tk
-from tkinter import scrolledtext
+from tkinter import scrolledtext, messagebox
+from PIL import Image
+import pyautogui
+import requests
+from dotenv import load_dotenv
+from config import Config
+from audio_manager import AudioManager
 
-running = True  # Global control variable
+class CK3AIAssistant:
+    def __init__(self):
+        self.running = True
+        self.config = Config()
+        self.setup_logging()
+        self.setup_ui()
+        self.audio_manager = None  # Initialized in run()
 
 # Initialize text-to-speech engine
 engine = pyttsx3.init()
