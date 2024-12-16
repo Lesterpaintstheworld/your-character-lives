@@ -1,26 +1,21 @@
-import os
-import io
-import wave
 import asyncio
 import logging
 import argparse
 import sys
-import threading
+from pathlib import Path
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 from PIL import Image
 import pyautogui
 import requests
-import pyaudio
-import pygame
-import pyttsx3
 from dotenv import load_dotenv
+
 from config import Config
 from audio_manager import AudioManager
-
-
 from log_manager import LogManager
-from config import Config
+from event_manager import EventManager
+from thread_manager import ThreadManager
+from constants import AudioConstants, NetworkConstants, UIConstants
 
 # Audio constants
 CHUNK = 1024
