@@ -224,30 +224,30 @@ def record_audio(duration):
                        input=True,
                        input_device_index=input_device,
                        frames_per_buffer=CHUNK)
-    
-    # Find loopback device index
-    loopback_index = None
-    for i in range(p.get_device_count()):
-        device_info = p.get_device_info_by_index(i)
-        if 'Stereo Mix' in device_info['name'] or 'Loopback' in device_info['name']:
-            loopback_index = i
-            break
-    
-    # Open desktop audio stream if available
-    if loopback_index is not None:
-        desktop_stream = p.open(format=FORMAT,
-                              channels=CHANNELS,
-                              rate=RATE,
-                              input=True,
-                              input_device_index=loopback_index,
-                              frames_per_buffer=CHUNK)
-        logging.info("Desktop audio capture enabled")
-    else:
-        logging.warning("Loopback device not found. Recording microphone only.")
-        desktop_stream = None
 
-    logging.info(f"Recording for {duration} seconds...")
-    frames = []
+        # Find loopback device index
+        loopback_index = None
+        for i in range(p.get_device_count()):
+            device_info = p.get_device_info_by_index(i)
+            if 'Stereo Mix' in device_info['name'] or 'Loopback' in device_info['name']:
+                loopback_index = i
+                break
+        
+        # Open desktop audio stream if available
+        if loopback_index is not None:
+            desktop_stream = p.open(format=FORMAT,
+                                  channels=CHANNELS,
+                                  rate=RATE,
+                                  input=True,
+                                  input_device_index=loopback_index,
+                                  frames_per_buffer=CHUNK)
+            logging.info("Desktop audio capture enabled")
+        else:
+            logging.warning("Loopback device not found. Recording microphone only.")
+            desktop_stream = None
+
+        logging.info(f"Recording for {duration} seconds...")
+        frames = []
 
         update_status("🎤 Recording...")
         frames = []
