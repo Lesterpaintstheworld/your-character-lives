@@ -7,6 +7,12 @@ PyInstaller.__main__.run([
     '--name', 'CK3_AI_Assistant',
     '--log-level=DEBUG',
     '--exclude-module', 'PyQt6',
+    '--exclude-module', 'matplotlib_inline',
+    '--exclude-module', 'IPython',
+    '--exclude-module', 'jupyter',
+    '--exclude-module', 'nbconvert',
+    '--exclude-module', 'nbformat',
+    '--exclude-module', 'notebook',
     '--hidden-import=queue',
     '--hidden-import=pyaudio',
     '--hidden-import=pygame',
@@ -19,5 +25,6 @@ PyInstaller.__main__.run([
     '--hidden-import=io',
     '--hidden-import=threading',
     '--hidden-import=logging',
-    '--hidden-import=argparse'
+    '--hidden-import=argparse',
+    '--clean'
 ])
