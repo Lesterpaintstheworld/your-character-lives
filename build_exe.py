@@ -6,6 +6,7 @@ PyInstaller.__main__.run([
     '--noconsole',
     '--name', 'CK3_AI_Assistant',
     '--log-level=DEBUG',
+    '--exclude-module', 'PyQt6',
     '--hidden-import=queue',
     '--hidden-import=pyaudio',
     '--hidden-import=pygame',
