@@ -45,16 +45,60 @@ REQUEST_TIMEOUT = 120  # Timeout in seconds for API requests
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
-# Set up logging
-log_file = os.path.join(os.path.expanduser("~"), "CK3_AI_Assistant.log")
-logging.basicConfig(
-    level=logging.INFO,
-    format='%(asctime)s - %(levelname)s - %(message)s',
-    handlers=[
-        logging.FileHandler(log_file),
-        logging.StreamHandler()
+def setup_logging():
+    """Set up logging with multiple fallback locations"""
+    possible_locations = [
+        os.path.join(os.path.expanduser('~'), 'CK3_AI_Assistant.log'),  # Home directory
+        os.path.join(os.path.expanduser('~'), 'Desktop', 'CK3_AI_Assistant.log'),  # Desktop
+        os.path.join(os.getcwd(), 'CK3_AI_Assistant.log'),  # Current directory
+        os.path.join(os.environ.get('TEMP', ''), 'CK3_AI_Assistant.log'),  # Temp directory
     ]
-)
+
+    for log_path in possible_locations:
+        try:
+            logging.basicConfig(
+                level=logging.DEBUG,
+                format='%(asctime)s - %(levelname)s - %(message)s',
+                handlers=[
+                    logging.FileHandler(log_path),
+                    logging.StreamHandler()
+                ]
+            )
+            logging.info(f"Log file created at: {log_path}")
+            return log_path
+        except Exception as e:
+            continue
+
+    # Si aucun emplacement ne fonctionne, essayer de créer un fichier dans le dossier de l'exécutable
+    try:
+        exe_dir = os.path.dirname(sys.executable) if getattr(sys, 'frozen', False) else os.getcwd()
+        last_resort_path = os.path.join(exe_dir, 'CK3_AI_Assistant.log')
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[
+                logging.FileHandler(last_resort_path),
+                logging.StreamHandler()
+            ]
+        )
+        logging.info(f"Log file created at last resort location: {last_resort_path}")
+        return last_resort_path
+    except Exception as e:
+        # Si même cela échoue, configurer uniquement le logging console
+        logging.basicConfig(
+            level=logging.DEBUG,
+            format='%(asctime)s - %(levelname)s - %(message)s',
+            handlers=[logging.StreamHandler()]
+        )
+        logging.error(f"Failed to create log file in any location. Error: {e}")
+        return None
+
+# Initialize logging
+log_file_path = setup_logging()
+if log_file_path:
+    logging.info(f"Logging initialized at: {log_file_path}")
+else:
+    logging.warning("Running with console logging only - could not create log file")
 
 # Vérification de la clé API
 if not OPENAI_API_KEY:
