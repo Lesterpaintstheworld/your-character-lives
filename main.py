@@ -22,19 +22,20 @@ from audio_manager import AudioManager
 from log_manager import LogManager
 from config import Config
 
+# Audio constants
+CHUNK = 1024
+FORMAT = pyaudio.paInt16
+CHANNELS = 1
+RATE = 24000
+DEFAULT_SCREENSHOT_INTERVAL = 30
+REQUEST_TIMEOUT = 120
+N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
+
 # Load environment variables and initialize configuration
 load_dotenv()
 config = Config()
 log_manager = LogManager()
 logger = log_manager.get_logger(__name__)
-
-
-# Initialize logging
-log_file_path = setup_logging()
-if log_file_path:
-    logging.info(f"Logging initialized at: {log_file_path}")
-else:
-    logging.warning("Running with console logging only - could not create log file")
 
 
 
