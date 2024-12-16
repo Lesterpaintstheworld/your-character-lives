@@ -28,48 +28,6 @@ config = Config()
 log_manager = LogManager()
 logger = log_manager.get_logger(__name__)
 
-def initialize_app():
-    """Set up logging with executable directory as primary location"""
-    
-    # Déterminer le dossier de l'exécutable
-    if getattr(sys, 'frozen', False):
-        # Si c'est un exe compilé avec PyInstaller
-        exe_dir = os.path.dirname(sys.executable)
-    else:
-        # Si c'est le script Python
-        exe_dir = os.getcwd()
-    
-    # Liste des emplacements possibles, avec le dossier exe en premier
-    possible_locations = [
-        os.path.join(exe_dir, 'CK3_AI_Assistant.log'),  # Dossier de l'exe en premier
-        os.path.join(os.path.expanduser('~'), 'CK3_AI_Assistant.log'),  # Home directory
-        os.path.join(os.path.expanduser('~'), 'Desktop', 'CK3_AI_Assistant.log'),  # Desktop
-        os.path.join(os.environ.get('TEMP', ''), 'CK3_AI_Assistant.log'),  # Temp directory
-    ]
-
-    for log_path in possible_locations:
-        try:
-            logging.basicConfig(
-                level=logging.DEBUG,
-                format='%(asctime)s - %(levelname)s - %(message)s',
-                handlers=[
-                    logging.FileHandler(log_path),
-                    logging.StreamHandler()
-                ]
-            )
-            logging.info(f"Log file created at: {log_path}")
-            return log_path
-        except Exception as e:
-            continue
-
-    # Si aucun emplacement ne fonctionne, utiliser uniquement le logging console
-    logging.basicConfig(
-        level=logging.DEBUG,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[logging.StreamHandler()]
-    )
-    logging.warning("Running with console logging only - could not create log file")
-    return None
 
 # Initialize logging
 log_file_path = setup_logging()
