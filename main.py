@@ -7,6 +7,9 @@ import io
 import wave
 import threading
 from pathlib import Path
+
+# Global control variable
+running = True
 import tkinter as tk
 from tkinter import scrolledtext, messagebox
 from PIL import Image
@@ -237,6 +240,8 @@ async def api_client(interval):
     
     while running:
         try:
+            update_status("Starting new recording cycle...")
+            
             # Capture d'écran
             logging.info("Capture d'écran en cours")
             screenshot_data = take_screenshot()
@@ -244,6 +249,7 @@ async def api_client(interval):
             
             # Enregistrement audio
             logging.info("Starting 15-second recording...")
+            update_status("Recording audio...")
             audio_data = record_audio(15)
             logging.info("Recording completed")
 
