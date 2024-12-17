@@ -27,7 +27,8 @@ def initialize_audio():
 # Global control variable
 running = True
 import tkinter as tk
-from tkinter import scrolledtext, messagebox
+from tkinter import scrolledtext, messagebox, ttk
+import re
 from PIL import Image
 import pyautogui
 import requests
@@ -115,6 +116,24 @@ def mix_audio(mic_data, desktop_data):
     # Mix the two sources (70% mic, 30% desktop)
     mixed = (mic_array * 0.7 + desktop_array * 0.3).astype(np.int16)
     return mixed.tobytes()
+
+def get_available_microphones():
+    """Get list of available microphone devices"""
+    p = pyaudio.PyAudio()
+    mics = []
+    try:
+        for i in range(p.get_device_count()):
+            device_info = p.get_device_info_by_index(i)
+            if device_info['maxInputChannels'] > 0:  # Only input devices
+                mics.append({
+                    'index': i,
+                    'name': device_info['name'],
+                    'channels': device_info['maxInputChannels'],
+                    'default_rate': int(device_info['defaultSampleRate'])
+                })
+    finally:
+        p.terminate()
+    return mics
 
 def get_input_device():
     """Find and verify the input audio device with improved detection."""
@@ -207,7 +226,16 @@ def record_audio(duration):
     stream = None
     
     try:
-        input_device = get_input_device()
+        # Get selected mic index from combo box
+        selected = mic_var.get()
+        if not selected:
+            raise Exception("No microphone selected")
+            
+        match = re.search(r'Device (\d+)', selected)
+        if not match:
+            raise Exception("Invalid microphone selection")
+            
+        input_device = int(match.group(1))
         p = pyaudio.PyAudio()
         
         # Try with more forgiving parameters
@@ -292,11 +320,78 @@ def record_audio(duration):
 import tkinter as tk
 from tkinter import scrolledtext
 
-# Créer une fenêtre Tkinter globale
+def create_mic_selector():
+    """Create microphone selection frame"""
+    mic_frame = tk.Frame(root)
+    mic_frame.pack(fill='x', padx=5, pady=5)
+    
+    tk.Label(mic_frame, text="Select Microphone:").pack(side='left')
+    
+    # Create combobox for mic selection
+    mic_var = tk.StringVar()
+    mic_combo = ttk.Combobox(mic_frame, textvariable=mic_var, state='readonly')
+    mic_combo.pack(side='left', fill='x', expand=True, padx=(5, 0))
+    
+    # Populate mic list
+    mics = get_available_microphones()
+    mic_options = [f"{m['name']} (Device {m['index']})" for m in mics]
+    mic_combo['values'] = mic_options
+    
+    # Select default mic if available
+    if mic_options:
+        mic_combo.set(mic_options[0])
+    
+    # Add refresh button
+    refresh_btn = tk.Button(mic_frame, text="🔄", command=lambda: refresh_mics(mic_combo))
+    refresh_btn.pack(side='left', padx=(5, 0))
+    
+    return mic_var, mic_combo
+
+def refresh_mics(combo):
+    """Refresh the microphone list"""
+    current = combo.get()
+    mics = get_available_microphones()
+    mic_options = [f"{m['name']} (Device {m['index']})" for m in mics]
+    combo['values'] = mic_options
+    
+    # Try to keep the same selection if possible
+    if current in mic_options:
+        combo.set(current)
+    elif mic_options:
+        combo.set(mic_options[0])
+
+def update_mic_status(combo):
+    """Update status text based on selected microphone"""
+    selected = combo.get()
+    if selected:
+        try:
+            match = re.search(r'Device (\d+)', selected)
+            if match:
+                index = int(match.group(1))
+                p = pyaudio.PyAudio()
+                device_info = p.get_device_info_by_index(index)
+                p.terminate()
+                update_status(f"Selected microphone: {device_info['name']}")
+        except Exception as e:
+            update_status(f"Error checking microphone: {str(e)}")
+    else:
+        update_status("No microphone selected")
+
+# Create main window
 root = tk.Tk()
 root.title("CK3 AI Character Response")
+
+# Create main controls frame
+controls_frame = tk.Frame(root)
+controls_frame.pack(fill='x', padx=5, pady=5)
+
+# Add microphone selector
+mic_var, mic_combo = create_mic_selector()
+mic_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(mic_combo))
+
+# Create text widget
 text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
-text_widget.pack(expand=True, fill='both')
+text_widget.pack(expand=True, fill='both', padx=5, pady=5)
 
 
 def on_closing():
