@@ -93,27 +93,31 @@ class AudioManager:
                         logging.info(f"  Is Default Input: {device_info.get('isDefaultInput', False)}")
                     except Exception as e:
                         logging.error(f"Error getting info for device {i}: {e}")
-            
-            # Try to use default input device first
-            try:
+
+                # Try to use default input device first
                 default_device_info = self.p.get_default_input_device_info()
                 logging.info(f"Attempting to use default input device: {default_device_info['name']}")
                 default_index = default_device_info['index']
                 
-                test_stream = self.p.open(
-                    format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
-                    channels=self.config.CHANNELS,
-                    rate=self.config.SAMPLE_RATE,
-                    input=True,
-                    input_device_index=default_index,
-                    frames_per_buffer=self.config.CHUNK_SIZE,
-                    start=False
-                )
-                test_stream.close()
-                logging.info(f"Successfully initialized default input device")
-                return default_index
-            except Exception as e:
-                logging.warning(f"Default input device failed: {e}")
+                try:
+                    default_device_info = self.p.get_default_input_device_info()
+                    logging.info(f"Attempting to use default input device: {default_device_info['name']}")
+                    default_index = default_device_info['index']
+                    
+                    test_stream = self.p.open(
+                        format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
+                        channels=self.config.CHANNELS,
+                        rate=self.config.SAMPLE_RATE,
+                        input=True,
+                        input_device_index=default_index,
+                        frames_per_buffer=self.config.CHUNK_SIZE,
+                        start=False
+                    )
+                    test_stream.close()
+                    logging.info(f"Successfully initialized default input device")
+                    return default_index
+                except Exception as e:
+                    logging.warning(f"Default input device failed: {e}")
 
             # First try to find a working microphone device
             for i in range(self.p.get_device_count()):
