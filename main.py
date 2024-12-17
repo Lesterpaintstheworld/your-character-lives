@@ -431,7 +431,15 @@ def record_audio(duration):
             # Calculate number of chunks to record
             chunks = int(16000 / 1024 * duration)
             
+            is_recording = True  # Mark start of recording
+            
             for i in range(chunks):
+                # Check if recording should stop
+                if not is_playing or not is_recording:
+                    logging.info("Recording interrupted")
+                    update_status("⏸️ Recording stopped")
+                    break
+                    
                 try:
                     data = stream.read(1024, exception_on_overflow=False)
                     frames.append(data)
@@ -450,6 +458,8 @@ def record_audio(duration):
                     # Try to recover
                     time.sleep(0.1)
                     continue
+                    
+            is_recording = False  # Mark end of recording
                     
         finally:
             if stream:
