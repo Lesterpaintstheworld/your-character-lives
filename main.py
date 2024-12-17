@@ -225,10 +225,10 @@ def record_audio(duration):
     
     p = None
     stream = None
+    frames = []
     
     try:
         # Get selected mic index from combo box
-        global vu_meter  # Access the global vu_meter
         selected = mic_var.get()
         if not selected:
             raise Exception("No microphone selected")
@@ -240,75 +240,68 @@ def record_audio(duration):
         input_device = int(match.group(1))
         p = pyaudio.PyAudio()
         
-        # Create audio buffer for level calculation
-        audio_buffer = np.zeros(1024, dtype=np.int16)
-        
-        def audio_callback(in_data, frame_count, time_info, status):
-            """Callback for audio stream to update VU meter"""
-            if status:
-                logging.warning(f"Audio callback status: {status}")
-            
-            # Update audio buffer
-            audio_data = np.frombuffer(in_data, dtype=np.int16)
-            level = calculate_audio_level(audio_data)
-            
-            # Update VU meter in thread-safe way
-            root.after(0, lambda: vu_meter.set_level(level))
-            
-            return (in_data, pyaudio.paContinue)
-        
+        # Create non-callback stream for recording
         stream = p.open(
             format=FORMAT,
             channels=1,
             rate=16000,
             input=True,
             input_device_index=input_device,
-            frames_per_buffer=1024,
-            stream_callback=audio_callback
+            frames_per_buffer=1024
         )
-
+        
         logging.info(f"Recording for {duration} seconds...")
-        frames = []
         update_status("🎤 Recording...")
         
-        # More tolerant recording loop
-        for i in range(0, int(16000 / 512 * duration)):  # Adjusted for new rate/chunk
+        # Calculate number of chunks to record
+        chunks = int(16000 / 1024 * duration)
+        
+        for i in range(chunks):
             try:
-                data = stream.read(512, exception_on_overflow=False)
+                data = stream.read(1024, exception_on_overflow=False)
                 frames.append(data)
+                
+                # Calculate and update VU meter
+                level = calculate_audio_level(data)
+                root.after(0, lambda l=level: vu_meter.set_level(l))
+                
+                # Update progress every second
+                if i % (16000 // 1024) == 0:
+                    seconds = i // (16000 // 1024)
+                    update_status(f"🎤 Recording... {seconds}/{duration}s")
+                    
             except OSError as e:
                 logging.error(f"OSError during recording: {e}")
                 # Try to recover
-                try:
-                    if stream:
-                        stream.stop_stream()
-                        stream.close()
-                    stream = p.open(
-                        format=FORMAT,
-                        channels=1,
-                        rate=16000,
-                        input=True,
-                        input_device_index=input_device,
-                        frames_per_buffer=512
-                    )
-                    continue
-                except Exception as e2:
-                    logging.error(f"Failed to recover from recording error: {e2}")
-                    raise
-            except Exception as e:
-                logging.error(f"Error during recording: {e}")
-                raise
-
-        # Create WAV buffer
-        wav_buffer = io.BytesIO()
-        with wave.open(wav_buffer, 'wb') as wf:
-            wf.setnchannels(1)  # Mono
-            wf.setsampwidth(p.get_sample_size(FORMAT))
-            wf.setframerate(16000)  # Lower rate
-            wf.writeframes(b''.join(frames))
+                time.sleep(0.1)
+                continue
+                
+    except Exception as e:
+        logging.error(f"Failed to record audio: {e}")
+        # Create silent audio in case of failure
+        frames = [b'\x00' * 1024 * 2] * int(16000 / 1024 * duration)
         
-        update_status("✅ Recording complete")
-        return wav_buffer.getvalue()
+    finally:
+        if stream:
+            try:
+                stream.stop_stream()
+                stream.close()
+            except Exception as e:
+                logging.error(f"Error closing stream: {e}")
+        if p:
+            p.terminate()
+
+    update_status("✅ Recording complete")
+    
+    # Create WAV buffer
+    wav_buffer = io.BytesIO()
+    with wave.open(wav_buffer, 'wb') as wf:
+        wf.setnchannels(1)
+        wf.setsampwidth(2)  # 16-bit
+        wf.setframerate(16000)
+        wf.writeframes(b''.join(frames))
+    
+    return wav_buffer.getvalue()
         
     except Exception as e:
         logging.error(f"Failed to record audio: {e}")
