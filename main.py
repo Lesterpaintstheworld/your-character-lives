@@ -86,12 +86,26 @@ engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 async def process_audio_chunk(audio_data: bytes):
     """Process and play audio data."""
     try:
+        # Get selected output device index
+        selected = output_var.get()
+        if not selected:
+            raise Exception("No output device selected")
+            
+        match = re.search(r'Device (\d+)', selected)
+        if not match:
+            raise Exception("Invalid output device selection")
+            
+        output_device = int(match.group(1))
+        
+        # Initialize pygame mixer with selected device
+        pygame.mixer.quit()  # Close existing mixer
+        pygame.mixer.init(devicename=f"Device{output_device}")
+        
         # Save and play audio
         temp_file = 'temp_audio.mp3'
         with open(temp_file, 'wb') as f:
             f.write(audio_data)
         
-        pygame.mixer.init()
         pygame.mixer.music.load(temp_file)
         pygame.mixer.music.play()
         
@@ -103,6 +117,7 @@ async def process_audio_chunk(audio_data: bytes):
         
     except Exception as e:
         logging.error(f"Error playing audio: {e}")
+        update_status(f"❌ Audio playback error: {str(e)}")
 
 def update_status(message):
     """Update status in UI"""
@@ -118,6 +133,86 @@ def mix_audio(mic_data, desktop_data):
     # Mix the two sources (70% mic, 30% desktop)
     mixed = (mic_array * 0.7 + desktop_array * 0.3).astype(np.int16)
     return mixed.tobytes()
+
+def get_available_outputs():
+    """Get list of available and working output devices"""
+    p = pyaudio.PyAudio()
+    outputs = []
+    logging.info("Scanning for working audio output devices...")
+    
+    try:
+        # First try to get default output device
+        try:
+            default_info = p.get_default_output_device_info()
+            logging.info(f"Default output device: {default_info['name']}")
+            # Test default device
+            test_stream = p.open(
+                format=FORMAT,
+                channels=1,
+                rate=16000,
+                output=True,
+                output_device_index=default_info['index'],
+                frames_per_buffer=1024,
+                start=False
+            )
+            test_stream.close()
+            outputs.append({
+                'index': default_info['index'],
+                'name': f"{default_info['name']} (Default)",
+                'channels': default_info['maxOutputChannels'],
+                'default_rate': int(default_info['defaultSampleRate'])
+            })
+            logging.info("Default output device working")
+        except Exception as e:
+            logging.warning(f"Default output device test failed: {e}")
+
+        # Then scan other devices
+        for i in range(p.get_device_count()):
+            try:
+                device_info = p.get_device_info_by_index(i)
+                # Skip if not an output device or already added as default
+                if (device_info['maxOutputChannels'] == 0 or 
+                    any(o['index'] == i for o in outputs)):
+                    continue
+                
+                # Skip if device name contains certain keywords
+                skip_keywords = ['mapper', 'dummy', 'null', 'loop']
+                if any(keyword in device_info['name'].lower() for keyword in skip_keywords):
+                    continue
+
+                # Test if device actually works
+                test_stream = p.open(
+                    format=FORMAT,
+                    channels=1,
+                    rate=16000,
+                    output=True,
+                    output_device_index=i,
+                    frames_per_buffer=1024,
+                    start=False
+                )
+                test_stream.close()
+                
+                outputs.append({
+                    'index': i,
+                    'name': device_info['name'],
+                    'channels': device_info['maxOutputChannels'],
+                    'default_rate': int(device_info['defaultSampleRate'])
+                })
+                logging.info(f"Found working output device: {device_info['name']}")
+                
+            except Exception as e:
+                logging.debug(f"Skipping output device {i}: {e}")
+                continue
+                
+    finally:
+        p.terminate()
+        
+    if not outputs:
+        logging.warning("No working output devices found!")
+    else:
+        logging.info(f"Found {len(outputs)} working output device(s)")
+        
+    return outputs
 
 def get_available_microphones():
     """Get list of available and working microphone devices"""
@@ -457,30 +552,32 @@ def calculate_audio_level(audio_data):
         return max(0.0, min(1.0, normalized))
     return 0.0
 
-def create_mic_selector():
-    """Create microphone selection frame with VU meter"""
-    mic_frame = tk.Frame(root)
-    mic_frame.pack(fill='x', padx=5, pady=5)
+def create_device_selectors():
+    """Create input and output device selection frame with VU meter"""
+    device_frame = tk.Frame(root)
+    device_frame.pack(fill='x', padx=5, pady=5)
     
-    tk.Label(mic_frame, text="Select Microphone:").pack(side='left')
+    # Input device selector
+    input_frame = tk.Frame(device_frame)
+    input_frame.pack(fill='x', pady=(0, 2))
+    tk.Label(input_frame, text="Input Device:").pack(side='left')
     
-    # Create combobox for mic selection
     mic_var = tk.StringVar()
-    mic_combo = ttk.Combobox(mic_frame, textvariable=mic_var, state='readonly')
+    mic_combo = ttk.Combobox(input_frame, textvariable=mic_var, state='readonly')
     mic_combo.pack(side='left', fill='x', expand=True, padx=(5, 0))
     
-    # Populate mic list
-    mics = get_available_microphones()
-    mic_options = [f"{m['name']} (Device {m['index']})" for m in mics]
-    mic_combo['values'] = mic_options
+    # Output device selector
+    output_frame = tk.Frame(device_frame)
+    output_frame.pack(fill='x', pady=(2, 0))
+    tk.Label(output_frame, text="Output Device:").pack(side='left')
     
-    # Select default mic if available
-    if mic_options:
-        mic_combo.set(mic_options[0])
+    output_var = tk.StringVar()
+    output_combo = ttk.Combobox(output_frame, textvariable=output_var, state='readonly')
+    output_combo.pack(side='left', fill='x', expand=True, padx=(5, 0))
     
-    # Add refresh button
-    refresh_btn = tk.Button(mic_frame, text="🔄", command=lambda: refresh_mics(mic_combo))
-    refresh_btn.pack(side='left', padx=(5, 0))
+    # Refresh button (shared for both devices)
+    refresh_btn = tk.Button(device_frame, text="🔄", command=lambda: refresh_devices(mic_combo, output_combo))
+    refresh_btn.pack(side='right', padx=(5, 0))
     
     # Add VU meter
     vu_frame = tk.Frame(root)
@@ -489,26 +586,51 @@ def create_mic_selector():
     vu_meter = VUMeter(vu_frame, width=200, height=20)
     vu_meter.pack(side='left', fill='x', expand=True, padx=(5, 0))
     
-    return mic_var, mic_combo, vu_meter
+    # Initial population of device lists
+    refresh_devices(mic_combo, output_combo)
+    
+    return mic_var, output_var, mic_combo, output_combo, vu_meter
 
-def refresh_mics(combo):
-    """Refresh the microphone list"""
-    current = combo.get()
+def refresh_devices(mic_combo, output_combo):
+    """Refresh both input and output device lists"""
+    # Save current selections
+    current_mic = mic_combo.get()
+    current_output = output_combo.get()
+    
+    # Update input devices
     mics = get_available_microphones()
     mic_options = [f"{m['name']} (Device {m['index']})" for m in mics]
-    combo['values'] = mic_options
+    mic_combo['values'] = mic_options
     
-    # Try to keep the same selection if possible
-    if current in mic_options:
-        combo.set(current)
+    # Update output devices
+    outputs = get_available_outputs()
+    output_options = [f"{o['name']} (Device {o['index']})" for o in outputs]
+    output_combo['values'] = output_options
+    
+    # Restore previous selections if possible
+    if current_mic in mic_options:
+        mic_combo.set(current_mic)
     elif mic_options:
-        combo.set(mic_options[0])
+        mic_combo.set(mic_options[0])
+        
+    if current_output in output_options:
+        output_combo.set(current_output)
+    elif output_options:
+        output_combo.set(output_options[0])
     
     # Update status
+    status = []
     if mic_options:
-        update_status(f"Found {len(mic_options)} working microphone(s)")
+        status.append(f"Found {len(mic_options)} input device(s)")
     else:
-        update_status("❌ No working microphones found!")
+        status.append("❌ No input devices found")
+        
+    if output_options:
+        status.append(f"Found {len(output_options)} output device(s)")
+    else:
+        status.append("❌ No output devices found")
+        
+    update_status(" | ".join(status))
 
 def update_mic_status(combo):
     """Update status text based on selected microphone"""
@@ -536,8 +658,9 @@ controls_frame = tk.Frame(root)
 controls_frame.pack(fill='x', padx=5, pady=5)
 
 # Add microphone selector and VU meter
-mic_var, mic_combo, vu_meter = create_mic_selector()
+mic_var, output_var, mic_combo, output_combo, vu_meter = create_device_selectors()
 mic_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(mic_combo))
+output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_combo))
 
 # Create text widget
 text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
