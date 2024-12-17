@@ -34,45 +34,65 @@ class AudioManager:
             device_info = self.p.get_device_info_by_index(device_index)
             logging.info(f"Testing device: {device_info['name']}")
             
-            test_stream = self.p.open(
-                format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
-                channels=self.config.CHANNELS,
-                rate=self.config.SAMPLE_RATE,
-                input=True,
-                input_device_index=device_index,
-                frames_per_buffer=self.config.CHUNK_SIZE,
-                start=True
-            )
-            
-            # Try to read a single chunk
-            data = test_stream.read(self.config.CHUNK_SIZE, exception_on_overflow=False)
-            test_stream.close()
-            
-            if data:
-                logging.info("Microphone test successful")
-                return True
-            else:
-                logging.error("No data received from microphone")
+            # Add timeout for device test
+            test_stream = None
+            try:
+                test_stream = self.p.open(
+                    format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
+                    channels=self.config.CHANNELS,
+                    rate=self.config.SAMPLE_RATE,
+                    input=True,
+                    input_device_index=device_index,
+                    frames_per_buffer=self.config.CHUNK_SIZE,
+                    start=True
+                )
+                
+                # Try to read a single chunk with timeout
+                import time
+                start_time = time.time()
+                timeout = 2.0  # 2 second timeout
+                while time.time() - start_time < timeout:
+                    try:
+                        data = test_stream.read(self.config.CHUNK_SIZE, exception_on_overflow=False)
+                        if data:
+                            logging.info("Microphone test successful")
+                            return True
+                    except OSError as e:
+                        if "Unanticipated host error" in str(e):
+                            logging.warning(f"Host error during test: {e}")
+                            time.sleep(0.1)
+                            continue
+                        raise
+                
+                logging.error("Microphone test timed out")
                 return False
                 
+            finally:
+                if test_stream:
+                    test_stream.close()
+                    
         except Exception as e:
             logging.error(f"Microphone test failed: {e}")
             return False
 
     def get_input_device(self) -> Optional[int]:
         """Find and verify the input audio device."""
-        try:
-            # Log all available audio devices first
-            logging.info("=== Available Audio Devices ===")
-            for i in range(self.p.get_device_count()):
-                try:
-                    device_info = self.p.get_device_info_by_index(i)
-                    logging.info(f"Device {i}: {device_info['name']}")
-                    logging.info(f"  Max Input Channels: {device_info['maxInputChannels']}")
-                    logging.info(f"  Default Sample Rate: {device_info['defaultSampleRate']}")
-                    logging.info(f"  Is Default Input: {device_info.get('isDefaultInput', False)}")
-                except Exception as e:
-                    logging.error(f"Error getting info for device {i}: {e}")
+        max_retries = 3
+        retry_delay = 1.0  # seconds
+        
+        for attempt in range(max_retries):
+            try:
+                # Log all available audio devices first
+                logging.info(f"=== Available Audio Devices (Attempt {attempt + 1}/{max_retries}) ===")
+                for i in range(self.p.get_device_count()):
+                    try:
+                        device_info = self.p.get_device_info_by_index(i)
+                        logging.info(f"Device {i}: {device_info['name']}")
+                        logging.info(f"  Max Input Channels: {device_info['maxInputChannels']}")
+                        logging.info(f"  Default Sample Rate: {device_info['defaultSampleRate']}")
+                        logging.info(f"  Is Default Input: {device_info.get('isDefaultInput', False)}")
+                    except Exception as e:
+                        logging.error(f"Error getting info for device {i}: {e}")
             
             # Try to use default input device first
             try:
