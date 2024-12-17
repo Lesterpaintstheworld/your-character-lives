@@ -186,6 +186,7 @@ class AudioManager:
     def record_audio(self, duration: int) -> bytes:
         """Record audio with proper resource management and error recovery"""
         max_retries = 3
+        retry_delay = 1.0  # seconds
         retry_count = 0
         
         logging.info("=== Starting Audio Recording ===")
@@ -218,6 +219,12 @@ class AudioManager:
                             frames.append(data)
                             if chunk % 10 == 0:  # Log every 10th chunk
                                 logging.debug(f"Recorded chunk {chunk}/{chunks_to_record}")
+                        except OSError as e:
+                            if "Unanticipated host error" in str(e):
+                                logging.warning(f"Host error during recording: {e}")
+                                time.sleep(0.1)
+                                continue
+                            raise
                         except Exception as e:
                             logging.error(f"Error recording chunk {chunk}: {e}")
                             raise
@@ -248,7 +255,7 @@ class AudioManager:
                 # Reset PyAudio instance before retry
                 self.cleanup()
                 self.p = pyaudio.PyAudio()
-                time.sleep(1)  # Wait before retry
+                time.sleep(retry_delay)
 
     async def play_audio(self, audio_data: bytes):
         """Play audio data with proper cleanup"""
