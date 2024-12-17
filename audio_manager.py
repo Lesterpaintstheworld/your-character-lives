@@ -221,6 +221,11 @@ class AudioManager:
                                 logging.error(f"No data received for chunk {chunk}")
                                 continue
                             frames.append(data)
+                    
+                            # Calculate and update VU meter
+                            level = calculate_audio_level(data)
+                            root.after(0, lambda l=level: vu_meter.set_level(l))
+                    
                             if chunk % 10 == 0:  # Log every 10th chunk
                                 logging.debug(f"Recorded chunk {chunk}/{chunks_to_record}")
                         except OSError as e:
