@@ -7,7 +7,8 @@ import io
 import wave
 import threading
 from pathlib import Path
-from tkinter import messagebox
+from tkinter import messagebox, Canvas
+import numpy as np
 
 def initialize_audio():
     """Test audio setup and return True if successful"""
@@ -219,7 +220,7 @@ def get_input_device():
         p.terminate()
 
 def record_audio(duration):
-    """Record audio with more forgiving parameters."""
+    """Record audio with VU meter updates"""
     update_status("🎤 Initializing audio...")
     
     p = None
@@ -238,15 +239,31 @@ def record_audio(duration):
         input_device = int(match.group(1))
         p = pyaudio.PyAudio()
         
-        # Try with more forgiving parameters
+        # Create audio buffer for level calculation
+        audio_buffer = np.zeros(1024, dtype=np.int16)
+        
+        def audio_callback(in_data, frame_count, time_info, status):
+            """Callback for audio stream to update VU meter"""
+            if status:
+                logging.warning(f"Audio callback status: {status}")
+            
+            # Update audio buffer
+            audio_data = np.frombuffer(in_data, dtype=np.int16)
+            level = calculate_audio_level(audio_data)
+            
+            # Update VU meter in thread-safe way
+            root.after(0, lambda: vu_meter.set_level(level))
+            
+            return (in_data, pyaudio.paContinue)
+        
         stream = p.open(
             format=FORMAT,
-            channels=1,  # Use mono
-            rate=16000,  # Lower sample rate
+            channels=1,
+            rate=16000,
             input=True,
             input_device_index=input_device,
-            frames_per_buffer=512,  # Smaller buffer
-            stream_callback=None
+            frames_per_buffer=1024,
+            stream_callback=audio_callback
         )
 
         logging.info(f"Recording for {duration} seconds...")
@@ -320,8 +337,72 @@ def record_audio(duration):
 import tkinter as tk
 from tkinter import scrolledtext
 
+class VUMeter(Canvas):
+    def __init__(self, master, width=200, height=20, **kwargs):
+        super().__init__(master, width=width, height=height, **kwargs)
+        self.configure(bg='black')
+        self.width = width
+        self.height = height
+        self.segments = 20
+        self.segment_width = (width - 4) / self.segments
+        self.create_segments()
+        self.level = 0
+
+    def create_segments(self):
+        """Create the meter segments"""
+        self.segments_ids = []
+        for i in range(self.segments):
+            x1 = 2 + i * self.segment_width
+            y1 = 2
+            x2 = x1 + self.segment_width - 1
+            y2 = self.height - 2
+            
+            # Color gradient from green to yellow to red
+            if i < self.segments * 0.6:  # First 60% green
+                color = '#00ff00'
+            elif i < self.segments * 0.8:  # Next 20% yellow
+                color = '#ffff00'
+            else:  # Last 20% red
+                color = '#ff0000'
+                
+            segment = self.create_rectangle(
+                x1, y1, x2, y2,
+                fill='dark gray', outline='black'
+            )
+            self.segments_ids.append((segment, color))
+
+    def set_level(self, level):
+        """Update the meter level (0.0 to 1.0)"""
+        self.level = min(max(level, 0.0), 1.0)
+        active_segments = int(self.level * self.segments)
+        
+        for i, (segment_id, color) in enumerate(self.segments_ids):
+            if i < active_segments:
+                self.itemconfig(segment_id, fill=color)
+            else:
+                self.itemconfig(segment_id, fill='dark gray')
+
+def calculate_audio_level(audio_data):
+    """Calculate audio level from raw audio data"""
+    if isinstance(audio_data, bytes):
+        # Convert bytes to numpy array
+        audio_array = np.frombuffer(audio_data, dtype=np.int16)
+    else:
+        audio_array = audio_data
+        
+    # Calculate RMS value
+    rms = np.sqrt(np.mean(np.square(audio_array, dtype=np.float64)))
+    
+    # Convert to decibels and normalize
+    if rms > 0:
+        db = 20 * np.log10(rms / 32768.0)  # Normalize to 16-bit range
+        # Normalize decibels to 0-1 range (-60dB to 0dB)
+        normalized = (db + 60) / 60
+        return max(0.0, min(1.0, normalized))
+    return 0.0
+
 def create_mic_selector():
-    """Create microphone selection frame"""
+    """Create microphone selection frame with VU meter"""
     mic_frame = tk.Frame(root)
     mic_frame.pack(fill='x', padx=5, pady=5)
     
@@ -345,7 +426,14 @@ def create_mic_selector():
     refresh_btn = tk.Button(mic_frame, text="🔄", command=lambda: refresh_mics(mic_combo))
     refresh_btn.pack(side='left', padx=(5, 0))
     
-    return mic_var, mic_combo
+    # Add VU meter
+    vu_frame = tk.Frame(root)
+    vu_frame.pack(fill='x', padx=5, pady=2)
+    tk.Label(vu_frame, text="Input Level:").pack(side='left')
+    vu_meter = VUMeter(vu_frame, width=200, height=20)
+    vu_meter.pack(side='left', fill='x', expand=True, padx=(5, 0))
+    
+    return mic_var, mic_combo, vu_meter
 
 def refresh_mics(combo):
     """Refresh the microphone list"""
@@ -398,6 +486,8 @@ def on_closing():
     """Handle application shutdown."""
     global running
     running = False
+    # Reset VU meter
+    vu_meter.set_level(0.0)
     logging.info("Shutting down application...")
     root.quit()
     root.destroy()
