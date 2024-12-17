@@ -91,45 +91,31 @@ async def process_audio_chunk(audio_data: bytes):
         if not is_playing:
             return
             
-        # Get selected output device index
-        selected = output_var.get()
-        if not selected:
-            raise Exception("No output device selected")
-            
-        match = re.search(r'Device (\d+)', selected)
-        if not match:
-            raise Exception("Invalid output device selection")
-            
-        device_index = int(match.group(1))
-        
-        # Initialize pygame mixer with selected device
+        # Initialize pygame mixer without specific device
         pygame.mixer.quit()  # Close existing mixer
-        
-        # Get device name from PyAudio
-        p = pyaudio.PyAudio()
-        try:
-            device_info = p.get_device_info_by_index(device_index)
-            device_name = device_info['name']
-        finally:
-            p.terminate()
-            
-        # Initialize pygame mixer with device name
-        pygame.mixer.init(devicename=device_name)
+        pygame.mixer.init()
         
         # Save and play audio
         temp_file = 'temp_audio.mp3'
-        with open(temp_file, 'wb') as f:
-            f.write(audio_data)
-        
-        pygame.mixer.music.load(temp_file)
-        pygame.mixer.music.play()
-        
-        while pygame.mixer.music.get_busy():
-            await asyncio.sleep(0.1)
+        try:
+            with open(temp_file, 'wb') as f:
+                f.write(audio_data)
             
-        pygame.mixer.music.unload()
-        os.remove(temp_file)
-        
+            pygame.mixer.music.load(temp_file)
+            pygame.mixer.music.play()
+            
+            while pygame.mixer.music.get_busy():
+                await asyncio.sleep(0.1)
+                
+        finally:
+            # Cleanup
+            pygame.mixer.music.unload()
+            if os.path.exists(temp_file):
+                try:
+                    os.remove(temp_file)
+                except Exception as e:
+                    logging.warning(f"Failed to remove temp file: {e}")
+
     except Exception as e:
         logging.error(f"Error playing audio: {e}")
         update_status(f"❌ Audio playback error: {str(e)}")
