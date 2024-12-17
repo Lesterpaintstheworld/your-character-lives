@@ -29,6 +29,7 @@ def initialize_audio():
 # Global control variables
 running = True
 is_playing = True
+is_recording = False
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -380,6 +381,7 @@ def get_input_device():
 
 def record_audio(duration):
     """Record audio with VU meter updates"""
+    global is_recording
     update_status("🎤 Initializing audio...")
     
     p = None
@@ -555,7 +557,7 @@ def calculate_audio_level(audio_data):
 
 def toggle_play_pause():
     """Toggle between play and pause states"""
-    global is_playing
+    global is_playing, is_recording
     is_playing = not is_playing
     
     # Update button text
@@ -571,7 +573,8 @@ def toggle_play_pause():
         api_thread.daemon = True
         api_thread.start()
     else:
-        # If pausing, stop any current playback
+        # If pausing, stop current recording and playback
+        is_recording = False  # Signal recording to stop
         try:
             pygame.mixer.music.stop()
             update_status("⏸️ Paused")
