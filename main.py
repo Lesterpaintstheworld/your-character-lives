@@ -120,21 +120,83 @@ def mix_audio(mic_data, desktop_data):
     return mixed.tobytes()
 
 def get_available_microphones():
-    """Get list of available microphone devices"""
+    """Get list of available and working microphone devices"""
     p = pyaudio.PyAudio()
     mics = []
+    logging.info("Scanning for working audio input devices...")
+    
     try:
+        # First try to get default input device
+        try:
+            default_info = p.get_default_input_device_info()
+            logging.info(f"Default input device: {default_info['name']}")
+            # Test default device
+            test_stream = p.open(
+                format=FORMAT,
+                channels=1,
+                rate=16000,
+                input=True,
+                input_device_index=default_info['index'],
+                frames_per_buffer=1024,
+                start=False
+            )
+            test_stream.close()
+            mics.append({
+                'index': default_info['index'],
+                'name': f"{default_info['name']} (Default)",
+                'channels': default_info['maxInputChannels'],
+                'default_rate': int(default_info['defaultSampleRate'])
+            })
+            logging.info("Default device working")
+        except Exception as e:
+            logging.warning(f"Default device test failed: {e}")
+
+        # Then scan other devices
         for i in range(p.get_device_count()):
-            device_info = p.get_device_info_by_index(i)
-            if device_info['maxInputChannels'] > 0:  # Only input devices
+            try:
+                device_info = p.get_device_info_by_index(i)
+                # Skip if not an input device or already added as default
+                if (device_info['maxInputChannels'] == 0 or 
+                    any(m['index'] == i for m in mics)):
+                    continue
+                
+                # Skip if device name contains certain keywords
+                skip_keywords = ['mapper', 'dummy', 'null', 'loop']
+                if any(keyword in device_info['name'].lower() for keyword in skip_keywords):
+                    continue
+
+                # Test if device actually works
+                test_stream = p.open(
+                    format=FORMAT,
+                    channels=1,
+                    rate=16000,
+                    input=True,
+                    input_device_index=i,
+                    frames_per_buffer=1024,
+                    start=False
+                )
+                test_stream.close()
+                
                 mics.append({
                     'index': i,
                     'name': device_info['name'],
                     'channels': device_info['maxInputChannels'],
                     'default_rate': int(device_info['defaultSampleRate'])
                 })
+                logging.info(f"Found working device: {device_info['name']}")
+                
+            except Exception as e:
+                logging.debug(f"Skipping device {i}: {e}")
+                continue
+                
     finally:
         p.terminate()
+        
+    if not mics:
+        logging.warning("No working microphones found!")
+    else:
+        logging.info(f"Found {len(mics)} working microphone(s)")
+        
     return mics
 
 def get_input_device():
@@ -441,6 +503,12 @@ def refresh_mics(combo):
         combo.set(current)
     elif mic_options:
         combo.set(mic_options[0])
+    
+    # Update status
+    if mic_options:
+        update_status(f"Found {len(mic_options)} working microphone(s)")
+    else:
+        update_status("❌ No working microphones found!")
 
 def update_mic_status(combo):
     """Update status text based on selected microphone"""
