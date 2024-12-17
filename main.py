@@ -100,11 +100,21 @@ async def process_audio_chunk(audio_data: bytes):
         if not match:
             raise Exception("Invalid output device selection")
             
-        output_device = int(match.group(1))
+        device_index = int(match.group(1))
         
         # Initialize pygame mixer with selected device
         pygame.mixer.quit()  # Close existing mixer
-        pygame.mixer.init(devicename=f"Device{output_device}")
+        
+        # Get device name from PyAudio
+        p = pyaudio.PyAudio()
+        try:
+            device_info = p.get_device_info_by_index(device_index)
+            device_name = device_info['name']
+        finally:
+            p.terminate()
+            
+        # Initialize pygame mixer with device name
+        pygame.mixer.init(devicename=device_name)
         
         # Save and play audio
         temp_file = 'temp_audio.mp3'
