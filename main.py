@@ -682,6 +682,10 @@ def update_mic_status(combo):
 root = tk.Tk()
 root.title("CK3 AI Character Response")
 
+# Create text widget first
+text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
+text_widget.pack(expand=True, fill='both', padx=5, pady=5)
+
 # Create main controls frame
 controls_frame = tk.Frame(root)
 controls_frame.pack(fill='x', padx=5, pady=5)
@@ -690,10 +694,6 @@ controls_frame.pack(fill='x', padx=5, pady=5)
 mic_var, output_var, mic_combo, output_combo, vu_meter = create_device_selectors()
 mic_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(mic_combo))
 output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_combo))
-
-# Create text widget
-text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
-text_widget.pack(expand=True, fill='both', padx=5, pady=5)
 
 
 def on_closing():
