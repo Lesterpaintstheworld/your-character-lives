@@ -50,7 +50,7 @@ from constants import AudioConstants, NetworkConstants, UIConstants
 CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
-RATE = 24000
+RATE = 16000  # Standard sample rate that's widely supported
 DEFAULT_SCREENSHOT_INTERVAL = 30
 REQUEST_TIMEOUT = 120
 API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
@@ -243,14 +243,27 @@ def record_audio(duration):
         
         try:
             # Create non-callback stream for recording
-            stream = p.open(
-                format=FORMAT,
-                channels=1,
-                rate=16000,
-                input=True,
-                input_device_index=input_device,
-                frames_per_buffer=1024
-            )
+            # Before opening the stream, verify the device supports our sample rate
+            device_info = p.get_device_info_by_index(input_device)
+            supported_rate = int(device_info['defaultSampleRate'])
+            if supported_rate != 16000:
+                logging.warning(f"Device default sample rate ({supported_rate}) differs from requested rate (16000)")
+                # Optionally adjust rate to match device
+                # RATE = supported_rate
+            
+            try:
+                stream = p.open(
+                    format=FORMAT,
+                    channels=1,
+                    rate=16000,  # Make sure this matches the RATE constant
+                    input=True,
+                    input_device_index=input_device,
+                    frames_per_buffer=1024
+                )
+            except ValueError as e:
+                logging.error(f"Sample rate error: {e}")
+                update_status(f"❌ Sample rate error: {e}")
+                raise
             
             logging.info(f"Recording for {duration} seconds...")
             update_status("🎤 Recording...")
