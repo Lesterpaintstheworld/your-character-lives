@@ -562,8 +562,14 @@ def toggle_play_pause():
     play_pause_btn.config(text="▶️" if not is_playing else "⏸️")
     
     if is_playing:
-        # If resuming, update status
+        # If resuming, update status and trigger immediate recording
         update_status("▶️ Resumed")
+        # Create and start a new recording cycle immediately
+        api_thread = threading.Thread(
+            target=lambda: asyncio.run(api_client(0))  # Pass 0 as interval for immediate start
+        )
+        api_thread.daemon = True
+        api_thread.start()
     else:
         # If pausing, stop any current playback
         try:
@@ -746,8 +752,13 @@ async def api_client(interval):
             await process_audio_chunk(response.content)
             logging.info("Audio response played")
 
-            # Attendre l'intervalle configuré
-            await asyncio.sleep(interval)
+            # Attendre l'intervalle configuré (sauf si interval=0)
+            if interval > 0:
+                await asyncio.sleep(interval)
+            else:
+                # Si interval=0, c'est un démarrage immédiat unique,
+                # donc on sort de la boucle
+                break
             
         except Exception as e:
             logging.error(f"Une erreur est survenue: {e}")
