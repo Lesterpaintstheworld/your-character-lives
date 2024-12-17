@@ -117,46 +117,82 @@ def mix_audio(mic_data, desktop_data):
     return mixed.tobytes()
 
 def get_input_device():
-    """Find and verify the input audio device."""
+    """Find and verify the input audio device with improved detection."""
     p = pyaudio.PyAudio()
     input_device = None
     
     try:
-        # Liste tous les périphériques audio
-        logging.info("Scanning audio devices...")
+        # Log system default input device
+        try:
+            default_device_info = p.get_default_input_device_info()
+            logging.info(f"System default input device: {default_device_info['name']} (index: {default_device_info['index']})")
+        except Exception as e:
+            logging.warning(f"Could not get default input device: {e}")
+
+        # List all audio devices
+        logging.info("\n=== Available Audio Devices ===")
         devices_info = []
         for i in range(p.get_device_count()):
             try:
                 device_info = p.get_device_info_by_index(i)
-                devices_info.append(f"Device {i}: {device_info['name']}, inputs: {device_info['maxInputChannels']}")
+                device_str = (f"Device {i}: {device_info['name']}\n"
+                            f"  Max Input Channels: {device_info['maxInputChannels']}\n"
+                            f"  Default Sample Rate: {device_info['defaultSampleRate']}\n"
+                            f"  Is Default Input: {device_info.get('isDefaultInput', False)}")
+                devices_info.append(device_str)
+                logging.info(device_str)
                 
-                # Cherche un périphérique d'entrée valide
+                # Try to use this device if it has input channels
                 if device_info['maxInputChannels'] > 0:
-                    # Test if device is actually accessible
                     try:
+                        # Test device with lower sample rate and smaller buffer
                         test_stream = p.open(
                             format=FORMAT,
-                            channels=CHANNELS,
-                            rate=RATE,
+                            channels=1,  # Try mono
+                            rate=16000,  # Try lower sample rate
                             input=True,
                             input_device_index=i,
-                            frames_per_buffer=CHUNK,
+                            frames_per_buffer=512,  # Smaller buffer
                             start=False
                         )
                         test_stream.close()
                         input_device = i
-                        logging.info(f"Selected input device: {device_info['name']}")
-                        break
+                        logging.info(f"Successfully tested device {i}: {device_info['name']}")
+                        
+                        # If this is the default input device, prefer it
+                        if device_info.get('isDefaultInput', False):
+                            logging.info(f"Selected default input device: {device_info['name']}")
+                            break
+                            
                     except Exception as e:
-                        logging.warning(f"Device {i} not usable: {e}")
+                        logging.warning(f"Device {i} test failed: {e}")
                         continue
             except Exception as e:
                 logging.warning(f"Error querying device {i}: {e}")
                 continue
+        
+        if input_device is None:
+            # Try to fall back to default input device
+            try:
+                default_index = p.get_default_input_device_info()['index']
+                test_stream = p.open(
+                    format=FORMAT,
+                    channels=1,
+                    rate=16000,
+                    input=True,
+                    input_device_index=default_index,
+                    frames_per_buffer=512,
+                    start=False
+                )
+                test_stream.close()
+                input_device = default_index
+                logging.info(f"Fallback to default input device successful")
+            except Exception as e:
+                logging.error(f"Fallback to default device failed: {e}")
                 
         if input_device is None:
-            logging.error("Available devices:\n" + "\n".join(devices_info))
-            raise Exception("No working microphone or input device detected")
+            logging.error("\nNo working microphone found. Available devices:\n" + "\n".join(devices_info))
+            raise Exception("No working microphone or input device detected. Check your system audio settings and ensure a microphone is connected and enabled.")
             
         return input_device
         
@@ -164,47 +200,51 @@ def get_input_device():
         p.terminate()
 
 def record_audio(duration):
-    """Record audio with improved error handling."""
+    """Record audio with more forgiving parameters."""
     update_status("🎤 Initializing audio...")
     
     p = None
     stream = None
     
     try:
-        # Vérifier le périphérique d'entrée
         input_device = get_input_device()
-        
         p = pyaudio.PyAudio()
         
-        # Ouvrir le flux audio avec le périphérique sélectionné
-        stream = p.open(format=FORMAT,
-                       channels=CHANNELS,
-                       rate=RATE,
-                       input=True,
-                       input_device_index=input_device,
-                       frames_per_buffer=CHUNK)
+        # Try with more forgiving parameters
+        stream = p.open(
+            format=FORMAT,
+            channels=1,  # Use mono
+            rate=16000,  # Lower sample rate
+            input=True,
+            input_device_index=input_device,
+            frames_per_buffer=512,  # Smaller buffer
+            stream_callback=None
+        )
 
         logging.info(f"Recording for {duration} seconds...")
         frames = []
-
         update_status("🎤 Recording...")
         
-        for i in range(0, int(RATE / CHUNK * duration)):
+        # More tolerant recording loop
+        for i in range(0, int(16000 / 512 * duration)):  # Adjusted for new rate/chunk
             try:
-                data = stream.read(CHUNK, exception_on_overflow=False)
+                data = stream.read(512, exception_on_overflow=False)
                 frames.append(data)
             except OSError as e:
                 logging.error(f"OSError during recording: {e}")
-                # Try to recover by reopening the stream
+                # Try to recover
                 try:
                     if stream:
+                        stream.stop_stream()
                         stream.close()
-                    stream = p.open(format=FORMAT,
-                                  channels=CHANNELS,
-                                  rate=RATE,
-                                  input=True,
-                                  input_device_index=input_device,
-                                  frames_per_buffer=CHUNK)
+                    stream = p.open(
+                        format=FORMAT,
+                        channels=1,
+                        rate=16000,
+                        input=True,
+                        input_device_index=input_device,
+                        frames_per_buffer=512
+                    )
                     continue
                 except Exception as e2:
                     logging.error(f"Failed to recover from recording error: {e2}")
@@ -212,13 +252,13 @@ def record_audio(duration):
             except Exception as e:
                 logging.error(f"Error during recording: {e}")
                 raise
-        
-        # Créer le buffer WAV
+
+        # Create WAV buffer
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, 'wb') as wf:
-            wf.setnchannels(CHANNELS)
+            wf.setnchannels(1)  # Mono
             wf.setsampwidth(p.get_sample_size(FORMAT))
-            wf.setframerate(RATE)
+            wf.setframerate(16000)  # Lower rate
             wf.writeframes(b''.join(frames))
         
         update_status("✅ Recording complete")
@@ -227,13 +267,13 @@ def record_audio(duration):
     except Exception as e:
         logging.error(f"Failed to record audio: {e}")
         update_status(f"❌ Audio recording failed: {str(e)}")
-        # Retourner un fichier audio vide plutôt que de planter
+        # Return empty audio rather than crashing
         empty_buffer = io.BytesIO()
         with wave.open(empty_buffer, 'wb') as wf:
-            wf.setnchannels(CHANNELS)
-            wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(RATE)
-            wf.writeframes(b'\x00' * RATE)  # 1 seconde de silence
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(16000)
+            wf.writeframes(b'\x00' * 16000)  # 1 second of silence
         return empty_buffer.getvalue()
         
     finally:
