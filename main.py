@@ -26,8 +26,9 @@ def initialize_audio():
         )
         return False
 
-# Global control variable
+# Global control variables
 running = True
+is_playing = True
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -86,6 +87,10 @@ engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 async def process_audio_chunk(audio_data: bytes):
     """Process and play audio data."""
     try:
+        # Don't play if paused
+        if not is_playing:
+            return
+            
         # Get selected output device index
         selected = output_var.get()
         if not selected:
@@ -552,10 +557,34 @@ def calculate_audio_level(audio_data):
         return max(0.0, min(1.0, normalized))
     return 0.0
 
+def toggle_play_pause():
+    """Toggle between play and pause states"""
+    global is_playing
+    is_playing = not is_playing
+    
+    # Update button text
+    play_pause_btn.config(text="▶️" if not is_playing else "⏸️")
+    
+    if is_playing:
+        # If resuming, update status
+        update_status("▶️ Resumed")
+    else:
+        # If pausing, stop any current playback
+        try:
+            pygame.mixer.music.stop()
+            update_status("⏸️ Paused")
+        except:
+            pass
+
 def create_device_selectors():
     """Create input and output device selection frame with VU meter"""
     device_frame = tk.Frame(root)
     device_frame.pack(fill='x', padx=5, pady=5)
+    
+    # Add play/pause button
+    global play_pause_btn
+    play_pause_btn = tk.Button(device_frame, text="⏸️", width=3, command=toggle_play_pause)
+    play_pause_btn.pack(side='left', padx=5)
     
     # Input device selector
     input_frame = tk.Frame(device_frame)
@@ -684,6 +713,11 @@ async def api_client(interval):
     
     while running:
         try:
+            # Check if paused
+            if not is_playing:
+                await asyncio.sleep(1)  # Short sleep when paused
+                continue
+                
             update_status("Starting new recording cycle...")
             
             # Capture d'écran
