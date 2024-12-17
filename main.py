@@ -240,68 +240,67 @@ def record_audio(duration):
         input_device = int(match.group(1))
         p = pyaudio.PyAudio()
         
-        # Create non-callback stream for recording
-        stream = p.open(
-            format=FORMAT,
-            channels=1,
-            rate=16000,
-            input=True,
-            input_device_index=input_device,
-            frames_per_buffer=1024
-        )
-        
-        logging.info(f"Recording for {duration} seconds...")
-        update_status("🎤 Recording...")
-        
-        # Calculate number of chunks to record
-        chunks = int(16000 / 1024 * duration)
-        
-        for i in range(chunks):
-            try:
-                data = stream.read(1024, exception_on_overflow=False)
-                frames.append(data)
-                
-                # Calculate and update VU meter
-                level = calculate_audio_level(data)
-                root.after(0, lambda l=level: vu_meter.set_level(l))
-                
-                # Update progress every second
-                if i % (16000 // 1024) == 0:
-                    seconds = i // (16000 // 1024)
-                    update_status(f"🎤 Recording... {seconds}/{duration}s")
+        try:
+            # Create non-callback stream for recording
+            stream = p.open(
+                format=FORMAT,
+                channels=1,
+                rate=16000,
+                input=True,
+                input_device_index=input_device,
+                frames_per_buffer=1024
+            )
+            
+            logging.info(f"Recording for {duration} seconds...")
+            update_status("🎤 Recording...")
+            
+            # Calculate number of chunks to record
+            chunks = int(16000 / 1024 * duration)
+            
+            for i in range(chunks):
+                try:
+                    data = stream.read(1024, exception_on_overflow=False)
+                    frames.append(data)
                     
-            except OSError as e:
-                logging.error(f"OSError during recording: {e}")
-                # Try to recover
-                time.sleep(0.1)
-                continue
-                
-    except Exception as e:
-        logging.error(f"Failed to record audio: {e}")
-        # Create silent audio in case of failure
-        frames = [b'\x00' * 1024 * 2] * int(16000 / 1024 * duration)
+                    # Calculate and update VU meter
+                    level = calculate_audio_level(data)
+                    root.after(0, lambda l=level: vu_meter.set_level(l))
+                    
+                    # Update progress every second
+                    if i % (16000 // 1024) == 0:
+                        seconds = i // (16000 // 1024)
+                        update_status(f"🎤 Recording... {seconds}/{duration}s")
+                        
+                except OSError as e:
+                    logging.error(f"OSError during recording: {e}")
+                    # Try to recover
+                    time.sleep(0.1)
+                    continue
+                    
+        finally:
+            if stream:
+                try:
+                    stream.stop_stream()
+                    stream.close()
+                except Exception as e:
+                    logging.error(f"Error closing stream: {e}")
+            if p:
+                try:
+                    p.terminate()
+                except Exception as e:
+                    logging.error(f"Error terminating PyAudio: {e}")
+                    
+        update_status("✅ Recording complete")
         
-    finally:
-        if stream:
-            try:
-                stream.stop_stream()
-                stream.close()
-            except Exception as e:
-                logging.error(f"Error closing stream: {e}")
-        if p:
-            p.terminate()
-
-    update_status("✅ Recording complete")
-    
-    # Create WAV buffer
-    wav_buffer = io.BytesIO()
-    with wave.open(wav_buffer, 'wb') as wf:
-        wf.setnchannels(1)
-        wf.setsampwidth(2)  # 16-bit
-        wf.setframerate(16000)
-        wf.writeframes(b''.join(frames))
-    
-    return wav_buffer.getvalue()
+        # Create WAV buffer
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)  # 16-bit
+            wf.setframerate(16000)
+            wf.writeframes(b''.join(frames))
+        
+        return wav_buffer.getvalue()
         
     except Exception as e:
         logging.error(f"Failed to record audio: {e}")
@@ -314,19 +313,6 @@ def record_audio(duration):
             wf.setframerate(16000)
             wf.writeframes(b'\x00' * 16000)  # 1 second of silence
         return empty_buffer.getvalue()
-        
-    finally:
-        if stream:
-            try:
-                stream.stop_stream()
-                stream.close()
-            except Exception as e:
-                logging.error(f"Error closing stream: {e}")
-        if p:
-            try:
-                p.terminate()
-            except Exception as e:
-                logging.error(f"Error terminating PyAudio: {e}")
 
 import tkinter as tk
 from tkinter import scrolledtext
