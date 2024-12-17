@@ -228,6 +228,7 @@ def record_audio(duration):
     
     try:
         # Get selected mic index from combo box
+        global vu_meter  # Access the global vu_meter
         selected = mic_var.get()
         if not selected:
             raise Exception("No microphone selected")
@@ -473,8 +474,8 @@ root.title("CK3 AI Character Response")
 controls_frame = tk.Frame(root)
 controls_frame.pack(fill='x', padx=5, pady=5)
 
-# Add microphone selector
-mic_var, mic_combo = create_mic_selector()
+# Add microphone selector and VU meter
+mic_var, mic_combo, vu_meter = create_mic_selector()
 mic_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(mic_combo))
 
 # Create text widget
@@ -484,7 +485,7 @@ text_widget.pack(expand=True, fill='both', padx=5, pady=5)
 
 def on_closing():
     """Handle application shutdown."""
-    global running
+    global running, vu_meter
     running = False
     # Reset VU meter
     vu_meter.set_level(0.0)
