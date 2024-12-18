@@ -61,13 +61,14 @@ class DraggableVideoWindow:
             self.window.overrideredirect(True)
             self.window.attributes('-topmost', True)
             self.window.attributes('-alpha', 1.0)
+            self.window.attributes('-transparentcolor', 'black')
             
             # Set window size with new minimum dimensions
             self.width = max(272, self.width // 2)  # 320 * 0.85 ≈ 272
             self.height = max(204, self.height // 2)  # 240 * 0.85 ≈ 204
             self.window.geometry(f"{self.width}x{self.height}+100+100")
             
-            # Create video display label
+            # Create video display label with transparent background
             self.label = tk.Label(self.window, bg='black')
             self.label.pack(fill='both', expand=True)
             
@@ -203,9 +204,25 @@ class DraggableVideoWindow:
             # Resize frame
             resized = cv2.resize(rgb_frame, (current_width, current_height))
             
-            # Convert to PIL Image and PhotoImage
-            self.image = Image.fromarray(resized)
-            self.photo = ImageTk.PhotoImage(image=self.image)
+            # Convert to PIL Image
+            image = Image.fromarray(resized)
+            
+            # Create rounded corner mask
+            mask = Image.new('L', (current_width, current_height), 0)
+            radius = min(30, current_width//10, current_height//10)  # Adaptive radius
+            
+            # Draw the rounded rectangle mask
+            from PIL import ImageDraw
+            draw = ImageDraw.Draw(mask)
+            draw.rounded_rectangle([(0, 0), (current_width-1, current_height-1)], 
+                                 radius=radius, fill=255)
+            
+            # Apply mask
+            image.putalpha(mask)
+            
+            # Convert to PhotoImage
+            self.image = image  # Store reference
+            self.photo = ImageTk.PhotoImage(image=image)
             
             # Update label
             if hasattr(self, 'label') and self.label.winfo_exists():
