@@ -618,21 +618,19 @@ def toggle_play_pause():
     play_pause_btn.config(text="▶️" if not is_playing else "⏸️")
     
     if is_playing:
-        # Only start new recording if not already recording
-        if not is_recording:
-            update_status("▶️ Resumed")
-            # Create and start a new recording cycle immediately
-            api_thread = threading.Thread(
-                target=lambda: asyncio.run(api_client(0))
-            )
-            api_thread.daemon = True
-            api_thread.start()
+        # Start a new recording cycle immediately
+        update_status("▶️ Starting new interaction...")
+        api_thread = threading.Thread(
+            target=lambda: asyncio.run(api_client(0))
+        )
+        api_thread.daemon = True
+        api_thread.start()
     else:
         # If pausing, stop current recording and playback
         is_recording = False  # Signal recording to stop
         try:
             pygame.mixer.music.stop()
-            update_status("⏸️ Paused")
+            update_status("⏸️ Interaction stopped")
         except:
             pass
 
@@ -769,59 +767,47 @@ def on_closing():
 
 
 async def api_client(interval):
-    global running
-    
-    while running:
-        try:
-            # Check if paused
-            if not is_playing:
-                await asyncio.sleep(1)  # Short sleep when paused
-                continue
-                
-            update_status("Starting new recording cycle...")
+    """Execute a single recording/response cycle"""
+    try:
+        # Check if paused
+        if not is_playing:
+            return
             
-            # Capture d'écran
-            logging.info("Capture d'écran en cours")
-            screenshot_data = take_screenshot()
-            logging.info("Capture d'écran terminée")
-            
-            # Enregistrement audio
-            logging.info("Starting 15-second recording...")
-            update_status("Recording audio...")
-            audio_data = record_audio(15)
-            logging.info("Recording completed")
+        update_status("Starting new recording cycle...")
+        
+        # Capture screenshot
+        logging.info("Taking screenshot...")
+        screenshot_data = take_screenshot()
+        logging.info("Screenshot complete")
+        
+        # Record audio
+        logging.info("Starting 15-second recording...")
+        update_status("Recording audio...")
+        audio_data = record_audio(15)
+        logging.info("Recording completed")
 
-            # Préparation des données pour n8n
-            files = {
-                'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
-                'audio': ('audio.wav', audio_data, 'audio/wav')
-            }
+        # Prepare data for n8n
+        files = {
+            'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
+            'audio': ('audio.wav', audio_data, 'audio/wav')
+        }
 
-            # Envoi à n8n
-            logging.info("Envoi des données à n8n")
-            response = requests.post(
-                "https://nlr.app.n8n.cloud/webhook/ycl-enpoint",
-                files=files,
-                timeout=REQUEST_TIMEOUT
-            )
-            response.raise_for_status()
-            
-            # Traiter la réponse audio
-            await process_audio_chunk(response.content)
-            logging.info("Audio response played")
+        # Send to n8n
+        logging.info("Sending data to n8n")
+        response = requests.post(
+            "https://nlr.app.n8n.cloud/webhook/ycl-enpoint",
+            files=files,
+            timeout=REQUEST_TIMEOUT
+        )
+        response.raise_for_status()
+        
+        # Process audio response
+        await process_audio_chunk(response.content)
+        logging.info("Audio response played")
 
-            # Attendre l'intervalle configuré (sauf si interval=0)
-            if interval > 0:
-                await asyncio.sleep(interval)
-            else:
-                # Si interval=0, c'est un démarrage immédiat unique,
-                # donc on sort de la boucle
-                break
-            
-        except Exception as e:
-            logging.error(f"Une erreur est survenue: {e}")
-            root.after(0, lambda e=e: text_widget.insert(tk.END, f"\nERROR: {str(e)}\n"))
-            await asyncio.sleep(5)  # Attente avant nouvelle tentative
+    except Exception as e:
+        logging.error(f"Error occurred: {e}")
+        update_status(f"❌ Error: {str(e)}")
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
@@ -944,13 +930,8 @@ if __name__ == "__main__":
             text_widget.insert(tk.END, "Audio initialization failed - continuing without audio\n")
         root.update()
         
-        logging.info("Starting API client thread...")
-        api_thread = threading.Thread(target=lambda: asyncio.run(api_client(args.interval)))
-        api_thread.daemon = True
-        api_thread.start()
-        
         logging.info("Starting main UI loop...")
-        text_widget.insert(tk.END, "Ready! Waiting for game interaction...\n")
+        text_widget.insert(tk.END, "Ready! Click ▶️ to start interaction\n")
         root.update()
         
         root.mainloop()
