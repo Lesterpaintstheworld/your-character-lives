@@ -66,6 +66,9 @@ def initialize_audio():
 running = True
 is_playing = True
 is_recording = False
+auto_recording = False
+auto_recording_interval = 90  # secondes
+auto_recording_task = None
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -646,6 +649,11 @@ def create_device_selectors():
     play_pause_btn = tk.Button(device_frame, text="⏸️", width=3, command=toggle_play_pause)
     play_pause_btn.pack(side='left', padx=5)
     
+    # Add auto recording button
+    global auto_btn
+    auto_btn = tk.Button(device_frame, text="🔄 Auto OFF", width=8, command=toggle_auto_recording)
+    auto_btn.pack(side='left', padx=5)
+    
     # Input device selector
     input_frame = tk.Frame(device_frame)
     input_frame.pack(fill='x', pady=(0, 2))
@@ -756,10 +764,34 @@ mic_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(mic_combo))
 output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_combo))
 
 
+def toggle_auto_recording():
+    """Toggle automatic recording every 90 seconds"""
+    global auto_recording, auto_recording_task
+    
+    auto_recording = not auto_recording
+    auto_btn.config(text="🔄 Auto ON" if auto_recording else "🔄 Auto OFF")
+    
+    if auto_recording:
+        update_status("🔄 Starting automatic recording every 90 seconds...")
+        async def auto_record_cycle():
+            while auto_recording and is_playing:
+                await api_client(0)
+                await asyncio.sleep(90)  # Attendre 90 secondes
+                
+        # Démarrer le cycle d'enregistrement automatique
+        auto_recording_task = asyncio.create_task(auto_record_cycle())
+    else:
+        update_status("⏹️ Automatic recording stopped")
+        if auto_recording_task:
+            auto_recording_task.cancel()
+
 def on_closing():
     """Handle application shutdown."""
-    global running, vu_meter
+    global running, vu_meter, auto_recording, auto_recording_task
     running = False
+    auto_recording = False
+    if auto_recording_task:
+        auto_recording_task.cancel()
     # Reset VU meter
     vu_meter.set_level(0.0)
     logging.info("Shutting down application...")
