@@ -119,16 +119,28 @@ class DraggableVideoWindow:
         """Begin resize of window"""
         self.resize_data['x'] = event.x
         self.resize_data['y'] = event.y
+        self.resize_data['width'] = self.window.winfo_width()    # Store initial window size
+        self.resize_data['height'] = self.window.winfo_height()
         
     def resize(self, event):
         """Handle window resizing"""
-        dx = event.x - self.resize_data['x']
-        dy = event.y - self.resize_data['y']
-        width = max(50, self.window.winfo_width() + dx)
-        height = max(50, self.window.winfo_height() + dy)
-        self.window.geometry(f"{width}x{height}")
-        self.resize_data['x'] = event.x
-        self.resize_data['y'] = event.y
+        try:
+            # Calculate change in position
+            dx = event.x - self.resize_data['x']
+            dy = event.y - self.resize_data['y']
+            
+            # Calculate new dimensions
+            new_width = max(272, self.resize_data['width'] + dx)   # Minimum width 272
+            new_height = max(204, self.resize_data['height'] + dy) # Minimum height 204
+            
+            # Update window size
+            self.window.geometry(f"{int(new_width)}x{int(new_height)}")
+            
+            # Log resize operation
+            self.logger.debug(f"Resizing window to {new_width}x{new_height}")
+            
+        except Exception as e:
+            self.logger.error(f"Error during resize: {e}")
         
     def close_window(self, event):
         """Close the window and cleanup resources"""
@@ -145,8 +157,8 @@ class DraggableVideoWindow:
         try:
             self.label.bind('<Button-1>', self.start_drag)
             self.label.bind('<B1-Motion>', self.drag)
-            self.label.bind('<Button-3>', self.start_resize)
-            self.label.bind('<B3-Motion>', self.resize)
+            self.window.bind('<Button-3>', self.start_resize)  # Bind to window instead of label
+            self.window.bind('<B3-Motion>', self.resize)       # Bind to window instead of label
             self.label.bind('<Double-Button-1>', self.close_window)
             self.label.bind('<Button-2>', self.toggle_transparency)
             self.logger.info("Events bound successfully")
