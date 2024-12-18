@@ -189,16 +189,23 @@ async def process_audio_chunk(audio_data: bytes):
                         info = p.get_device_info_by_index(i)
                         if (device_name and device_name in info['name'] and 
                             info['maxOutputChannels'] > 0):
-                            device_index = i
-                            device_found = True
-                            logging.info(f"Found matching device: {info['name']} (index: {i})")
-                            break
-                    
-                    # If device not found, use default
+                            # Validate device before using
+                            if validate_output_device(i):
+                                device_index = i
+                                device_found = True
+                                logging.info(f"Found and validated device: {info['name']} (index: {i})")
+                                break
+                            else:
+                                logging.warning(f"Device found but validation failed: {info['name']} (index: {i})")
+                
+                    # If device not found or validation failed, use default
                     if not device_found:
                         info = p.get_default_output_device_info()
-                        device_index = info['index']
-                        logging.info(f"Using default device: {info['name']} (index: {device_index})")
+                        if validate_output_device(info['index']):
+                            device_index = info['index']
+                            logging.info(f"Using validated default device: {info['name']} (index: {device_index})")
+                        else:
+                            raise RuntimeError("No valid output device found")
                 finally:
                     p.terminate()
                 
@@ -287,6 +294,41 @@ def mix_audio(mic_data, desktop_data):
     # Mix the two sources (70% mic, 30% desktop)
     mixed = (mic_array * 0.7 + desktop_array * 0.3).astype(np.int16)
     return mixed.tobytes()
+
+def validate_output_device(device_index):
+    """Validate if a device index is currently valid and working"""
+    try:
+        p = pyaudio.PyAudio()
+        try:
+            # Check if index exists
+            device_info = p.get_device_info_by_index(device_index)
+            
+            # Verify it's an output device
+            if device_info['maxOutputChannels'] == 0:
+                return False
+                
+            # Try to open a test stream
+            test_stream = p.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=16000,
+                output=True,
+                output_device_index=device_index,
+                frames_per_buffer=1024,
+                start=False
+            )
+            test_stream.close()
+            return True
+            
+        except Exception as e:
+            logging.debug(f"Device validation failed for index {device_index}: {e}")
+            return False
+            
+        finally:
+            p.terminate()
+            
+    except Exception:
+        return False
 
 def get_available_outputs():
     """Get list of available and working output devices with improved filtering"""
