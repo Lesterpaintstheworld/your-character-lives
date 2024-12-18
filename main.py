@@ -481,6 +481,9 @@ def get_input_device():
 def record_audio(duration):
     """Record audio with optimal sample rate."""
     global is_recording
+    logging.info("=== Starting Audio Recording ===")
+    logging.info(f"Requested duration: {duration} seconds")
+    
     update_status("🎤 Initializing audio...")
     
     p = None
@@ -490,6 +493,7 @@ def record_audio(duration):
     try:
         # Get selected mic index
         selected = mic_var.get()
+        logging.info(f"Selected microphone: {selected}")
         if not selected:
             raise Exception("No microphone selected")
             
@@ -498,10 +502,20 @@ def record_audio(duration):
             raise Exception("Invalid microphone selection")
             
         input_device = int(match.group(1))
+        logging.info(f"Using input device index: {input_device}")
+        
         p = pyaudio.PyAudio()
+        
+        # Log device info
+        try:
+            device_info = p.get_device_info_by_index(input_device)
+            logging.info(f"Device info: {device_info}")
+        except Exception as e:
+            logging.error(f"Error getting device info: {e}")
         
         # Try to use 16000Hz first
         try:
+            logging.info("Attempting to open stream at 16000Hz...")
             stream = p.open(
                 format=FORMAT,
                 channels=1,
@@ -511,8 +525,9 @@ def record_audio(duration):
                 frames_per_buffer=1024
             )
             device_rate = 16000
-            logging.info("Using 16000Hz sampling rate")
-        except:
+            logging.info("Successfully opened stream at 16000Hz")
+        except Exception as e:
+            logging.warning(f"Failed to open stream at 16000Hz: {e}")
             # Fall back to device's native rate
             device_info = p.get_device_info_by_index(input_device)
             device_rate = int(device_info['defaultSampleRate'])
@@ -529,8 +544,8 @@ def record_audio(duration):
             logging.info(f"Recording for {duration} seconds at {device_rate}Hz...")
             update_status("🎤 Recording...")
             
-            # Calculate chunks based on device rate
             chunks = int(device_rate / 1024 * duration)
+            logging.info(f"Will record {chunks} chunks")
             
             is_recording = True
             
@@ -552,6 +567,7 @@ def record_audio(duration):
                     if i % (device_rate // 1024) == 0:
                         seconds = i // (device_rate // 1024)
                         update_status(f"🎤 Recording... {seconds}/{duration}s")
+                        logging.debug(f"Recording chunk {i}/{chunks}")
                         
                 except OSError as e:
                     logging.error(f"OSError during recording: {e}")
@@ -574,6 +590,12 @@ def record_audio(duration):
                     logging.error(f"Error terminating PyAudio: {e}")
                     
         update_status("✅ Recording complete")
+        
+        if not frames:
+            logging.error("No audio data was recorded")
+            return None
+            
+        logging.info(f"Successfully recorded {len(frames)} chunks")
         
         # Resample to 16kHz if needed
         if device_rate != 16000:
