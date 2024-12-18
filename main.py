@@ -266,7 +266,7 @@ def mix_audio(mic_data, desktop_data):
     return mixed.tobytes()
 
 def get_available_outputs():
-    """Get list of available and working output devices"""
+    """Get list of available and working output devices with improved filtering"""
     p = pyaudio.PyAudio()
     outputs = []
     logging.info("Scanning for working audio output devices...")
@@ -276,24 +276,27 @@ def get_available_outputs():
         try:
             default_info = p.get_default_output_device_info()
             logging.info(f"Default output device: {default_info['name']}")
-            # Test default device
-            test_stream = p.open(
-                format=FORMAT,
-                channels=1,
-                rate=16000,
-                output=True,
-                output_device_index=default_info['index'],
-                frames_per_buffer=1024,
-                start=False
-            )
-            test_stream.close()
-            outputs.append({
-                'index': default_info['index'],
-                'name': f"{default_info['name']} (Default)",
-                'channels': default_info['maxOutputChannels'],
-                'default_rate': int(default_info['defaultSampleRate'])
-            })
-            logging.info("Default output device working")
+            
+            # Only add if it's actually an output device
+            if default_info['maxOutputChannels'] > 0:
+                # Test default device with lower buffer size and rate
+                test_stream = p.open(
+                    format=FORMAT,
+                    channels=1,
+                    rate=16000,
+                    output=True,
+                    output_device_index=default_info['index'],
+                    frames_per_buffer=512,  # Smaller buffer size
+                    start=False
+                )
+                test_stream.close()
+                outputs.append({
+                    'index': default_info['index'],
+                    'name': f"{default_info['name']} (Default)",
+                    'channels': default_info['maxOutputChannels'],
+                    'default_rate': int(default_info['defaultSampleRate'])
+                })
+                logging.info("Default output device working")
         except Exception as e:
             logging.warning(f"Default output device test failed: {e}")
 
@@ -301,38 +304,49 @@ def get_available_outputs():
         for i in range(p.get_device_count()):
             try:
                 device_info = p.get_device_info_by_index(i)
-                # Skip if not an output device or already added as default
+                
+                # Skip if:
+                # - not an output device
+                # - already added as default
+                # - has 0 output channels
+                # - is a known problematic device
                 if (device_info['maxOutputChannels'] == 0 or 
-                    any(o['index'] == i for o in outputs)):
+                    any(o['index'] == i for o in outputs) or
+                    device_info.get('isLoopbackDevice', False)):
                     continue
                 
                 # Skip if device name contains certain keywords
-                skip_keywords = ['mapper', 'dummy', 'null', 'loop']
-                if any(keyword in device_info['name'].lower() for keyword in skip_keywords):
+                skip_keywords = ['mapper', 'dummy', 'null', 'loop', 'réseau']
+                if any(keyword.lower() in device_info['name'].lower() for keyword in skip_keywords):
                     continue
 
-                # Test if device actually works
-                test_stream = p.open(
-                    format=FORMAT,
-                    channels=1,
-                    rate=16000,
-                    output=True,
-                    output_device_index=i,
-                    frames_per_buffer=1024,
-                    start=False
-                )
-                test_stream.close()
-                
-                outputs.append({
-                    'index': i,
-                    'name': device_info['name'],
-                    'channels': device_info['maxOutputChannels'],
-                    'default_rate': int(device_info['defaultSampleRate'])
-                })
-                logging.info(f"Found working output device: {device_info['name']}")
-                
+                # Test if device actually works with minimal configuration
+                try:
+                    test_stream = p.open(
+                        format=FORMAT,
+                        channels=1,
+                        rate=16000,
+                        output=True,
+                        output_device_index=i,
+                        frames_per_buffer=512,  # Smaller buffer
+                        start=False
+                    )
+                    test_stream.close()
+                    
+                    outputs.append({
+                        'index': i,
+                        'name': device_info['name'],
+                        'channels': device_info['maxOutputChannels'],
+                        'default_rate': int(device_info['defaultSampleRate'])
+                    })
+                    logging.info(f"Found working output device: {device_info['name']}")
+                    
+                except Exception as e:
+                    logging.debug(f"Device {i} test failed: {e}")
+                    continue
+                    
             except Exception as e:
-                logging.debug(f"Skipping output device {i}: {e}")
+                logging.debug(f"Error querying device {i}: {e}")
                 continue
                 
     finally:
@@ -340,9 +354,26 @@ def get_available_outputs():
         
     if not outputs:
         logging.warning("No working output devices found!")
-    else:
-        logging.info(f"Found {len(outputs)} working output device(s)")
-        
+        # Try to find any working output device as last resort
+        try:
+            for i in range(p.get_device_count()):
+                try:
+                    device_info = p.get_device_info_by_index(i)
+                    if device_info['maxOutputChannels'] > 0:
+                        outputs.append({
+                            'index': i,
+                            'name': f"{device_info['name']} (Fallback)",
+                            'channels': device_info['maxOutputChannels'],
+                            'default_rate': int(device_info['defaultSampleRate'])
+                        })
+                        logging.info(f"Added fallback output device: {device_info['name']}")
+                        break
+                except:
+                    continue
+        except:
+            pass
+    
+    logging.info(f"Found {len(outputs)} working output device(s)")
     return outputs
 
 def get_available_microphones():
