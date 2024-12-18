@@ -143,48 +143,81 @@ engine.setProperty('rate', 150)  # Speech rate (default is 200)
 engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
 async def process_audio_chunk(audio_data: bytes):
-    """Process and play audio data."""
+    """Process and play audio data with improved error handling and fallback."""
+    temp_file = 'temp_audio.mp3'
+    fallback_file = 'fallback_audio.mp3'
+    
     try:
-        # Don't play if paused
-        if not is_playing:
-            return
-            
+        # Get selected output device
+        selected = output_var.get()
+        if selected:
+            match = re.search(r'Device (\d+)', selected)
+            if match:
+                device_index = int(match.group(1))
+                os.environ['SDL_AUDIODRIVER'] = 'directsound'  # For Windows
+                os.environ['SDL_AUDIODEV'] = str(device_index)
+        
         # Switch to talking video before playing
         if current_video_window:
             current_video_window.switch_to_talk_video()
 
-        # Initialize pygame mixer without specific device
-        pygame.mixer.quit()  # Close existing mixer
-        pygame.mixer.init()
-        
-        # Save and play audio
-        temp_file = 'temp_audio.mp3'
+        # Don't play if paused
+        if not is_playing:
+            return
+
+        # Try primary playback method with pygame
         try:
+            pygame.mixer.quit()  # Reset mixer
+            pygame.mixer.init(frequency=16000, devicename=selected if selected else None)
+            
             with open(temp_file, 'wb') as f:
                 f.write(audio_data)
             
             pygame.mixer.music.load(temp_file)
             pygame.mixer.music.play()
             
+            # Wait for playback to complete with timeout
+            start_time = time.time()
+            timeout = AUDIO_TIMEOUT
+            
             while pygame.mixer.music.get_busy():
                 await asyncio.sleep(0.1)
+                if time.time() - start_time > timeout:
+                    logging.warning("Audio playback timeout - forcing stop")
+                    pygame.mixer.music.stop()
+                    break
                 
-        finally:
-            # Cleanup
-            pygame.mixer.music.unload()
-            if os.path.exists(temp_file):
-                try:
-                    os.remove(temp_file)
-                except Exception as e:
-                    logging.warning(f"Failed to remove temp file: {e}")
-
-            # Switch back to idle video after audio finishes
-            if current_video_window:
-                current_video_window.switch_to_idle_video()
-
+        except Exception as e:
+            logging.error(f"Primary playback failed: {e}")
+            raise  # Let the outer try/except handle it
+                
     except Exception as e:
         logging.error(f"Error playing audio: {e}")
         update_status(f"❌ Audio playback error: {str(e)}")
+        
+    finally:
+        # Cleanup
+        try:
+            pygame.mixer.music.unload()
+        except:
+            pass
+            
+        try:
+            pygame.mixer.quit()
+        except:
+            pass
+            
+        # Remove temporary files
+        for file in [temp_file, fallback_file]:
+            if os.path.exists(file):
+                try:
+                    os.remove(file)
+                except Exception as e:
+                    logging.warning(f"Failed to remove temp file {file}: {e}")
+
+        # Switch back to idle video
+        if current_video_window:
+            current_video_window.switch_to_idle_video()
 
 def update_status(message):
     """Update status in UI"""
