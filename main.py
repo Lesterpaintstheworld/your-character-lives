@@ -11,6 +11,7 @@ import tempfile
 import cv2
 import numpy as np
 from scipy import signal
+from pydub import AudioSegment
 from video_window import DraggableVideoWindow
 from device_manager import DeviceManager
 
