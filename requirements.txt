@@ -4,3 +4,4 @@ Pillow==10.4.0
 python-dotenv==1.0.1
 PyAudio==0.2.13
 pygame==2.5.2
+opencv-python==4.9.0.80
