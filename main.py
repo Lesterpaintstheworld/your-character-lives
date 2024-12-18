@@ -522,7 +522,8 @@ def record_audio(duration):
                 rate=16000,
                 input=True,
                 input_device_index=input_device,
-                frames_per_buffer=1024
+                frames_per_buffer=1024,
+                start=True  # Explicitly start the stream
             )
             device_rate = 16000
             logging.info("Successfully opened stream at 16000Hz")
@@ -538,89 +539,98 @@ def record_audio(duration):
                 rate=device_rate,
                 input=True,
                 input_device_index=input_device,
-                frames_per_buffer=1024
+                frames_per_buffer=1024,
+                start=True  # Explicitly start the stream
             )
             
-            logging.info(f"Recording for {duration} seconds at {device_rate}Hz...")
-            update_status("🎤 Recording...")
+        # Verify stream is active
+        if not stream.is_active():
+            logging.error("Stream not active after opening")
+            raise RuntimeError("Audio stream not active")
+        logging.info("Stream is active and ready for recording")
             
-            chunks = int(device_rate / 1024 * duration)
-            logging.info(f"Will record {chunks} chunks")
-            
-            is_recording = True
-            
-            for i in range(chunks):
-                if not is_playing or not is_recording:
-                    logging.info("Recording interrupted")
-                    update_status("⏸️ Recording stopped")
-                    break
-                    
-                try:
-                    data = stream.read(1024, exception_on_overflow=False)
-                    frames.append(data)
-                    
-                    # Calculate and update VU meter
-                    level = calculate_audio_level(data)
-                    root.after(0, lambda l=level: vu_meter.set_level(l))
-                    
-                    # Update progress every second
-                    if i % (device_rate // 1024) == 0:
-                        seconds = i // (device_rate // 1024)
-                        update_status(f"🎤 Recording... {seconds}/{duration}s")
-                        logging.debug(f"Recording chunk {i}/{chunks}")
-                        
-                except OSError as e:
-                    logging.error(f"OSError during recording: {e}")
-                    time.sleep(0.1)
+        # Calculate number of chunks to record
+        chunks = int(device_rate / 1024 * duration)
+        logging.info(f"Will record {chunks} chunks at {device_rate}Hz")
+        
+        # Start recording
+        logging.info(f"Starting recording loop...")
+        update_status("🎤 Recording...")
+        
+        is_recording = True
+        start_time = time.time()
+        
+        for i in range(chunks):
+            if not is_playing or not is_recording:
+                logging.info("Recording interrupted")
+                break
+                
+            try:
+                logging.debug(f"Reading chunk {i}")
+                data = stream.read(1024, exception_on_overflow=False)
+                
+                if not data:
+                    logging.warning(f"Empty chunk received at index {i}")
                     continue
                     
-            is_recording = False
+                logging.debug(f"Chunk {i} size: {len(data)} bytes")
+                frames.append(data)
+                
+                # Update VU meter
+                level = calculate_audio_level(data)
+                root.after(0, lambda l=level: vu_meter.set_level(l))
+                
+                # Progress update
+                if i % (device_rate // 1024) == 0:
+                    elapsed = time.time() - start_time
+                    update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                     
-        finally:
-            if stream:
-                try:
-                    stream.stop_stream()
-                    stream.close()
-                except Exception as e:
-                    logging.error(f"Error closing stream: {e}")
-            if p:
-                try:
-                    p.terminate()
-                except Exception as e:
-                    logging.error(f"Error terminating PyAudio: {e}")
-                    
-        update_status("✅ Recording complete")
+            except OSError as e:
+                logging.error(f"OSError during chunk {i}: {e}")
+                time.sleep(0.1)
+                continue
+            except Exception as e:
+                logging.error(f"Error recording chunk {i}: {e}")
+                continue
+                
+        is_recording = False
         
+        # Log recording results
+        elapsed = time.time() - start_time
+        logging.info(f"Recording completed in {elapsed:.1f}s")
+        logging.info(f"Recorded {len(frames)} chunks out of {chunks} expected")
+                    
         if not frames:
             logging.error("No audio data was recorded")
-            return None
+            raise RuntimeError("No audio data recorded")
             
-        logging.info(f"Successfully recorded {len(frames)} chunks")
-        
-        # Resample to 16kHz if needed
-        if device_rate != 16000:
-            logging.info(f"Resampling from {device_rate}Hz to 16000Hz")
-            import numpy as np
-            # Convert frames to numpy array
-            audio_data = np.frombuffer(b''.join(frames), dtype=np.int16)
-            # Calculate number of samples needed
-            samples_out = int(len(audio_data) * 16000 / device_rate)
-            # Resample
-            audio_resampled = signal.resample(audio_data, samples_out)
-            # Convert back to int16
-            audio_resampled = np.int16(audio_resampled)
-            # Use resampled data
-            frames = [audio_resampled.tobytes()]
-        
-        # Create WAV buffer at 16kHz
+        # Create WAV buffer
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, 'wb') as wf:
             wf.setnchannels(1)
-            wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(16000)  # Force 16kHz
+            wf.setsampwidth(2)
+            wf.setframerate(16000)  # Always output at 16kHz
             wf.writeframes(b''.join(frames))
-        
+            
         return wav_buffer.getvalue()
+        
+    except Exception as e:
+        logging.error(f"Recording failed: {e}")
+        update_status(f"❌ Recording error: {str(e)}")
+        raise
+        
+    finally:
+        if stream:
+            try:
+                stream.stop_stream()
+                stream.close()
+            except Exception as e:
+                logging.error(f"Error closing stream: {e}")
+        if p:
+            try:
+                p.terminate()
+            except Exception as e:
+                logging.error(f"Error terminating PyAudio: {e}")
         
     except Exception as e:
         logging.error(f"Failed to record audio: {e}")
