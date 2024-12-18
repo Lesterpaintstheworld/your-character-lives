@@ -640,13 +640,19 @@ def toggle_play_pause():
         except:
             pass
 
+def stop_auto_recording():
+    """Clean stop of auto recording"""
+    global auto_recording
+    auto_recording = False
+    update_status("⏹️ Stopping automatic recording...")
+
 def toggle_auto_recording():
     """Toggle automatic recording every X seconds"""
     global auto_recording, auto_recording_interval
     
     # Get interval from spinbox
     try:
-        auto_recording_interval = int(interval_spinbox.get())
+        auto_recording_interval = max(5, int(interval_spinbox.get()))  # Minimum 5 seconds
     except ValueError:
         auto_recording_interval = 90  # fallback to default
         interval_spinbox.delete(0, tk.END)
@@ -826,6 +832,7 @@ def on_closing():
     """Handle application shutdown."""
     global running, vu_meter, auto_recording, auto_recording_task
     running = False
+    auto_recording = False  # Stop auto recording
     auto_recording = False
     if auto_recording_task:
         auto_recording_task.cancel()
