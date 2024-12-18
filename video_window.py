@@ -25,7 +25,7 @@ class DraggableVideoWindow:
         
         try:
             # Initialize video capture
-            self.cap = cv2.VideoCapture(video_path)
+            self.cap = cv2.VideoCapture(self.current_video_path)
             if not self.cap.isOpened():
                 self.logger.error("Failed to open video capture")
                 raise ValueError("Failed to open video capture")
