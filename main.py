@@ -7,6 +7,7 @@ import time
 import io
 import wave
 import threading
+from video_window import DraggableVideoWindow
 from pathlib import Path
 from tkinter import messagebox, Canvas
 import numpy as np
@@ -798,6 +799,15 @@ if __name__ == "__main__":
         root.protocol("WM_DELETE_WINDOW", on_closing)
         text_widget.insert(tk.END, "Initializing CK3 AI Assistant...\n")
         root.update()
+
+        # Initialize video window in a separate thread
+        try:
+            video_thread = threading.Thread(target=lambda: DraggableVideoWindow("videos/loop.mp4").run())
+            video_thread.daemon = True
+            video_thread.start()
+            logging.info("Video window initialized successfully")
+        except Exception as e:
+            logging.error(f"Failed to create video window: {e}")
         
         # Test audio but don't exit if it fails
         audio_ok = initialize_audio()

@@ -5,5 +5,6 @@ python-dotenv>=1.0.0
 PyAudio>=0.2.13
 pygame>=2.5.0
 opencv-python>=4.8.0
+opencv-python-headless>=4.8.0
 setuptools>=69.0.2
 wheel>=0.42.0
