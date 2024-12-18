@@ -642,7 +642,7 @@ def toggle_play_pause():
 
 def toggle_auto_recording():
     """Toggle automatic recording every X seconds"""
-    global auto_recording, auto_recording_task, auto_recording_interval
+    global auto_recording, auto_recording_interval
     
     # Get interval from spinbox
     try:
@@ -658,17 +658,18 @@ def toggle_auto_recording():
     
     if auto_recording:
         update_status(f"🔄 Starting automatic recording every {auto_recording_interval} seconds...")
-        async def auto_record_cycle():
-            while auto_recording and is_playing:
-                await api_client(0)
-                await asyncio.sleep(auto_recording_interval)
-                
-        # Démarrer le cycle d'enregistrement automatique
-        auto_recording_task = asyncio.create_task(auto_record_cycle())
+        
+        def auto_record():
+            if auto_recording and is_playing:
+                # Lancer l'enregistrement
+                asyncio.run(api_client(0))
+                # Programmer le prochain enregistrement
+                root.after(auto_recording_interval * 1000, auto_record)
+        
+        # Démarrer le premier cycle
+        auto_record()
     else:
         update_status("⏹️ Automatic recording stopped")
-        if auto_recording_task:
-            auto_recording_task.cancel()
 
 def create_device_selectors():
     """Create input and output device selection frame with VU meter"""
