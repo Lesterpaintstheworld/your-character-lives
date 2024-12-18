@@ -902,27 +902,35 @@ if __name__ == "__main__":
                     os.makedirs(videos_dir)
                     video_logger.info(f"Created videos directory: {videos_dir}")
 
+                # Utiliser un codec compatible avec votre système
+                if sys.platform == 'win32':
+                    fourcc = cv2.VideoWriter_fourcc(*'avc1')  # H.264 codec
+                else:
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Fallback codec
+
                 # Create idle video (green circle moving horizontally)
                 if not os.path.exists(idle_path):
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                     out = cv2.VideoWriter(idle_path, fourcc, 30.0, (320,240), isColor=True)
-                    for i in range(60):
+                    if not out.isOpened():
+                        raise Exception("Failed to create idle video writer")
+            
+                    for i in range(90):  # Plus de frames pour une animation plus fluide
                         frame = np.zeros((240,320,3), dtype=np.uint8)
-                        cv2.circle(frame, 
-                                  (160 + int(50*np.sin(i/10)), 120),
-                                  20, (0,255,0), -1)
+                        x = 160 + int(100*np.sin(2*np.pi*i/90))  # Mouvement plus fluide
+                        cv2.circle(frame, (x, 120), 20, (0,255,0), -1)
                         out.write(frame)
                     out.release()
 
                 # Create talk video (green circle moving vertically)
                 if not os.path.exists(talk_path):
-                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
                     out = cv2.VideoWriter(talk_path, fourcc, 30.0, (320,240), isColor=True)
-                    for i in range(60):
+                    if not out.isOpened():
+                        raise Exception("Failed to create talk video writer")
+            
+                    for i in range(90):  # Plus de frames pour une animation plus fluide
                         frame = np.zeros((240,320,3), dtype=np.uint8)
-                        cv2.circle(frame, 
-                                  (160, 120 + int(30*np.sin(i/10))),
-                                  20, (0,255,0), -1)
+                        y = 120 + int(60*np.sin(2*np.pi*i/90))  # Mouvement plus fluide
+                        cv2.circle(frame, (160, y), 20, (0,255,0), -1)
                         out.write(frame)
                     out.release()
 
