@@ -659,15 +659,27 @@ def toggle_auto_recording():
     if auto_recording:
         update_status(f"🔄 Starting automatic recording every {auto_recording_interval} seconds...")
         
-        def auto_record():
-            if auto_recording and is_playing:
-                # Lancer l'enregistrement
-                asyncio.run(api_client(0))
-                # Programmer le prochain enregistrement
-                root.after(auto_recording_interval * 1000, auto_record)
+        def auto_record_thread():
+            while auto_recording and is_playing:
+                try:
+                    # Create new thread for each API call
+                    api_thread = threading.Thread(
+                        target=lambda: asyncio.run(api_client(0))
+                    )
+                    api_thread.daemon = True
+                    api_thread.start()
+                    
+                    # Wait for specified interval
+                    time.sleep(auto_recording_interval)
+                except Exception as e:
+                    logging.error(f"Error in auto recording thread: {e}")
+                    update_status(f"❌ Auto recording error: {str(e)}")
+                    break
         
-        # Démarrer le premier cycle
-        auto_record()
+        # Start auto recording thread
+        auto_thread = threading.Thread(target=auto_record_thread)
+        auto_thread.daemon = True
+        auto_thread.start()
     else:
         update_status("⏹️ Automatic recording stopped")
 
