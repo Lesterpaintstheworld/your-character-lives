@@ -194,7 +194,7 @@ async def process_audio_chunk(audio_data: bytes):
                 logging.info(f"Using default output device: {info['name']} (index: {device_index})")
 
             # Load and convert audio using pydub
-            audio = pydub.AudioSegment.from_mp3(temp_path)
+            audio = AudioSegment.from_mp3(temp_path)
             
             # Convert to standard format (16-bit PCM, 24000Hz, mono)
             audio = audio.set_frame_rate(24000)
