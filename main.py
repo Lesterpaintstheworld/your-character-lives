@@ -84,6 +84,7 @@ auto_recording = False
 auto_recording_interval = 90  # seconds
 interval_spinbox = None  # Will be set when UI is created
 auto_recording_task = None
+output_var = None  # Will store output device selection
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -782,6 +783,86 @@ def create_device_selectors():
     refresh_devices(mic_combo, output_combo)
     
     return mic_var, output_var, mic_combo, output_combo, vu_meter
+
+def get_available_outputs():
+    """Get list of available and working output devices"""
+    p = pyaudio.PyAudio()
+    outputs = []
+    logging.info("Scanning for working audio output devices...")
+    
+    try:
+        # First try to get default output device
+        try:
+            default_info = p.get_default_output_device_info()
+            logging.info(f"Default output device: {default_info['name']}")
+            # Test default device
+            test_stream = p.open(
+                format=FORMAT,
+                channels=1,
+                rate=16000,
+                output=True,
+                output_device_index=default_info['index'],
+                frames_per_buffer=1024,
+                start=False
+            )
+            test_stream.close()
+            outputs.append({
+                'index': default_info['index'],
+                'name': f"{default_info['name']} (Default)",
+                'channels': default_info['maxOutputChannels'],
+                'default_rate': int(default_info['defaultSampleRate'])
+            })
+            logging.info("Default output device working")
+        except Exception as e:
+            logging.warning(f"Default output device test failed: {e}")
+
+        # Then scan other devices
+        for i in range(p.get_device_count()):
+            try:
+                device_info = p.get_device_info_by_index(i)
+                # Skip if not an output device or already added as default
+                if (device_info['maxOutputChannels'] == 0 or 
+                    any(o['index'] == i for o in outputs)):
+                    continue
+                
+                # Skip if device name contains certain keywords
+                skip_keywords = ['mapper', 'dummy', 'null', 'loop']
+                if any(keyword in device_info['name'].lower() for keyword in skip_keywords):
+                    continue
+
+                # Test if device actually works
+                test_stream = p.open(
+                    format=FORMAT,
+                    channels=1,
+                    rate=16000,
+                    output=True,
+                    output_device_index=i,
+                    frames_per_buffer=1024,
+                    start=False
+                )
+                test_stream.close()
+                
+                outputs.append({
+                    'index': i,
+                    'name': device_info['name'],
+                    'channels': device_info['maxOutputChannels'],
+                    'default_rate': int(device_info['defaultSampleRate'])
+                })
+                logging.info(f"Found working output device: {device_info['name']}")
+                
+            except Exception as e:
+                logging.debug(f"Skipping output device {i}: {e}")
+                continue
+                
+    finally:
+        p.terminate()
+        
+    if not outputs:
+        logging.warning("No working output devices found!")
+    else:
+        logging.info(f"Found {len(outputs)} working output device(s)")
+        
+    return outputs
 
 def refresh_devices(mic_combo, output_combo):
     """Refresh both input and output device lists"""
