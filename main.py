@@ -456,8 +456,8 @@ def record_audio(duration):
                 # RATE = supported_rate
             
             device_info = p.get_device_info_by_index(input_device)
-            supported_rate = int(device_info['defaultSampleRate'])
-            
+            self.supported_rate = int(device_info['defaultSampleRate'])
+                
             try:
                 stream = p.open(
                     format=FORMAT,

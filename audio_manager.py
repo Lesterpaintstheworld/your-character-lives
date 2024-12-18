@@ -222,10 +222,6 @@ class AudioManager:
                                 continue
                             frames.append(data)
                     
-                            # Calculate and update VU meter
-                            level = calculate_audio_level(data)
-                            root.after(0, lambda l=level: vu_meter.set_level(l))
-                    
                             if chunk % 10 == 0:  # Log every 10th chunk
                                 logging.debug(f"Recorded chunk {chunk}/{chunks_to_record}")
                         except OSError as e:
@@ -245,7 +241,7 @@ class AudioManager:
                 logging.info(f"Successfully recorded {len(frames)} chunks")
                 
                 # Resample to 16000 Hz if needed
-                if supported_rate != 16000:
+                if self.supported_rate != 16000:
                     import numpy as np
                     from scipy import signal
                     
@@ -253,7 +249,7 @@ class AudioManager:
                     audio_data = np.frombuffer(b''.join(frames), dtype=np.int16)
                     
                     # Resample to 16000 Hz
-                    samples_out = int(len(audio_data) * 16000 / supported_rate)
+                    samples_out = int(len(audio_data) * 16000 / self.supported_rate)
                     audio_resampled = signal.resample(audio_data, samples_out)
                     
                     # Convert to int16
