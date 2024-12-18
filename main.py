@@ -11,6 +11,9 @@ import cv2
 import numpy as np
 from video_window import DraggableVideoWindow
 
+# Global reference to current video window
+current_video_window = None
+
 # Add video-specific debug logging
 video_logger = logging.getLogger('video')
 video_logger.setLevel(logging.DEBUG)
@@ -879,12 +882,12 @@ if __name__ == "__main__":
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 videos_dir = os.path.join(script_dir, "videos")
                 video_path = os.path.join(videos_dir, "loop.mp4")
-        
+
                 logging.info(f"Checking video directory: {videos_dir}")
                 if not os.path.exists(videos_dir):
                     os.makedirs(videos_dir)
                     logging.info("Created videos directory")
-            
+        
                 logging.info(f"Checking for video file: {video_path}")
                 if not os.path.exists(video_path):
                     logging.info("Video file not found, creating test video...")
@@ -892,20 +895,24 @@ if __name__ == "__main__":
                     if not video_path:
                         logging.error("Failed to create test video")
                         return
-                
-                logging.info(f"Creating video window with path: {video_path}")
-                video_window = DraggableVideoWindow(video_path)
-        
-                # Add this line to verify window creation
-                if not video_window.window.winfo_exists():
-                    logging.error("Window was not created successfully")
-                    return
             
-                logging.info("Starting video window main loop")
-                video_window.run()
-        
+                logging.info(f"Creating video window with path: {video_path}")
+                # Instead of creating the window directly, schedule it on the main thread
+                root.after(100, lambda: create_video_window(video_path))
+
             except Exception as e:
                 logging.error(f"Failed to create video window: {e}", exc_info=True)
+
+        def create_video_window(video_path):
+            """Create video window in the main thread"""
+            try:
+                video_window = DraggableVideoWindow(video_path)
+                # Store reference to prevent garbage collection
+                global current_video_window
+                current_video_window = video_window
+                logging.info("Video window created successfully")
+            except Exception as e:
+                logging.error(f"Failed to create video window in main thread: {e}", exc_info=True)
 
         # Initialize video subsystem first
         if not init_video():
@@ -914,12 +921,9 @@ if __name__ == "__main__":
                 "Video subsystem initialization failed. The application will continue without video support."
             )
         else:
-            # Initialize video window in a separate thread
-            video_logger.info("Starting video window thread")
-            video_thread = threading.Thread(target=init_video_window)
-            video_thread.daemon = True
-            video_thread.start()
-            video_logger.info("Video window thread started")
+            # Initialize video window directly (it will schedule itself on main thread)
+            video_logger.info("Initializing video window")
+            init_video_window()
         
         # Test audio but don't exit if it fails
         audio_ok = initialize_audio()

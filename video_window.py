@@ -193,10 +193,10 @@ class DraggableVideoWindow:
     def run(self):
         """Start the video window"""
         try:
-            self.window.mainloop()
+            # Instead of running mainloop, just start the frame updates
+            self.update_frame()
         except Exception as e:
-            self.logger.error(f"Error in video window main loop: {e}")
-        finally:
+            self.logger.error(f"Error in video window run: {e}")
             self.cleanup()
         
     def cleanup(self):
