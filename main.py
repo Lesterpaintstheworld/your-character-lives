@@ -149,12 +149,12 @@ async def process_audio_chunk(audio_data: bytes):
         try:
             # Get selected output device
             selected = output_var.get()
-        if selected:
-            match = re.search(r'Device (\d+)', selected)
-            if match:
-                device_index = int(match.group(1))
-                os.environ['SDL_AUDIODRIVER'] = 'directsound'  # For Windows
-                os.environ['SDL_AUDIODEV'] = str(device_index)
+            if selected:
+                match = re.search(r'Device (\d+)', selected)
+                if match:
+                    device_index = int(match.group(1))
+                    os.environ['SDL_AUDIODRIVER'] = 'directsound'  # For Windows
+                    os.environ['SDL_AUDIODEV'] = str(device_index)
         
         # Switch to talking video before playing
         if current_video_window:
