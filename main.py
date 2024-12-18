@@ -192,41 +192,53 @@ async def process_audio_chunk(audio_data: bytes):
                 device_index = info['index']
                 logging.info(f"Using default output device: {info['name']} (index: {device_index})")
 
-            # Convert MP3 to raw PCM using soundfile
-            import soundfile as sf
-            import io
-            import pydub
-
-            # Load MP3 using pydub
+            # Load and convert audio using pydub
             audio = pydub.AudioSegment.from_mp3(temp_path)
             
-            # Convert to WAV format in memory
-            wav_io = io.BytesIO()
-            audio.export(wav_io, format='wav')
-            wav_io.seek(0)
+            # Convert to standard format (16-bit PCM, 24000Hz, mono)
+            audio = audio.set_frame_rate(24000)
+            audio = audio.set_channels(1)
+            audio = audio.set_sample_width(2)  # 16-bit
             
-            # Read the WAV data using soundfile
-            with sf.SoundFile(wav_io, 'r') as sf_file:
-                # Open stream with the correct parameters
-                stream = p.open(format=pyaudio.paFloat32,
-                              channels=sf_file.channels,
-                              rate=sf_file.samplerate,
-                              output=True,
-                              output_device_index=device_index,
-                              frames_per_buffer=1024)
-                
-                # Read and play the audio data
-                start_time = time.time()
-                while True:
-                    data = sf_file.read(1024)
-                    if not len(data):
-                        break
-                    if time.time() - start_time > AUDIO_TIMEOUT:
-                        break
-                    stream.write(data.tobytes())
-                    await asyncio.sleep(0.001)  # Allow other tasks to run
+            # Get audio data as raw PCM
+            raw_data = audio.raw_data
+            
+            # Log audio properties
+            logging.info(f"Audio properties: {audio.frame_rate}Hz, "
+                        f"{audio.channels} channels, "
+                        f"{audio.sample_width * 8}bit")
+            
+            # Open stream with matching parameters
+            stream = p.open(format=pyaudio.paInt16,  # 16-bit
+                          channels=1,                # mono
+                          rate=24000,               # 24kHz
+                          output=True,
+                          output_device_index=device_index,
+                          frames_per_buffer=1024)
+            
+            # Play audio in chunks
+            chunk_size = 1024 * 2  # 1024 16-bit samples = 2048 bytes
+            offset = 0
+            start_time = time.time()
+            
+            while offset < len(raw_data):
+                if time.time() - start_time > AUDIO_TIMEOUT:
+                    logging.warning("Audio playback timeout")
+                    break
                     
-                logging.info("Audio playback completed successfully")
+                # Get next chunk
+                chunk = raw_data[offset:offset + chunk_size]
+                if not chunk:
+                    break
+                    
+                # Write to stream
+                stream.write(chunk)
+                offset += chunk_size
+                
+                # Allow other tasks to run
+                await asyncio.sleep(0.001)
+                
+            logging.info("Audio playback completed successfully")
                 
         except Exception as e:
             logging.error(f"Error during playback: {e}")
