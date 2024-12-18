@@ -29,14 +29,20 @@ class DraggableVideoWindow:
             raise FileNotFoundError(f"Video file not found: {idle_video_path}")
         
         try:
-            # Initialize video capture with no audio
+            # Initialize video capture
             self.cap = cv2.VideoCapture(self.current_video_path)
             if not self.cap.isOpened():
                 self.logger.error("Failed to open video capture")
                 raise ValueError("Failed to open video capture")
             
-            # Explicitly disable audio capture
-            self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+            # Try to disable audio if the property exists
+            try:
+                if hasattr(cv2, 'CAP_PROP_AUDIO_ENABLE'):
+                    self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+                else:
+                    self.logger.info("Audio disable property not available in this OpenCV version")
+            except Exception as e:
+                self.logger.warning(f"Could not disable audio: {e}")
                 
             # Get video properties
             self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -244,7 +250,12 @@ class DraggableVideoWindow:
                 self.cap = cv2.VideoCapture(self.talk_video_path)
                 if not self.cap.isOpened():
                     raise ValueError(f"Failed to open talk video: {self.talk_video_path}")
-                self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+                # Try to disable audio if the property exists
+                try:
+                    if hasattr(cv2, 'CAP_PROP_AUDIO_ENABLE'):
+                        self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+                except Exception as e:
+                    self.logger.warning(f"Could not disable audio: {e}")
         except Exception as e:
             self.logger.error(f"Failed to switch to talk video: {e}")
             # Try to recover by staying on current video
@@ -263,7 +274,12 @@ class DraggableVideoWindow:
                 self.cap = cv2.VideoCapture(self.idle_video_path)
                 if not self.cap.isOpened():
                     raise ValueError(f"Failed to open idle video: {self.idle_video_path}")
-                self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+                # Try to disable audio if the property exists
+                try:
+                    if hasattr(cv2, 'CAP_PROP_AUDIO_ENABLE'):
+                        self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+                except Exception as e:
+                    self.logger.warning(f"Could not disable audio: {e}")
         except Exception as e:
             self.logger.error(f"Failed to switch to idle video: {e}")
             # Try to recover by staying on current video
