@@ -602,7 +602,14 @@ def record_audio(duration):
                     
         if not frames:
             logging.error("No audio data was recorded")
-            raise RuntimeError("No audio data recorded")
+            # Create empty audio buffer
+            empty_buffer = io.BytesIO()
+            with wave.open(empty_buffer, 'wb') as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(16000)
+                wf.writeframes(b'\x00' * 16000)  # 1 second of silence
+            return empty_buffer.getvalue()
             
         # Create WAV buffer
         wav_buffer = io.BytesIO()
@@ -613,11 +620,6 @@ def record_audio(duration):
             wf.writeframes(b''.join(frames))
             
         return wav_buffer.getvalue()
-        
-    except Exception as e:
-        logging.error(f"Recording failed: {e}")
-        update_status(f"❌ Recording error: {str(e)}")
-        raise
         
     finally:
         if stream:
@@ -631,18 +633,6 @@ def record_audio(duration):
                 p.terminate()
             except Exception as e:
                 logging.error(f"Error terminating PyAudio: {e}")
-        
-    except Exception as e:
-        logging.error(f"Failed to record audio: {e}")
-        update_status(f"❌ Audio recording failed: {str(e)}")
-        # Return empty audio rather than crashing
-        empty_buffer = io.BytesIO()
-        with wave.open(empty_buffer, 'wb') as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(16000)
-            wf.writeframes(b'\x00' * 16000)  # 1 second of silence
-        return empty_buffer.getvalue()
 
 import tkinter as tk
 from tkinter import scrolledtext
