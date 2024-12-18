@@ -196,6 +196,19 @@ class AudioManager:
         logging.info("=== Starting Audio Recording ===")
         logging.info(f"Requested duration: {duration} seconds")
         
+        # Vérifier si le périphérique supporte 16000Hz
+        device_info = self.p.get_device_info_by_index(self.get_input_device())
+        supported_rates = [8000, 16000, 44100, 48000]  # Taux communs
+        target_rate = 16000
+        
+        # Trouver le meilleur taux supporté
+        if target_rate in supported_rates:
+            sample_rate = target_rate
+        else:
+            sample_rate = int(device_info['defaultSampleRate'])
+            
+        logging.info(f"Recording at {sample_rate}Hz...")
+        
         while retry_count < max_retries:
             try:
                 frames = []

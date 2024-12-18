@@ -144,12 +144,11 @@ engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
 async def process_audio_chunk(audio_data: bytes):
     """Process and play audio data with improved error handling and fallback."""
-    temp_file = 'temp_audio.mp3'
-    fallback_file = 'fallback_audio.mp3'
-    
-    try:
-        # Get selected output device
-        selected = output_var.get()
+    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+        temp_path = temp_file.name
+        try:
+            # Get selected output device
+            selected = output_var.get()
         if selected:
             match = re.search(r'Device (\d+)', selected)
             if match:
@@ -173,12 +172,15 @@ async def process_audio_chunk(audio_data: bytes):
             with open(temp_file, 'wb') as f:
                 f.write(audio_data)
             
-            pygame.mixer.music.load(temp_file)
+            # Écrire les données audio
+            temp_file.write(audio_data)
+            temp_file.flush()
+            
+            pygame.mixer.music.load(temp_path)
             pygame.mixer.music.play()
             
             # Wait for playback to complete with timeout
             start_time = time.time()
-            timeout = AUDIO_TIMEOUT
             
             while pygame.mixer.music.get_busy():
                 await asyncio.sleep(0.1)
