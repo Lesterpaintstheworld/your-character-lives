@@ -18,6 +18,8 @@ class AudioManager:
         self.device_manager = DeviceManager()
         self.recording_stream = None
         self.desktop_stream = None
+        self.is_playing = True
+        self.is_recording = False
         pygame.mixer.init()
         logging.info("=== Audio Manager Initialization ===")
         if not self.test_microphone_access():
@@ -233,8 +235,8 @@ class AudioManager:
                     logging.info("Stream opened successfully and is active")
             
                     # Log audio format settings
-                    logging.info(f"PyAudio Format: {FORMAT}")
-                    logging.info(f"PyAudio Channels: {CHANNELS}")
+                    logging.info(f"PyAudio Format: {self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8)}")
+                    logging.info(f"PyAudio Channels: {self.config.CHANNELS}")
                     logging.info(f"PyAudio Rate: {self.config.SAMPLE_RATE}")
                     logging.info(f"PyAudio Chunk Size: {self.config.CHUNK_SIZE}")
 
@@ -245,9 +247,9 @@ class AudioManager:
                     start_time = time.time()
             
                     for i in range(chunks):
-                        if not is_playing or not is_recording:
+                        if not self.is_playing or not self.is_recording:
                             logging.info("Recording interrupted")
-                            update_status("⏸️ Recording stopped")
+                            self._update_status("⏸️ Recording stopped")
                             break
                     
                         try:
@@ -267,16 +269,17 @@ class AudioManager:
                     
                             frames.append(data)
                     
-                            # Calculate and update VU meter
-                            level = calculate_audio_level(data)
-                            logging.debug(f"Audio level: {level}")
-                            root.after(0, lambda l=level: vu_meter.set_level(l))
+                            # Calculate and update VU meter if callback is set
+                            if hasattr(self, 'level_callback'):
+                                level = self._calculate_audio_level(data)
+                                logging.debug(f"Audio level: {level}")
+                                self.level_callback(level)
                     
                             # Update progress every second
                             if i % (self.config.SAMPLE_RATE // self.config.CHUNK_SIZE) == 0:
                                 elapsed = time.time() - start_time
                                 logging.info(f"Recording progress: {elapsed:.1f}s/{duration}s")
-                                update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
+                                self._update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                         except OSError as e:
                             logging.error(f"OSError during recording chunk {i}: {e}")
                             time.sleep(0.1)
@@ -370,3 +373,34 @@ class AudioManager:
             self.desktop_stream.close()
         self.device_manager.cleanup()
         pygame.mixer.quit()
+    def _calculate_audio_level(self, audio_data):
+        """Calculate audio level from raw audio data"""
+        import numpy as np
+        if isinstance(audio_data, bytes):
+            # Convert bytes to numpy array
+            audio_array = np.frombuffer(audio_data, dtype=np.int16)
+        else:
+            audio_array = audio_data
+            
+        # Calculate RMS value
+        rms = np.sqrt(np.mean(np.square(audio_array, dtype=np.float64)))
+        
+        # Convert to decibels and normalize
+        if rms > 0:
+            db = 20 * np.log10(rms / 32768.0)  # Normalize to 16-bit range
+            # Normalize decibels to 0-1 range (-60dB to 0dB)
+            normalized = (db + 60) / 60
+            return max(0.0, min(1.0, normalized))
+        return 0.0
+
+    def _update_status(self, message):
+        """Update status if callback is set"""
+        if hasattr(self, 'status_callback'):
+            self.status_callback(message)
+
+    def set_callbacks(self, level_callback=None, status_callback=None):
+        """Set callbacks for level meter and status updates"""
+        if level_callback:
+            self.level_callback = level_callback
+        if status_callback:
+            self.status_callback = status_callback
