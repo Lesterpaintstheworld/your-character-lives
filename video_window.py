@@ -45,9 +45,11 @@ class DraggableVideoWindow:
             except Exception as e:
                 self.logger.warning(f"Could not disable audio: {e}")
                 
-            # Get video properties
-            self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            # Get video properties and reduce by 15%
+            original_width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            original_height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.width = int(original_width * 0.85)  # Reduce by 15%
+            self.height = int(original_height * 0.85)  # Reduce by 15%
             self.logger.info(f"Video dimensions: {self.width}x{self.height}")
             
             # Create window
@@ -60,9 +62,9 @@ class DraggableVideoWindow:
             self.window.attributes('-topmost', True)
             self.window.attributes('-alpha', 1.0)
             
-            # Set window size
-            self.width = max(320, self.width // 2)  # Minimum width of 320
-            self.height = max(240, self.height // 2)  # Minimum height of 240
+            # Set window size with new minimum dimensions
+            self.width = max(272, self.width // 2)  # 320 * 0.85 ≈ 272
+            self.height = max(204, self.height // 2)  # 240 * 0.85 ≈ 204
             self.window.geometry(f"{self.width}x{self.height}+100+100")
             
             # Create video display label
