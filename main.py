@@ -663,20 +663,34 @@ def toggle_auto_recording():
     interval_spinbox.config(state='disabled' if auto_recording else 'normal')
     
     if auto_recording:
-        update_status(f"🔄 Starting automatic recording every {auto_recording_interval} seconds...")
+        update_status(f"🔄 Starting continuous recording...")
         
         def auto_record_thread():
             while auto_recording and is_playing:
                 try:
-                    # Create new thread for each API call
-                    api_thread = threading.Thread(
-                        target=lambda: asyncio.run(api_client(0))
-                    )
-                    api_thread.daemon = True
-                    api_thread.start()
+                    # Record audio for the entire interval
+                    audio_data = record_audio(auto_recording_interval)
                     
-                    # Wait for specified interval
-                    time.sleep(auto_recording_interval)
+                    # Take screenshot
+                    screenshot_data = take_screenshot()
+                    
+                    # Prepare data for n8n
+                    files = {
+                        'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
+                        'audio': ('audio.wav', audio_data, 'audio/wav')
+                    }
+
+                    # Send to n8n
+                    response = requests.post(
+                        API_ENDPOINT,
+                        files=files,
+                        timeout=REQUEST_TIMEOUT
+                    )
+                    response.raise_for_status()
+                    
+                    # Process audio response
+                    asyncio.run(process_audio_chunk(response.content))
+                    
                 except Exception as e:
                     logging.error(f"Error in auto recording thread: {e}")
                     update_status(f"❌ Auto recording error: {str(e)}")
