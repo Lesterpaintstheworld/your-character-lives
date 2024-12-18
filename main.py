@@ -157,7 +157,7 @@ async def process_audio_chunk(audio_data: bytes):
                 except Exception as e:
                     logging.warning(f"Failed to remove temp file: {e}")
 
-            # Switch back to idle video after playing
+            # Switch back to idle video after audio finishes
             if current_video_window:
                 current_video_window.switch_to_idle_video()
 
