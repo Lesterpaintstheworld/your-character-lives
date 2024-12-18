@@ -803,10 +803,20 @@ if __name__ == "__main__":
         # Initialize video window in a separate thread
         def init_video_window():
             try:
-                video_window = DraggableVideoWindow("videos/loop.mp4")
+                # Get the absolute path to the video file
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                video_path = os.path.join(script_dir, "videos", "loop.mp4")
+        
+                # Check if video file exists
+                if not os.path.exists(video_path):
+                    logging.error(f"Video file not found at: {video_path}")
+                    return
+            
+                logging.info(f"Loading video from: {video_path}")
+                video_window = DraggableVideoWindow(video_path)
                 video_window.run()
             except Exception as e:
-                logging.error(f"Failed to create video window: {e}")
+                logging.error(f"Failed to create video window: {e}", exc_info=True)
 
         video_thread = threading.Thread(target=init_video_window)
         video_thread.daemon = True
