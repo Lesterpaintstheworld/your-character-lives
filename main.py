@@ -145,23 +145,22 @@ engine.setProperty('rate', 150)  # Speech rate (default is 200)
 engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
 async def process_audio_chunk(audio_data: bytes):
-    """Process and play audio data using device names instead of indices."""
+    """Process and play audio data using PyAudio directly."""
     temp_path = None
+    p = None
+    stream = None
+    
     try:
-        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+        # Save audio data to temporary file
+        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
             temp_path = temp_file.name
             temp_file.write(audio_data)
             temp_file.flush()
-
+            
         # Get selected output device name
         selected = output_var.get() if output_var else None
-        device_name = None
+        device_index = None
         
-        if selected:
-            # Extract just the device name without any index or status
-            device_name = re.match(r'^([^(]+)', selected).group(1).strip()
-            logging.info(f"Selected device name: {device_name}")
-
         # Don't play if paused
         if not is_playing:
             return
@@ -169,97 +168,74 @@ async def process_audio_chunk(audio_data: bytes):
         # Switch to talking video before playing
         if current_video_window:
             current_video_window.switch_to_talk_video()
-
-        # Initialize pygame mixer with retry logic
-        max_retries = 3
-        retry_delay = 0.5
-        success = False
         
-        for attempt in range(max_retries):
-            try:
-                pygame.mixer.quit()  # Ensure clean state
+        # Initialize PyAudio
+        p = pyaudio.PyAudio()
+        
+        try:
+            # First try to find selected device
+            if selected:
+                device_name = re.match(r'^([^(]+)', selected).group(1).strip()
+                logging.info(f"Looking for selected device: {device_name}")
                 
-                # Find working device by name
-                p = pyaudio.PyAudio()
-                try:
-                    device_found = False
-                    
-                    # First try selected device if any
-                    if device_name:
-                        for i in range(p.get_device_count()):
-                            info = p.get_device_info_by_index(i)
-                            if (device_name.lower() in info['name'].lower() and 
-                                info['maxOutputChannels'] > 0):
-                                pygame.mixer.init(frequency=16000, devicename=info['name'])
-                                device_found = True
-                                logging.info(f"Using selected device: {info['name']}")
-                                break
-                    
-                    # If selected device not found, try default device
-                    if not device_found:
-                        default_info = p.get_default_output_device_info()
-                        pygame.mixer.init(frequency=16000, devicename=default_info['name'])
-                        logging.info(f"Using default device: {default_info['name']}")
-                    
-                    if not pygame.mixer.get_init():
-                        raise RuntimeError("Mixer initialization failed")
-                finally:
-                    p.terminate()
-                
-                # Test if mixer is properly initialized
-                if not pygame.mixer.get_init():
-                    raise RuntimeError("Mixer initialization failed")
-                    
-                pygame.mixer.music.load(temp_path)
-                pygame.mixer.music.play()
-                
-                # Wait for playback to complete with timeout
-                start_time = time.time()
-                while pygame.mixer.music.get_busy():
-                    await asyncio.sleep(0.1)
-                    if time.time() - start_time > AUDIO_TIMEOUT:
-                        logging.warning("Audio playback timeout - forcing stop")
-                        pygame.mixer.music.stop()
+                for i in range(p.get_device_count()):
+                    info = p.get_device_info_by_index(i)
+                    if (device_name.lower() in info['name'].lower() and 
+                        info['maxOutputChannels'] > 0):
+                        device_index = i
+                        logging.info(f"Found selected device: {info['name']} (index: {i})")
                         break
+            
+            # If no device found, use default output device
+            if device_index is None:
+                info = p.get_default_output_device_info()
+                device_index = info['index']
+                logging.info(f"Using default output device: {info['name']} (index: {device_index})")
+            
+            # Open the saved audio file
+            with wave.open(temp_path, 'rb') as wf:
+                # Open stream
+                stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
+                              channels=wf.getnchannels(),
+                              rate=wf.getframerate(),
+                              output=True,
+                              output_device_index=device_index,
+                              frames_per_buffer=1024)
                 
-                success = True
-                break
+                # Read and play the audio data
+                data = wf.readframes(1024)
+                start_time = time.time()
                 
-            except Exception as e:
-                logging.warning(f"Playback attempt {attempt + 1} failed: {e}")
-                if attempt < max_retries - 1:
-                    # Refresh devices before retry
-                    refresh_devices(mic_combo, output_combo)
-                    await asyncio.sleep(retry_delay)
-                    continue
-                raise
-
-        if not success:
-            raise RuntimeError("All playback attempts failed")
-
+                while data and (time.time() - start_time) < AUDIO_TIMEOUT:
+                    stream.write(data)
+                    data = wf.readframes(1024)
+                    await asyncio.sleep(0.001)  # Allow other tasks to run
+                    
+                logging.info("Audio playback completed successfully")
+                
+        except Exception as e:
+            logging.error(f"Error during playback: {e}")
+            raise
+            
     except Exception as e:
         logging.error(f"Error playing audio: {e}")
         update_status(f"❌ Audio playback error: {str(e)}")
         
-        # Try to reinitialize audio devices
-        try:
-            refresh_devices(mic_combo, output_combo)
-            update_status("🔄 Refreshed audio devices")
-        except Exception as refresh_error:
-            logging.error(f"Failed to refresh devices: {refresh_error}")
-        
     finally:
         # Cleanup
-        try:
-            pygame.mixer.music.unload()
-        except:
-            pass
-            
-        try:
-            pygame.mixer.quit()
-        except:
-            pass
-            
+        if stream is not None:
+            try:
+                stream.stop_stream()
+                stream.close()
+            except:
+                pass
+                
+        if p is not None:
+            try:
+                p.terminate()
+            except:
+                pass
+                
         # Remove temporary file
         if temp_path and os.path.exists(temp_path):
             try:
