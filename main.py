@@ -566,31 +566,28 @@ def record_audio(duration):
                 break
                 
             try:
-                logging.debug(f"Reading chunk {i}")
                 data = stream.read(1024, exception_on_overflow=False)
                 
                 if not data:
-                    logging.warning(f"Empty chunk received at index {i}")
                     continue
                     
-                logging.debug(f"Chunk {i} size: {len(data)} bytes")
                 frames.append(data)
                 
                 # Update VU meter
                 level = calculate_audio_level(data)
                 root.after(0, lambda l=level: vu_meter.set_level(l))
                 
-                # Progress update
+                # Progress update every second
                 if i % (device_rate // 1024) == 0:
                     elapsed = time.time() - start_time
                     update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                     
             except OSError as e:
-                logging.error(f"OSError during chunk {i}: {e}")
+                logging.error(f"OSError during recording: {e}")
                 time.sleep(0.1)
                 continue
             except Exception as e:
-                logging.error(f"Error recording chunk {i}: {e}")
+                logging.error(f"Error during recording: {e}")
                 continue
                 
         is_recording = False
@@ -599,17 +596,10 @@ def record_audio(duration):
         elapsed = time.time() - start_time
         logging.info(f"Recording completed in {elapsed:.1f}s")
         logging.info(f"Recorded {len(frames)} chunks out of {chunks} expected")
-                    
+        
         if not frames:
             logging.error("No audio data was recorded")
-            # Create empty audio buffer
-            empty_buffer = io.BytesIO()
-            with wave.open(empty_buffer, 'wb') as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(16000)
-                wf.writeframes(b'\x00' * 16000)  # 1 second of silence
-            return empty_buffer.getvalue()
+            raise RuntimeError("No audio data recorded")
             
         # Create WAV buffer
         wav_buffer = io.BytesIO()
