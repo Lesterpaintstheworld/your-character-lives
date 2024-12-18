@@ -155,7 +155,9 @@ async def process_audio_chunk(audio_data: bytes):
                     device_index = int(match.group(1))
                     os.environ['SDL_AUDIODRIVER'] = 'directsound'  # For Windows
                     os.environ['SDL_AUDIODEV'] = str(device_index)
-        
+        except Exception as e:
+            logging.error(f"Error setting audio device: {e}")
+            
         # Switch to talking video before playing
         if current_video_window:
             current_video_window.switch_to_talk_video()
