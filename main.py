@@ -180,11 +180,25 @@ async def process_audio_chunk(audio_data: bytes):
             try:
                 pygame.mixer.quit()  # Ensure clean state
                 
+                # Validate device index still exists
+                p = pyaudio.PyAudio()
+                try:
+                    if device_index is not None:
+                        device_info = p.get_device_info_by_index(device_index)
+                        if device_info['maxOutputChannels'] == 0:
+                            raise ValueError("Device has no output channels")
+                    else:
+                        # Get default device if none specified
+                        device_info = p.get_default_output_device_info()
+                        device_index = device_info['index']
+                        logging.info(f"Using default output device: {device_info['name']}")
+                finally:
+                    p.terminate()
+                
+                # Initialize mixer with validated device
                 if device_index is not None:
-                    # Try with specific device
                     pygame.mixer.init(frequency=16000, devicename=str(device_index))
                 else:
-                    # Try with default device
                     pygame.mixer.init(frequency=16000)
                 
                 # Test if mixer is properly initialized
@@ -209,6 +223,8 @@ async def process_audio_chunk(audio_data: bytes):
             except Exception as e:
                 logging.warning(f"Playback attempt {attempt + 1} failed: {e}")
                 if attempt < max_retries - 1:
+                    # Refresh devices before retry
+                    refresh_devices(mic_combo, output_combo)
                     await asyncio.sleep(retry_delay)
                     continue
                 raise
