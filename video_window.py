@@ -11,6 +11,11 @@ class DraggableVideoWindow:
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing DraggableVideoWindow")
         
+        # Initialize drag and resize data
+        self.drag_data = {'x': 0, 'y': 0}
+        self.resize_data = {'x': 0, 'y': 0}
+        self.is_transparent = False
+        
         self.idle_video_path = idle_video_path
         self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk.mp4")
         self.current_video_path = idle_video_path
@@ -117,8 +122,9 @@ class DraggableVideoWindow:
         self.resize_data['y'] = event.y
         
     def close_window(self, event):
-        """Close the window on double-click"""
-        self.window.quit()
+        """Close the window and cleanup resources"""
+        self.cleanup()
+        self.window.destroy()
         
     def toggle_transparency(self, event):
         """Toggle window transparency on middle click"""
@@ -227,27 +233,41 @@ class DraggableVideoWindow:
         
     def switch_to_talk_video(self):
         """Request transition to talking video"""
-        if self.current_video_path != self.talk_video_path:
-            self.transition_requested = True
-            self.fade_counter = self.fade_frames
-            self.current_video_path = self.talk_video_path
-            self.last_frame = None  # Store last frame for smooth transition
-            self.cap.release()
-            self.cap = cv2.VideoCapture(self.talk_video_path)
-            # Disable audio for talk video
-            self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+        try:
+            if self.current_video_path != self.talk_video_path:
+                self.transition_requested = True
+                self.fade_counter = self.fade_frames
+                self.current_video_path = self.talk_video_path
+                self.last_frame = None
+                if self.cap is not None:
+                    self.cap.release()
+                self.cap = cv2.VideoCapture(self.talk_video_path)
+                if not self.cap.isOpened():
+                    raise ValueError(f"Failed to open talk video: {self.talk_video_path}")
+                self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+        except Exception as e:
+            self.logger.error(f"Failed to switch to talk video: {e}")
+            # Try to recover by staying on current video
+            self.transition_requested = False
 
     def switch_to_idle_video(self):
         """Request transition to idle video"""
-        if self.current_video_path != self.idle_video_path:
-            self.transition_requested = True
-            self.fade_counter = self.fade_frames
-            self.current_video_path = self.idle_video_path
-            self.last_frame = None  # Store last frame for smooth transition
-            self.cap.release()
-            self.cap = cv2.VideoCapture(self.idle_video_path)
-            # Disable audio for idle video
-            self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+        try:
+            if self.current_video_path != self.idle_video_path:
+                self.transition_requested = True
+                self.fade_counter = self.fade_frames
+                self.current_video_path = self.idle_video_path
+                self.last_frame = None
+                if self.cap is not None:
+                    self.cap.release()
+                self.cap = cv2.VideoCapture(self.idle_video_path)
+                if not self.cap.isOpened():
+                    raise ValueError(f"Failed to open idle video: {self.idle_video_path}")
+                self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
+        except Exception as e:
+            self.logger.error(f"Failed to switch to idle video: {e}")
+            # Try to recover by staying on current video
+            self.transition_requested = False
 
     def cleanup(self):
         """Release resources"""

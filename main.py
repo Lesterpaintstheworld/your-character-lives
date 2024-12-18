@@ -889,15 +889,15 @@ if __name__ == "__main__":
 
         def init_video_window():
             try:
-                # Get the absolute path to the video file
+                # Get the absolute path to the video directory
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 videos_dir = os.path.join(script_dir, "videos")
+                
+                # Ensure videos directory exists
+                os.makedirs(videos_dir, exist_ok=True)
+                logging.info(f"Using videos directory: {videos_dir}")
+                
                 video_path = os.path.join(videos_dir, "loop.mp4")
-
-                logging.info(f"Checking video directory: {videos_dir}")
-                if not os.path.exists(videos_dir):
-                    os.makedirs(videos_dir)
-                    logging.info("Created videos directory")
         
                 logging.info(f"Checking for video file: {video_path}")
                 if not os.path.exists(video_path):
