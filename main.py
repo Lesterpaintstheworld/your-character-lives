@@ -7,10 +7,12 @@ import time
 import io
 import wave
 import threading
+import tempfile
 import cv2
 import numpy as np
 from scipy import signal
 from video_window import DraggableVideoWindow
+from device_manager import DeviceManager
 
 # Global reference to current video window
 current_video_window = None
