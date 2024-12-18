@@ -150,15 +150,17 @@ async def process_audio_chunk(audio_data: bytes):
     try:
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
             temp_path = temp_file.name
-            
+            temp_file.write(audio_data)
+            temp_file.flush()
+
             # Get selected output device
-            selected = output_var.get()
+            selected = output_var.get() if output_var else None
+            device_index = None
+            
             if selected:
                 match = re.search(r'Device (\d+)', selected)
                 if match:
                     device_index = int(match.group(1))
-                    os.environ['SDL_AUDIODRIVER'] = 'directsound'  # For Windows
-                    os.environ['SDL_AUDIODEV'] = str(device_index)
             
             # Switch to talking video before playing
             if current_video_window:
@@ -168,15 +170,16 @@ async def process_audio_chunk(audio_data: bytes):
             if not is_playing:
                 return
 
-            # Write audio data
-            temp_file.write(audio_data)
-            temp_file.flush()
-            
-            # Try primary playback method with pygame
-            pygame.mixer.quit()  # Reset mixer
-            pygame.mixer.init(frequency=16000, devicename=selected if selected else None)
-            pygame.mixer.music.load(temp_path)
-            pygame.mixer.music.play()
+            # Try to initialize pygame mixer with selected device
+            try:
+                pygame.mixer.quit()
+                if device_index is not None:
+                    pygame.mixer.init(frequency=16000, devicename=str(device_index))
+                else:
+                    pygame.mixer.init(frequency=16000)  # Use default device if none selected
+                
+                pygame.mixer.music.load(temp_path)
+                pygame.mixer.music.play()
             
             # Wait for playback to complete with timeout
             start_time = time.time()
@@ -473,7 +476,7 @@ def get_input_device():
         p.terminate()
 
 def record_audio(duration):
-    """Record audio with VU meter updates"""
+    """Record audio with optimal sample rate."""
     global is_recording
     update_status("🎤 Initializing audio...")
     
@@ -482,7 +485,7 @@ def record_audio(duration):
     frames = []
     
     try:
-        # Get selected mic index from combo box
+        # Get selected mic index
         selected = mic_var.get()
         if not selected:
             raise Exception("No microphone selected")
@@ -494,12 +497,23 @@ def record_audio(duration):
         input_device = int(match.group(1))
         p = pyaudio.PyAudio()
         
+        # Try to use 16000Hz first
         try:
-            # Get device info for resampling if needed
+            stream = p.open(
+                format=FORMAT,
+                channels=1,
+                rate=16000,
+                input=True,
+                input_device_index=input_device,
+                frames_per_buffer=1024
+            )
+            device_rate = 16000
+            logging.info("Using 16000Hz sampling rate")
+        except:
+            # Fall back to device's native rate
             device_info = p.get_device_info_by_index(input_device)
             device_rate = int(device_info['defaultSampleRate'])
-            
-            # Create stream with device's native rate
+            logging.info(f"Falling back to device native rate: {device_rate}Hz")
             stream = p.open(
                 format=FORMAT,
                 channels=1,
