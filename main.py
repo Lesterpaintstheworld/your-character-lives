@@ -907,10 +907,19 @@ if __name__ == "__main__":
             except Exception as e:
                 logging.error(f"Failed to create video window: {e}", exc_info=True)
 
-        video_thread = threading.Thread(target=init_video_window)
-        video_thread.daemon = True
-        video_thread.start()
-        logging.info("Video window initialized successfully")
+        # Initialize video subsystem first
+        if not init_video():
+            messagebox.showwarning(
+                "Video Warning",
+                "Video subsystem initialization failed. The application will continue without video support."
+            )
+        else:
+            # Initialize video window in a separate thread
+            video_logger.info("Starting video window thread")
+            video_thread = threading.Thread(target=init_video_window)
+            video_thread.daemon = True
+            video_thread.start()
+            video_logger.info("Video window thread started")
         
         # Test audio but don't exit if it fails
         audio_ok = initialize_audio()
