@@ -875,11 +875,25 @@ if __name__ == "__main__":
                 video_logger.error(f"Failed to create test video: {e}", exc_info=True)
                 return None
 
+        def get_video_path():
+            """Get the correct path to video files whether running from source or executable"""
+            if getattr(sys, 'frozen', False):
+                # Running from executable
+                base_path = sys._MEIPASS
+            else:
+                # Running from source
+                base_path = os.path.dirname(os.path.abspath(__file__))
+        
+            videos_dir = os.path.join(base_path, "videos")
+            if not os.path.exists(videos_dir):
+                os.makedirs(videos_dir)
+        
+            return videos_dir
+
         def init_video_window():
             try:
-                # Get the absolute path to the video directory
-                script_dir = os.path.dirname(os.path.abspath(__file__))
-                videos_dir = os.path.join(script_dir, "videos")
+                # Get video directory path
+                videos_dir = get_video_path()
                 
                 # Ensure videos directory exists
                 os.makedirs(videos_dir, exist_ok=True)
