@@ -860,7 +860,7 @@ if __name__ == "__main__":
                 # Create idle video (green circle moving horizontally)
                 if not os.path.exists(idle_path):
                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    out = cv2.VideoWriter(idle_path, fourcc, 30.0, (320,240))
+                    out = cv2.VideoWriter(idle_path, fourcc, 30.0, (320,240), isColor=True)
                     for i in range(60):
                         frame = np.zeros((240,320,3), dtype=np.uint8)
                         cv2.circle(frame, 
@@ -872,7 +872,7 @@ if __name__ == "__main__":
                 # Create talk video (green circle moving vertically)
                 if not os.path.exists(talk_path):
                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    out = cv2.VideoWriter(talk_path, fourcc, 30.0, (320,240))
+                    out = cv2.VideoWriter(talk_path, fourcc, 30.0, (320,240), isColor=True)
                     for i in range(60):
                         frame = np.zeros((240,320,3), dtype=np.uint8)
                         cv2.circle(frame, 

@@ -24,11 +24,14 @@ class DraggableVideoWindow:
             raise FileNotFoundError(f"Video file not found: {idle_video_path}")
         
         try:
-            # Initialize video capture
+            # Initialize video capture with no audio
             self.cap = cv2.VideoCapture(self.current_video_path)
             if not self.cap.isOpened():
                 self.logger.error("Failed to open video capture")
                 raise ValueError("Failed to open video capture")
+            
+            # Explicitly disable audio capture
+            self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
                 
             # Get video properties
             self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
@@ -231,6 +234,8 @@ class DraggableVideoWindow:
             self.last_frame = None  # Store last frame for smooth transition
             self.cap.release()
             self.cap = cv2.VideoCapture(self.talk_video_path)
+            # Disable audio for talk video
+            self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
 
     def switch_to_idle_video(self):
         """Request transition to idle video"""
@@ -241,6 +246,8 @@ class DraggableVideoWindow:
             self.last_frame = None  # Store last frame for smooth transition
             self.cap.release()
             self.cap = cv2.VideoCapture(self.idle_video_path)
+            # Disable audio for idle video
+            self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
 
     def cleanup(self):
         """Release resources"""
