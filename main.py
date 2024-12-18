@@ -198,7 +198,6 @@ async def process_audio_chunk(audio_data: bytes):
     except Exception as e:
         logging.error(f"Error playing audio: {e}")
         update_status(f"❌ Audio playback error: {str(e)}")
-        
     finally:
         # Cleanup
         try:
@@ -211,13 +210,12 @@ async def process_audio_chunk(audio_data: bytes):
         except:
             pass
             
-        # Remove temporary files
-        for file in [temp_file, fallback_file]:
-            if os.path.exists(file):
-                try:
-                    os.remove(file)
-                except Exception as e:
-                    logging.warning(f"Failed to remove temp file {file}: {e}")
+        # Remove temporary file
+        if os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as e:
+                logging.warning(f"Failed to remove temp file {temp_path}: {e}")
 
         # Switch back to idle video
         if current_video_window:
