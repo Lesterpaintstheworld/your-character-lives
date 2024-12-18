@@ -9,6 +9,7 @@ import wave
 import threading
 import cv2
 import numpy as np
+from scipy import signal
 from video_window import DraggableVideoWindow
 
 # Global reference to current video window
@@ -450,41 +451,29 @@ def record_audio(duration):
         p = pyaudio.PyAudio()
         
         try:
-            # Create non-callback stream for recording
-            # Before opening the stream, verify the device supports our sample rate
+            # Get device info for resampling if needed
             device_info = p.get_device_info_by_index(input_device)
-            supported_rate = int(device_info['defaultSampleRate'])
-            if supported_rate != 16000:
-                logging.warning(f"Device default sample rate ({supported_rate}) differs from requested rate (16000)")
-                # Optionally adjust rate to match device
-                # RATE = supported_rate
+            device_rate = int(device_info['defaultSampleRate'])
             
-            device_info = p.get_device_info_by_index(input_device)
-                
-            try:
-                stream = p.open(
-                    format=FORMAT,
-                    channels=1,
-                    rate=supported_rate,  # Use native sample rate
-                    input=True,
-                    input_device_index=input_device,
-                    frames_per_buffer=1024
-                )
-            except ValueError as e:
-                logging.error(f"Sample rate error: {e}")
-                update_status(f"❌ Sample rate error: {e}")
-                raise
+            # Create stream with device's native rate
+            stream = p.open(
+                format=FORMAT,
+                channels=1,
+                rate=device_rate,
+                input=True,
+                input_device_index=input_device,
+                frames_per_buffer=1024
+            )
             
-            logging.info(f"Recording for {duration} seconds...")
+            logging.info(f"Recording for {duration} seconds at {device_rate}Hz...")
             update_status("🎤 Recording...")
             
-            # Calculate number of chunks to record
-            chunks = int(16000 / 1024 * duration)
+            # Calculate chunks based on device rate
+            chunks = int(device_rate / 1024 * duration)
             
-            is_recording = True  # Mark start of recording
+            is_recording = True
             
             for i in range(chunks):
-                # Check if recording should stop
                 if not is_playing or not is_recording:
                     logging.info("Recording interrupted")
                     update_status("⏸️ Recording stopped")
@@ -499,17 +488,16 @@ def record_audio(duration):
                     root.after(0, lambda l=level: vu_meter.set_level(l))
                     
                     # Update progress every second
-                    if i % (16000 // 1024) == 0:
-                        seconds = i // (16000 // 1024)
+                    if i % (device_rate // 1024) == 0:
+                        seconds = i // (device_rate // 1024)
                         update_status(f"🎤 Recording... {seconds}/{duration}s")
                         
                 except OSError as e:
                     logging.error(f"OSError during recording: {e}")
-                    # Try to recover
                     time.sleep(0.1)
                     continue
                     
-            is_recording = False  # Mark end of recording
+            is_recording = False
                     
         finally:
             if stream:
@@ -526,12 +514,27 @@ def record_audio(duration):
                     
         update_status("✅ Recording complete")
         
-        # Create WAV buffer
+        # Resample to 16kHz if needed
+        if device_rate != 16000:
+            logging.info(f"Resampling from {device_rate}Hz to 16000Hz")
+            import numpy as np
+            # Convert frames to numpy array
+            audio_data = np.frombuffer(b''.join(frames), dtype=np.int16)
+            # Calculate number of samples needed
+            samples_out = int(len(audio_data) * 16000 / device_rate)
+            # Resample
+            audio_resampled = signal.resample(audio_data, samples_out)
+            # Convert back to int16
+            audio_resampled = np.int16(audio_resampled)
+            # Use resampled data
+            frames = [audio_resampled.tobytes()]
+        
+        # Create WAV buffer at 16kHz
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, 'wb') as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(16000)
+            wf.setframerate(16000)  # Force 16kHz
             wf.writeframes(b''.join(frames))
         
         return wav_buffer.getvalue()
