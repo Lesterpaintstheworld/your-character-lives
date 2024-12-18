@@ -225,28 +225,72 @@ class AudioManager:
                         
                     logging.info("Stream opened successfully")
                     
-                    chunks_to_record = int(self.config.SAMPLE_RATE / self.config.CHUNK_SIZE * duration)
-                    logging.info(f"Will record {chunks_to_record} chunks")
+                    # Verify stream is active
+                    if not stream.is_active():
+                        logging.error("Stream not active after opening")
+                        raise RuntimeError("Audio stream not active")
+                
+                    logging.info("Stream opened successfully and is active")
+            
+                    # Log audio format settings
+                    logging.info(f"PyAudio Format: {FORMAT}")
+                    logging.info(f"PyAudio Channels: {CHANNELS}")
+                    logging.info(f"PyAudio Rate: {self.config.SAMPLE_RATE}")
+                    logging.info(f"PyAudio Chunk Size: {self.config.CHUNK_SIZE}")
+
+                    chunks = int(self.config.SAMPLE_RATE / self.config.CHUNK_SIZE * duration)
+                    logging.info(f"Will record {chunks} chunks")
+            
+                    is_recording = True
+                    start_time = time.time()
+            
+                    for i in range(chunks):
+                        if not is_playing or not is_recording:
+                            logging.info("Recording interrupted")
+                            update_status("⏸️ Recording stopped")
+                            break
                     
-                    for chunk in range(chunks_to_record):
                         try:
+                            # Log before reading
+                            logging.debug(f"Reading chunk {i}/{chunks}")
+                    
+                            # Add timeout for read operation
                             data = stream.read(self.config.CHUNK_SIZE, exception_on_overflow=False)
+                    
+                            # Verify data is not empty
                             if not data:
-                                logging.error(f"No data received for chunk {chunk}")
+                                logging.warning(f"Empty data received for chunk {i}")
                                 continue
+                        
+                            # Log data size
+                            logging.debug(f"Chunk {i} size: {len(data)} bytes")
+                    
                             frames.append(data)
                     
-                            if chunk % 10 == 0:  # Log every 10th chunk
-                                logging.debug(f"Recorded chunk {chunk}/{chunks_to_record}")
+                            # Calculate and update VU meter
+                            level = calculate_audio_level(data)
+                            logging.debug(f"Audio level: {level}")
+                            root.after(0, lambda l=level: vu_meter.set_level(l))
+                    
+                            # Update progress every second
+                            if i % (self.config.SAMPLE_RATE // self.config.CHUNK_SIZE) == 0:
+                                elapsed = time.time() - start_time
+                                logging.info(f"Recording progress: {elapsed:.1f}s/{duration}s")
+                                update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                         except OSError as e:
-                            if "Unanticipated host error" in str(e):
-                                logging.warning(f"Host error during recording: {e}")
-                                time.sleep(0.1)
-                                continue
-                            raise
+                            logging.error(f"OSError during recording chunk {i}: {e}")
+                            time.sleep(0.1)
+                            continue
                         except Exception as e:
-                            logging.error(f"Error recording chunk {chunk}: {e}")
-                            raise
+                            logging.error(f"Unexpected error recording chunk {i}: {e}")
+                            continue
+                    
+                    # Log final recording stats
+                    elapsed = time.time() - start_time
+                    logging.info(f"Recording completed in {elapsed:.1f}s")
+                    logging.info(f"Recorded {len(frames)} chunks out of {chunks} expected")
+            
+                    is_recording = False
 
                 if not frames:
                     logging.error("No audio data was recorded")
