@@ -83,7 +83,7 @@ running = True
 is_playing = True
 is_recording = False
 auto_recording = False
-auto_recording_interval = 90  # seconds
+auto_recording_interval = 50  # seconds
 interval_spinbox = None  # Will be set when UI is created
 auto_recording_task = None
 output_var = None  # Will store output device selection
@@ -929,7 +929,7 @@ def create_device_selectors():
     global interval_spinbox
     interval_spinbox = tk.Spinbox(auto_frame, from_=5, to=3600, width=5, increment=5)
     interval_spinbox.delete(0, tk.END)
-    interval_spinbox.insert(0, "90")  # default value
+    interval_spinbox.insert(0, "50")  # default value
     interval_spinbox.pack(side='left', padx=(0,5))
     tk.Label(auto_frame, text="sec").pack(side='left')
     
