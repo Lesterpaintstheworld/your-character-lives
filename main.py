@@ -574,14 +574,15 @@ def toggle_play_pause():
     play_pause_btn.config(text="▶️" if not is_playing else "⏸️")
     
     if is_playing:
-        # If resuming, update status and trigger immediate recording
-        update_status("▶️ Resumed")
-        # Create and start a new recording cycle immediately
-        api_thread = threading.Thread(
-            target=lambda: asyncio.run(api_client(0))  # Pass 0 as interval for immediate start
-        )
-        api_thread.daemon = True
-        api_thread.start()
+        # Only start new recording if not already recording
+        if not is_recording:
+            update_status("▶️ Resumed")
+            # Create and start a new recording cycle immediately
+            api_thread = threading.Thread(
+                target=lambda: asyncio.run(api_client(0))
+            )
+            api_thread.daemon = True
+            api_thread.start()
     else:
         # If pausing, stop current recording and playback
         is_recording = False  # Signal recording to stop
