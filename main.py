@@ -151,8 +151,8 @@ async def process_audio_chunk(audio_data: bytes):
     stream = None
     
     try:
-        # Save audio data to temporary file
-        with tempfile.NamedTemporaryFile(suffix='.wav', delete=False) as temp_file:
+        # Save audio data to temporary file with .mp3 extension
+        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
             temp_path = temp_file.name
             temp_file.write(audio_data)
             temp_file.flush()
@@ -191,24 +191,39 @@ async def process_audio_chunk(audio_data: bytes):
                 info = p.get_default_output_device_info()
                 device_index = info['index']
                 logging.info(f"Using default output device: {info['name']} (index: {device_index})")
+
+            # Convert MP3 to raw PCM using soundfile
+            import soundfile as sf
+            import io
+            import pydub
+
+            # Load MP3 using pydub
+            audio = pydub.AudioSegment.from_mp3(temp_path)
             
-            # Open the saved audio file
-            with wave.open(temp_path, 'rb') as wf:
-                # Open stream
-                stream = p.open(format=p.get_format_from_width(wf.getsampwidth()),
-                              channels=wf.getnchannels(),
-                              rate=wf.getframerate(),
+            # Convert to WAV format in memory
+            wav_io = io.BytesIO()
+            audio.export(wav_io, format='wav')
+            wav_io.seek(0)
+            
+            # Read the WAV data using soundfile
+            with sf.SoundFile(wav_io, 'r') as sf_file:
+                # Open stream with the correct parameters
+                stream = p.open(format=pyaudio.paFloat32,
+                              channels=sf_file.channels,
+                              rate=sf_file.samplerate,
                               output=True,
                               output_device_index=device_index,
                               frames_per_buffer=1024)
                 
                 # Read and play the audio data
-                data = wf.readframes(1024)
                 start_time = time.time()
-                
-                while data and (time.time() - start_time) < AUDIO_TIMEOUT:
-                    stream.write(data)
-                    data = wf.readframes(1024)
+                while True:
+                    data = sf_file.read(1024)
+                    if not len(data):
+                        break
+                    if time.time() - start_time > AUDIO_TIMEOUT:
+                        break
+                    stream.write(data.tobytes())
                     await asyncio.sleep(0.001)  # Allow other tasks to run
                     
                 logging.info("Audio playback completed successfully")
