@@ -9,70 +9,72 @@ class DraggableVideoWindow:
     def __init__(self, video_path):
         """Initialize video window with given video path"""
         self.logger = logging.getLogger(__name__)
+        self.logger.info("Initializing DraggableVideoWindow")
         
-        # Check if video file exists
         if not os.path.exists(video_path):
             self.logger.error(f"Video file not found: {video_path}")
             raise FileNotFoundError(f"Video file not found: {video_path}")
+        
+        try:
+            # Initialize video capture
+            self.cap = cv2.VideoCapture(video_path)
+            if not self.cap.isOpened():
+                self.logger.error("Failed to open video capture")
+                raise ValueError("Failed to open video capture")
+                
+            # Get video properties
+            self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+            self.logger.info(f"Video dimensions: {self.width}x{self.height}")
             
-        self.logger.info(f"Initializing video window with: {video_path}")
-        
-        # Initialize video capture first
-        self.cap = cv2.VideoCapture(video_path)
-        if not self.cap.isOpened():
-            self.logger.error(f"Could not open video file: {video_path}")
-            raise ValueError(f"Could not open video file: {video_path}")
-        
-        # Get video properties
-        self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-        self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
-        if self.width == 0 or self.height == 0:
-            self.logger.error("Invalid video dimensions")
-            raise ValueError("Invalid video dimensions")
+            # Create window
+            self.logger.info("Creating Tkinter window")
+            self.window = tk.Toplevel()
+            self.window.withdraw()  # Hide window initially
             
-        self.logger.info(f"Video dimensions: {self.width}x{self.height}")
-        
-        # Create main window
-        self.window = tk.Toplevel()  # Use Toplevel instead of Tk
-        self.window.overrideredirect(True)
-        self.window.attributes('-topmost', True)
-        self.window.attributes('-alpha', 1.0)
-        
-        # Set initial window size to half the video size
-        self.width = self.width // 2
-        self.height = self.height // 2
-        self.window.geometry(f"{self.width}x{self.height}+100+100")
-        
-        # Create label for video display
-        self.label = tk.Label(self.window, bg='black')
-        self.label.pack(fill='both', expand=True)
-        
-        # Initialize PhotoImage storage
-        self.photo = None
-        self.image = None
-        
-        # Initialize drag and resize data
-        self.drag_data = {'x': 0, 'y': 0}
-        self.resize_data = {'x': 0, 'y': 0}
-        self.is_transparent = False
-        
-        # Bind mouse events
-        self.label.bind('<Button-1>', self.start_drag)
-        self.label.bind('<B1-Motion>', self.drag)
-        self.label.bind('<Button-3>', self.start_resize)
-        self.label.bind('<B3-Motion>', self.resize)
-        self.label.bind('<Double-Button-1>', self.close_window)
-        self.label.bind('<Button-2>', self.toggle_transparency)
-        
-        # Read first frame to initialize display
-        ret, frame = self.cap.read()
-        if ret:
-            self.display_frame(frame)
-            self.logger.info("First frame displayed successfully")
-        else:
-            self.logger.error("Failed to read first frame")
-            raise ValueError("Failed to read first frame")
+            # Configure window
+            self.window.overrideredirect(True)
+            self.window.attributes('-topmost', True)
+            self.window.attributes('-alpha', 1.0)
+            
+            # Set window size
+            self.width = max(320, self.width // 2)  # Minimum width of 320
+            self.height = max(240, self.height // 2)  # Minimum height of 240
+            self.window.geometry(f"{self.width}x{self.height}+100+100")
+            
+            # Create video display label
+            self.label = tk.Label(self.window, bg='black')
+            self.label.pack(fill='both', expand=True)
+            
+            # Initialize storage
+            self.photo = None
+            self.image = None
+            
+            # Bind events
+            self._bind_events()
+            
+            # Test frame display
+            self.logger.info("Testing frame display")
+            ret, frame = self.cap.read()
+            if not ret or frame is None:
+                self.logger.error("Failed to read first frame")
+                raise ValueError("Failed to read first frame")
+                
+            # Try to display first frame
+            try:
+                self.display_frame(frame)
+            except Exception as e:
+                self.logger.error(f"Failed to display first frame: {e}")
+                raise
+                
+            # Show window
+            self.window.deiconify()
+            self.logger.info("Window initialization complete")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize video window: {e}")
+            self.cleanup()
+            raise
         
         # Start video loop
         self.update_frame()
@@ -112,28 +114,56 @@ class DraggableVideoWindow:
         self.is_transparent = not self.is_transparent
         self.window.attributes('-alpha', 0.5 if self.is_transparent else 1.0)
         
+    def _bind_events(self):
+        """Bind all window events"""
+        try:
+            self.label.bind('<Button-1>', self.start_drag)
+            self.label.bind('<B1-Motion>', self.drag)
+            self.label.bind('<Button-3>', self.start_resize)
+            self.label.bind('<B3-Motion>', self.resize)
+            self.label.bind('<Double-Button-1>', self.close_window)
+            self.label.bind('<Button-2>', self.toggle_transparency)
+            self.logger.info("Events bound successfully")
+        except Exception as e:
+            self.logger.error(f"Failed to bind events: {e}")
+            raise
+
     def display_frame(self, frame):
         """Convert and display a frame"""
         try:
+            if frame is None:
+                self.logger.error("Received None frame")
+                return
+                
             # Convert frame from BGR to RGB
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            # Resize frame to window size
-            current_width = self.window.winfo_width()
-            current_height = self.window.winfo_height()
+            # Get current window dimensions
+            try:
+                current_width = self.window.winfo_width()
+                current_height = self.window.winfo_height()
+            except Exception as e:
+                self.logger.error(f"Failed to get window dimensions: {e}")
+                current_width = self.width
+                current_height = self.height
+                
+            # Resize frame
             resized = cv2.resize(rgb_frame, (current_width, current_height))
             
-            # Convert to PIL Image
+            # Convert to PIL Image and PhotoImage
             self.image = Image.fromarray(resized)
-            
-            # Convert to PhotoImage
             self.photo = ImageTk.PhotoImage(image=self.image)
             
             # Update label
-            self.label.configure(image=self.photo)
-            
+            if hasattr(self, 'label') and self.label.winfo_exists():
+                self.label.configure(image=self.photo)
+                self.label.image = self.photo  # Keep a reference
+            else:
+                self.logger.error("Label does not exist")
+                
         except Exception as e:
-            self.logger.error(f"Error displaying frame: {e}")
+            self.logger.error(f"Error in display_frame: {e}")
+            raise
 
     def update_frame(self):
         """Update video frame"""

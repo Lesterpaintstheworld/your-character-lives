@@ -841,19 +841,33 @@ if __name__ == "__main__":
             try:
                 # Get the absolute path to the video file
                 script_dir = os.path.dirname(os.path.abspath(__file__))
-                video_path = os.path.join(script_dir, "videos", "loop.mp4")
+                videos_dir = os.path.join(script_dir, "videos")
+                video_path = os.path.join(videos_dir, "loop.mp4")
         
-                # If video doesn't exist, create a test video
+                logging.info(f"Checking video directory: {videos_dir}")
+                if not os.path.exists(videos_dir):
+                    os.makedirs(videos_dir)
+                    logging.info("Created videos directory")
+            
+                logging.info(f"Checking for video file: {video_path}")
                 if not os.path.exists(video_path):
-                    logging.warning(f"Video file not found at: {video_path}")
+                    logging.info("Video file not found, creating test video...")
                     video_path = create_test_video()
                     if not video_path:
-                        logging.error("Could not create or find video file")
+                        logging.error("Failed to create test video")
                         return
-        
-                logging.info(f"Loading video from: {video_path}")
+                
+                logging.info(f"Creating video window with path: {video_path}")
                 video_window = DraggableVideoWindow(video_path)
+        
+                # Add this line to verify window creation
+                if not video_window.window.winfo_exists():
+                    logging.error("Window was not created successfully")
+                    return
+            
+                logging.info("Starting video window main loop")
                 video_window.run()
+        
             except Exception as e:
                 logging.error(f"Failed to create video window: {e}", exc_info=True)
 
