@@ -153,31 +153,44 @@ async def process_audio_chunk(audio_data: bytes):
             temp_file.write(audio_data)
             temp_file.flush()
 
-            # Get selected output device
-            selected = output_var.get() if output_var else None
-            device_index = None
-            
-            if selected:
-                match = re.search(r'Device (\d+)', selected)
-                if match:
-                    device_index = int(match.group(1))
-            
-            # Switch to talking video before playing
-            if current_video_window:
-                current_video_window.switch_to_talk_video()
+        # Get selected output device
+        selected = output_var.get() if output_var else None
+        device_index = None
+        
+        if selected:
+            match = re.search(r'Device (\d+)', selected)
+            if match:
+                device_index = int(match.group(1))
+                logging.info(f"Using output device index: {device_index}")
 
-            # Don't play if paused
-            if not is_playing:
-                return
+        # Don't play if paused
+        if not is_playing:
+            return
 
-            # Try to initialize pygame mixer with selected device
+        # Switch to talking video before playing
+        if current_video_window:
+            current_video_window.switch_to_talk_video()
+
+        # Initialize pygame mixer with retry logic
+        max_retries = 3
+        retry_delay = 0.5
+        success = False
+        
+        for attempt in range(max_retries):
             try:
-                pygame.mixer.quit()
+                pygame.mixer.quit()  # Ensure clean state
+                
                 if device_index is not None:
+                    # Try with specific device
                     pygame.mixer.init(frequency=16000, devicename=str(device_index))
                 else:
-                    pygame.mixer.init(frequency=16000)  # Use default device if none selected
+                    # Try with default device
+                    pygame.mixer.init(frequency=16000)
                 
+                # Test if mixer is properly initialized
+                if not pygame.mixer.get_init():
+                    raise RuntimeError("Mixer initialization failed")
+                    
                 pygame.mixer.music.load(temp_path)
                 pygame.mixer.music.play()
                 
@@ -189,13 +202,30 @@ async def process_audio_chunk(audio_data: bytes):
                         logging.warning("Audio playback timeout - forcing stop")
                         pygame.mixer.music.stop()
                         break
+                
+                success = True
+                break
+                
             except Exception as e:
-                logging.error(f"Error during audio playback: {e}")
+                logging.warning(f"Playback attempt {attempt + 1} failed: {e}")
+                if attempt < max_retries - 1:
+                    await asyncio.sleep(retry_delay)
+                    continue
                 raise
+
+        if not success:
+            raise RuntimeError("All playback attempts failed")
 
     except Exception as e:
         logging.error(f"Error playing audio: {e}")
         update_status(f"❌ Audio playback error: {str(e)}")
+        
+        # Try to reinitialize audio devices
+        try:
+            refresh_devices(mic_combo, output_combo)
+            update_status("🔄 Refreshed audio devices")
+        except Exception as refresh_error:
+            logging.error(f"Failed to refresh devices: {refresh_error}")
         
     finally:
         # Cleanup
