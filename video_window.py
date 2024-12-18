@@ -9,33 +9,34 @@ class DraggableVideoWindow:
         """Initialize video window with given video path"""
         self.logger = logging.getLogger(__name__)
         
-        # Create borderless window
-        self.window = tk.Tk()
-        self.window.overrideredirect(True)  # Remove window borders/title
-        self.window.attributes('-topmost', True)  # Keep window on top
-        self.window.attributes('-alpha', 1.0)  # Full opacity
-        
-        # Store the PhotoImage reference at class level
-        self.current_image = None
-        
-        # Create video label with black background
-        self.label = tk.Label(self.window, bg='black')
-        self.label.pack(fill='both', expand=True)
-        
-        # Initialize video capture
+        # Initialize video capture first
         self.cap = cv2.VideoCapture(video_path)
         if not self.cap.isOpened():
             self.logger.error(f"Could not open video file: {video_path}")
             raise ValueError(f"Could not open video file: {video_path}")
-            
+        
         # Get video properties
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-    
+        
+        # Create main window
+        self.window = tk.Toplevel()  # Use Toplevel instead of Tk
+        self.window.overrideredirect(True)
+        self.window.attributes('-topmost', True)
+        self.window.attributes('-alpha', 1.0)
+        
         # Set initial window size to half the video size
         self.width = self.width // 2
         self.height = self.height // 2
         self.window.geometry(f"{self.width}x{self.height}+100+100")
+        
+        # Create label for video display
+        self.label = tk.Label(self.window, bg='black')
+        self.label.pack(fill='both', expand=True)
+        
+        # Initialize PhotoImage storage
+        self.photo = None
+        self.image = None
         
         # Bind mouse events for dragging
         self.label.bind('<Button-1>', self.start_drag)
@@ -92,12 +93,38 @@ class DraggableVideoWindow:
         self.is_transparent = not self.is_transparent
         self.window.attributes('-alpha', 0.5 if self.is_transparent else 1.0)
         
+    def display_frame(self, frame):
+        """Convert and display a frame"""
+        try:
+            # Convert frame from BGR to RGB
+            rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            
+            # Resize frame to window size
+            current_width = self.window.winfo_width()
+            current_height = self.window.winfo_height()
+            resized = cv2.resize(rgb_frame, (current_width, current_height))
+            
+            # Convert to PIL Image
+            self.image = Image.fromarray(resized)
+            
+            # Convert to PhotoImage
+            self.photo = ImageTk.PhotoImage(image=self.image)
+            
+            # Update label
+            self.label.configure(image=self.photo)
+            
+        except Exception as e:
+            self.logger.error(f"Error displaying frame: {e}")
+
     def update_frame(self):
         """Update video frame"""
+        if not hasattr(self, 'window') or not self.window.winfo_exists():
+            return
+            
         try:
             ret, frame = self.cap.read()
             if not ret:
-                # Reset video to start when it ends
+                # Reset video to start
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret, frame = self.cap.read()
                 if not ret:
@@ -105,24 +132,14 @@ class DraggableVideoWindow:
                     self.window.after(33, self.update_frame)
                     return
             
-            # Convert frame to proper format
-            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-            
-            # Resize frame to window size
-            current_width = self.window.winfo_width()
-            current_height = self.window.winfo_height()
-            frame = cv2.resize(frame, (current_width, current_height))
-            
-            # Convert to PhotoImage and store reference
-            image = Image.fromarray(frame)
-            self.current_image = ImageTk.PhotoImage(image=image)
-            self.label.configure(image=self.current_image)
+            self.display_frame(frame)
             
         except Exception as e:
             self.logger.error(f"Error updating video frame: {e}")
+            
         finally:
-            # Schedule next update regardless of success/failure
-            self.window.after(33, self.update_frame)
+            if hasattr(self, 'window') and self.window.winfo_exists():
+                self.window.after(33, self.update_frame)
             
     def run(self):
         """Start the video window"""
@@ -135,5 +152,5 @@ class DraggableVideoWindow:
         
     def cleanup(self):
         """Release resources"""
-        if self.cap is not None:
+        if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
