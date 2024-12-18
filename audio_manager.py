@@ -244,15 +244,37 @@ class AudioManager:
                     
                 logging.info(f"Successfully recorded {len(frames)} chunks")
                 
-                # Create WAV buffer
-                wav_buffer = io.BytesIO()
-                with wave.open(wav_buffer, 'wb') as wf:
-                    wf.setnchannels(self.config.CHANNELS)
-                    wf.setsampwidth(self.p.get_sample_size(
-                        self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8)))
-                    wf.setframerate(self.config.SAMPLE_RATE)
-                    wf.writeframes(b''.join(frames))
-                
+                # Resample to 16000 Hz if needed
+                if supported_rate != 16000:
+                    import numpy as np
+                    from scipy import signal
+                    
+                    # Convert frames to numpy array
+                    audio_data = np.frombuffer(b''.join(frames), dtype=np.int16)
+                    
+                    # Resample to 16000 Hz
+                    samples_out = int(len(audio_data) * 16000 / supported_rate)
+                    audio_resampled = signal.resample(audio_data, samples_out)
+                    
+                    # Convert to int16
+                    audio_resampled = np.int16(audio_resampled)
+                    
+                    # Create WAV with resampled data
+                    wav_buffer = io.BytesIO()
+                    with wave.open(wav_buffer, 'wb') as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(16000)
+                        wf.writeframes(audio_resampled.tobytes())
+                else:
+                    # Use raw data if already at 16000 Hz
+                    wav_buffer = io.BytesIO()
+                    with wave.open(wav_buffer, 'wb') as wf:
+                        wf.setnchannels(1)
+                        wf.setsampwidth(2)
+                        wf.setframerate(16000)
+                        wf.writeframes(b''.join(frames))
+                        
                 logging.info("Successfully created WAV buffer")
                 return wav_buffer.getvalue()
                 
