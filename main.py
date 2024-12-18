@@ -10,6 +10,36 @@ import threading
 import cv2
 import numpy as np
 from video_window import DraggableVideoWindow
+
+# Add video-specific debug logging
+video_logger = logging.getLogger('video')
+video_logger.setLevel(logging.DEBUG)
+
+def init_video():
+    """Initialize video subsystem with detailed logging"""
+    video_logger.info("Starting video initialization")
+    try:
+        # Test OpenCV installation
+        video_logger.debug("Testing OpenCV installation")
+        cv2_version = cv2.__version__
+        video_logger.info(f"OpenCV version: {cv2_version}")
+
+        # Test PIL/Pillow installation
+        video_logger.debug("Testing PIL installation")
+        pil_version = Image.__version__
+        video_logger.info(f"PIL version: {pil_version}")
+
+        # Test basic video operations
+        video_logger.debug("Testing video operations")
+        test_frame = np.zeros((240, 320, 3), dtype=np.uint8)
+        test_rgb = cv2.cvtColor(test_frame, cv2.COLOR_BGR2RGB)
+        test_image = Image.fromarray(test_rgb)
+        video_logger.info("Basic video operations successful")
+
+        return True
+    except Exception as e:
+        video_logger.error(f"Video initialization failed: {e}", exc_info=True)
+        return False
 from pathlib import Path
 from tkinter import messagebox, Canvas
 import numpy as np
@@ -805,36 +835,42 @@ if __name__ == "__main__":
         # Initialize video window in a separate thread
         def create_test_video():
             """Create a simple test video if none exists"""
+            video_logger.info("Creating test video")
             try:
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 videos_dir = os.path.join(script_dir, "videos")
                 video_path = os.path.join(videos_dir, "loop.mp4")
-        
+
                 # Create videos directory if it doesn't exist
                 if not os.path.exists(videos_dir):
                     os.makedirs(videos_dir)
-                    logging.info(f"Created videos directory: {videos_dir}")
-        
+                    video_logger.info(f"Created videos directory: {videos_dir}")
+
                 # Only create test video if it doesn't exist
                 if not os.path.exists(video_path):
+                    video_logger.info("Creating new test video file")
                     # Create a simple video with OpenCV
                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    out = cv2.VideoWriter(video_path, fourcc, 30.0, (640,480))
-            
+                    out = cv2.VideoWriter(video_path, fourcc, 30.0, (320,240))  # Smaller size for testing
+
                     # Create some frames (a simple animation)
                     for i in range(60):  # 2 seconds at 30fps
-                        frame = np.zeros((480,640,3), dtype=np.uint8)
+                        frame = np.zeros((240,320,3), dtype=np.uint8)
                         # Draw something (e.g., a moving circle)
-                        cv2.circle(frame, (320 + int(100*np.sin(i/10)), 240), 50, (0,255,0), -1)
+                        cv2.circle(frame, 
+                                  (160 + int(50*np.sin(i/10)), 120),  # Center coordinates
+                                  20,  # Radius
+                                  (0,255,0),  # Color (green)
+                                  -1)  # Filled circle
                         out.write(frame)
-            
+
                     out.release()
-                    logging.info(f"Created test video: {video_path}")
-        
+                    video_logger.info(f"Created test video: {video_path}")
+
                 return video_path
-        
+
             except Exception as e:
-                logging.error(f"Failed to create test video: {e}")
+                video_logger.error(f"Failed to create test video: {e}", exc_info=True)
                 return None
 
         def init_video_window():
