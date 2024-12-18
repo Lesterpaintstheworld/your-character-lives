@@ -49,17 +49,30 @@ from tkinter import messagebox, Canvas
 import numpy as np
 
 def initialize_audio():
-    """Test audio setup and return True if successful"""
+    """Initialize audio system with better error handling"""
     try:
+        # Test pygame mixer
+        pygame.mixer.quit()
+        pygame.mixer.init(frequency=AUDIO_FREQUENCY)
+        pygame.mixer.quit()
+        
+        # Test pyttsx3
+        engine = pyttsx3.init()
+        engine.getProperty('voices')
+        engine.stop()
+        
+        # Initialize input device
         input_device = get_input_device()
         logging.info(f"Audio input device found: {input_device}")
         return True
+        
     except Exception as e:
         logging.error(f"Audio initialization failed: {e}")
         messagebox.showwarning(
             "Audio Setup Warning",
-            "No microphone detected or audio error occurred. The application will continue but audio recording may not work.\n\n"
-            f"Error: {str(e)}"
+            "Audio initialization error occurred. The application will continue but audio may not work properly.\n\n"
+            f"Error: {str(e)}\n\n"
+            "Try restarting the application or checking your audio devices."
         )
         return False
 
@@ -94,6 +107,8 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000  # Standard sample rate that's widely supported
+AUDIO_TIMEOUT = 30  # seconds
+AUDIO_FREQUENCY = 16000
 DEFAULT_SCREENSHOT_INTERVAL = 30
 REQUEST_TIMEOUT = 120
 API_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"

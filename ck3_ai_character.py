@@ -38,15 +38,92 @@ def take_screenshot():
     screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)  # Use JPEG for smaller file size
     return base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
 
-async def process_audio_chunk(chunk):
-    """Process and play an audio chunk."""
+async def process_audio_chunk(audio_data: bytes):
+    """Process and play audio data with improved error handling and fallback."""
+    temp_file = 'temp_audio.mp3'
+    fallback_file = 'fallback_audio.mp3'
+    
     try:
-        pygame.mixer.init()
-        sound = pygame.mixer.Sound(buffer=chunk)
-        sound.play()
-        await asyncio.sleep(sound.get_length())
-    except pygame.error as e:
-        logging.error(f"Failed to play audio chunk: {e}")
+        # Switch to talking video before playing
+        if current_video_window:
+            current_video_window.switch_to_talk_video()
+
+        # Don't play if paused
+        if not is_playing:
+            return
+
+        # Try primary playback method with pygame
+        try:
+            pygame.mixer.quit()  # Reset mixer
+            pygame.mixer.init(frequency=16000)  # Initialize with correct frequency
+            
+            with open(temp_file, 'wb') as f:
+                f.write(audio_data)
+            
+            pygame.mixer.music.load(temp_file)
+            pygame.mixer.music.play()
+            
+            # Wait for playback to complete with timeout
+            start_time = time.time()
+            timeout = AUDIO_TIMEOUT  # Maximum wait time in seconds
+            
+            while pygame.mixer.music.get_busy():
+                await asyncio.sleep(0.1)
+                if time.time() - start_time > timeout:
+                    logging.warning("Audio playback timeout - forcing stop")
+                    pygame.mixer.music.stop()
+                    break
+                
+        except Exception as e:
+            logging.error(f"Primary playback failed: {e}")
+            
+            # Fallback to pyttsx3
+            try:
+                logging.info("Attempting fallback playback with pyttsx3")
+                engine = pyttsx3.init()
+                engine.save_to_file(audio_data, fallback_file)
+                engine.runAndWait()
+                
+                # Play the saved file
+                pygame.mixer.quit()
+                pygame.mixer.init()
+                pygame.mixer.music.load(fallback_file)
+                pygame.mixer.music.play()
+                
+                while pygame.mixer.music.get_busy():
+                    await asyncio.sleep(0.1)
+                    
+            except Exception as fallback_error:
+                logging.error(f"Fallback playback failed: {fallback_error}")
+                raise  # Re-raise if both methods fail
+                
+    except Exception as e:
+        logging.error(f"Error playing audio: {e}")
+        update_status(f"❌ Audio playback error: {str(e)}")
+        
+    finally:
+        # Cleanup
+        try:
+            pygame.mixer.music.unload()
+        except:
+            pass
+            
+        try:
+            pygame.mixer.quit()
+        except:
+            pass
+            
+        # Remove temporary files
+        for file in [temp_file, fallback_file]:
+            if os.path.exists(file):
+                try:
+                    os.remove(file)
+                except Exception as e:
+                    logging.warning(f"Failed to remove temp file {file}: {e}")
+
+        # Switch back to idle video
+        if current_video_window:
+            current_video_window.switch_to_idle_video()
 
 async def websocket_client(interval):
     while True:
