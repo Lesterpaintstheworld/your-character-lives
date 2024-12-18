@@ -4,6 +4,7 @@ from PIL import Image, ImageTk
 import tkinter as tk
 import logging
 import os
+import numpy as np
 
 class DraggableVideoWindow:
     def __init__(self, idle_video_path):
