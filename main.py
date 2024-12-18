@@ -67,7 +67,8 @@ running = True
 is_playing = True
 is_recording = False
 auto_recording = False
-auto_recording_interval = 90  # secondes
+auto_recording_interval = 90  # seconds
+interval_spinbox = None  # Will be set when UI is created
 auto_recording_task = None
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
@@ -649,10 +650,23 @@ def create_device_selectors():
     play_pause_btn = tk.Button(device_frame, text="⏸️", width=3, command=toggle_play_pause)
     play_pause_btn.pack(side='left', padx=5)
     
+    # Create auto recording frame
+    auto_frame = tk.Frame(device_frame)
+    auto_frame.pack(side='left', padx=5)
+
     # Add auto recording button
     global auto_btn
-    auto_btn = tk.Button(device_frame, text="🔄 Auto OFF", width=8, command=toggle_auto_recording)
-    auto_btn.pack(side='left', padx=5)
+    auto_btn = tk.Button(auto_frame, text="🔄 Auto OFF", width=8, command=toggle_auto_recording)
+    auto_btn.pack(side='left')
+
+    # Add interval spinbox
+    tk.Label(auto_frame, text="Interval:").pack(side='left', padx=(5,0))
+    global interval_spinbox
+    interval_spinbox = tk.Spinbox(auto_frame, from_=5, to=3600, width=5, increment=5)
+    interval_spinbox.delete(0, tk.END)
+    interval_spinbox.insert(0, "90")  # default value
+    interval_spinbox.pack(side='left', padx=(0,5))
+    tk.Label(auto_frame, text="sec").pack(side='left')
     
     # Input device selector
     input_frame = tk.Frame(device_frame)
@@ -765,18 +779,27 @@ output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_com
 
 
 def toggle_auto_recording():
-    """Toggle automatic recording every 90 seconds"""
-    global auto_recording, auto_recording_task
+    """Toggle automatic recording every X seconds"""
+    global auto_recording, auto_recording_task, auto_recording_interval
+    
+    # Get interval from spinbox
+    try:
+        auto_recording_interval = int(interval_spinbox.get())
+    except ValueError:
+        auto_recording_interval = 90  # fallback to default
+        interval_spinbox.delete(0, tk.END)
+        interval_spinbox.insert(0, "90")
     
     auto_recording = not auto_recording
     auto_btn.config(text="🔄 Auto ON" if auto_recording else "🔄 Auto OFF")
+    interval_spinbox.config(state='disabled' if auto_recording else 'normal')
     
     if auto_recording:
-        update_status("🔄 Starting automatic recording every 90 seconds...")
+        update_status(f"🔄 Starting automatic recording every {auto_recording_interval} seconds...")
         async def auto_record_cycle():
             while auto_recording and is_playing:
                 await api_client(0)
-                await asyncio.sleep(90)  # Attendre 90 secondes
+                await asyncio.sleep(auto_recording_interval)
                 
         # Démarrer le cycle d'enregistrement automatique
         auto_recording_task = asyncio.create_task(auto_record_cycle())
