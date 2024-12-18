@@ -215,11 +215,24 @@ class DraggableVideoWindow:
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret, frame = self.cap.read()
                 if not ret:
-                    self.logger.error("Could not read video frame even after reset")
-                    self.window.after(33, self.update_frame)
-                    return
+                    # Try reopening the file if read fails after reset
+                    self.logger.warning("Reopening video file after failed read")
+                    self.cap.release()
+                    self.cap = cv2.VideoCapture(self.current_video_path)
+                    ret, frame = self.cap.read()
+                    if not ret:
+                        self.logger.error("Could not read video frame even after reopen")
+                        # Use last valid frame if available
+                        if hasattr(self, 'last_valid_frame') and self.last_valid_frame is not None:
+                            frame = self.last_valid_frame.copy()
+                        else:
+                            # Create black frame if no valid frame
+                            frame = np.zeros((self.height, self.width, 3), dtype=np.uint8)
             
-            self.display_frame(frame)
+            if frame is not None:
+                # Save last valid frame
+                self.last_valid_frame = frame.copy()
+                self.display_frame(frame)
             
         except Exception as e:
             self.logger.error(f"Error updating video frame: {e}")

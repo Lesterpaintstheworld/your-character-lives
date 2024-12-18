@@ -455,11 +455,14 @@ def record_audio(duration):
                 # Optionally adjust rate to match device
                 # RATE = supported_rate
             
+            device_info = p.get_device_info_by_index(input_device)
+            supported_rate = int(device_info['defaultSampleRate'])
+            
             try:
                 stream = p.open(
                     format=FORMAT,
                     channels=1,
-                    rate=16000,  # Make sure this matches the RATE constant
+                    rate=supported_rate,  # Use native sample rate
                     input=True,
                     input_device_index=input_device,
                     frames_per_buffer=1024
