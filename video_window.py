@@ -28,8 +28,10 @@ class DraggableVideoWindow:
         # Get video properties
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-        
-        # Set initial window size
+    
+        # Set initial window size to half the video size
+        self.width = self.width // 2
+        self.height = self.height // 2
         self.window.geometry(f"{self.width}x{self.height}+100+100")
         
         # Bind mouse events for dragging
