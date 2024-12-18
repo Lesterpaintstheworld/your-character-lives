@@ -180,15 +180,18 @@ async def process_audio_chunk(audio_data: bytes):
                 
                 pygame.mixer.music.load(temp_path)
                 pygame.mixer.music.play()
-            
-            # Wait for playback to complete with timeout
-            start_time = time.time()
-            while pygame.mixer.music.get_busy():
-                await asyncio.sleep(0.1)
-                if time.time() - start_time > AUDIO_TIMEOUT:
-                    logging.warning("Audio playback timeout - forcing stop")
-                    pygame.mixer.music.stop()
-                    break
+                
+                # Wait for playback to complete with timeout
+                start_time = time.time()
+                while pygame.mixer.music.get_busy():
+                    await asyncio.sleep(0.1)
+                    if time.time() - start_time > AUDIO_TIMEOUT:
+                        logging.warning("Audio playback timeout - forcing stop")
+                        pygame.mixer.music.stop()
+                        break
+            except Exception as e:
+                logging.error(f"Error during audio playback: {e}")
+                raise
 
     except Exception as e:
         logging.error(f"Error playing audio: {e}")
