@@ -2,6 +2,8 @@ import sys
 import asyncio
 import websockets
 import pyautogui
+import time
+import pyttsx3
 print("WARNING: This script is deprecated. Please use 'main.py' instead.", file=sys.stderr)
 print("Run 'python main.py --help' for usage information.", file=sys.stderr)
 sys.exit(1)
@@ -18,13 +20,23 @@ from dotenv import load_dotenv
 # Load environment variables
 load_dotenv()
 
+# Global variables
+current_video_window = None
+is_playing = True
+
 # Configuration
 DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 WEBSOCKET_URL = os.getenv("WEBSOCKET_URL", "wss://api.openai.com/v1/audio/speech")  # URL à confirmer avec OpenAI
+AUDIO_TIMEOUT = 30  # seconds
 
 # Set up logging
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+
+def update_status(message):
+    """Update status in UI"""
+    root.after(0, lambda: text_widget.insert(tk.END, f"\n{message}\n"))
+    root.after(0, text_widget.see, tk.END)
 
 def take_screenshot():
     """Capture a screenshot, resize it, and return it as base64 string."""
