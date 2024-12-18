@@ -145,7 +145,7 @@ engine.setProperty('rate', 150)  # Speech rate (default is 200)
 engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
 async def process_audio_chunk(audio_data: bytes):
-    """Process and play audio data with improved error handling and fallback."""
+    """Process and play audio data using device names instead of indices."""
     temp_path = None
     try:
         with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
@@ -153,14 +153,13 @@ async def process_audio_chunk(audio_data: bytes):
             temp_file.write(audio_data)
             temp_file.flush()
 
-        # Get selected output device
+        # Get selected output device name
         selected = output_var.get() if output_var else None
         device_name = None
-        device_index = None
         
         if selected:
-            # Extract device name without the index
-            device_name = selected.split(" (Device")[0].strip()
+            # Extract just the device name without any index or status
+            device_name = re.match(r'^([^(]+)', selected).group(1).strip()
             logging.info(f"Selected device name: {device_name}")
 
         # Don't play if paused
@@ -180,40 +179,32 @@ async def process_audio_chunk(audio_data: bytes):
             try:
                 pygame.mixer.quit()  # Ensure clean state
                 
-                # Find device by name
+                # Find working device by name
                 p = pyaudio.PyAudio()
                 try:
-                    # First try to find the exact device
                     device_found = False
-                    for i in range(p.get_device_count()):
-                        info = p.get_device_info_by_index(i)
-                        if (device_name and device_name in info['name'] and 
-                            info['maxOutputChannels'] > 0):
-                            # Validate device before using
-                            if validate_output_device(i):
-                                device_index = i
+                    
+                    # First try selected device if any
+                    if device_name:
+                        for i in range(p.get_device_count()):
+                            info = p.get_device_info_by_index(i)
+                            if (device_name.lower() in info['name'].lower() and 
+                                info['maxOutputChannels'] > 0):
+                                pygame.mixer.init(frequency=16000, devicename=info['name'])
                                 device_found = True
-                                logging.info(f"Found and validated device: {info['name']} (index: {i})")
+                                logging.info(f"Using selected device: {info['name']}")
                                 break
-                            else:
-                                logging.warning(f"Device found but validation failed: {info['name']} (index: {i})")
-                
-                    # If device not found or validation failed, use default
+                    
+                    # If selected device not found, try default device
                     if not device_found:
-                        info = p.get_default_output_device_info()
-                        if validate_output_device(info['index']):
-                            device_index = info['index']
-                            logging.info(f"Using validated default device: {info['name']} (index: {device_index})")
-                        else:
-                            raise RuntimeError("No valid output device found")
+                        default_info = p.get_default_output_device_info()
+                        pygame.mixer.init(frequency=16000, devicename=default_info['name'])
+                        logging.info(f"Using default device: {default_info['name']}")
+                    
+                    if not pygame.mixer.get_init():
+                        raise RuntimeError("Mixer initialization failed")
                 finally:
                     p.terminate()
-                
-                # Initialize mixer with validated device
-                if device_index is not None:
-                    pygame.mixer.init(frequency=16000, devicename=str(device_index))
-                else:
-                    pygame.mixer.init(frequency=16000)
                 
                 # Test if mixer is properly initialized
                 if not pygame.mixer.get_init():
