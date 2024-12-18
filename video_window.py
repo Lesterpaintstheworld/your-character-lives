@@ -99,28 +99,32 @@ class DraggableVideoWindow:
                 # Reset video to start when it ends
                 self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                 ret, frame = self.cap.read()
-                
-            if ret:
-                # Convert frame to proper format
-                frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
-                # Resize frame to window size
-                current_width = self.window.winfo_width()
-                current_height = self.window.winfo_height()
-                frame = cv2.resize(frame, (current_width, current_height))
-                
-                # Convert to PhotoImage
-                image = Image.fromarray(frame)
-                photo = ImageTk.PhotoImage(image=image)
-                
-                # Update label
-                self.label.configure(image=photo)
-                self.label.image = photo  # Keep a reference!
-                
+                if not ret:
+                    self.logger.error("Could not read video frame even after reset")
+                    return
+                    
+            # Convert frame to proper format
+            frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+            # Resize frame to window size
+            current_width = self.window.winfo_width()
+            current_height = self.window.winfo_height()
+            frame = cv2.resize(frame, (current_width, current_height))
+            
+            # Convert to PhotoImage
+            image = Image.fromarray(frame)
+            photo = ImageTk.PhotoImage(image=image)
+            
+            # Update label and keep strong reference to photo
+            self.label.photo = photo  # Keep reference before configuring
+            self.label.configure(image=photo)
+            
             # Schedule next update
             self.window.after(33, self.update_frame)  # ~30 FPS
-            
+                
         except Exception as e:
             self.logger.error(f"Error updating video frame: {e}")
+            # Try to reschedule even after error
+            self.window.after(33, self.update_frame)
             
     def run(self):
         """Start the video window"""

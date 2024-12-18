@@ -801,13 +801,17 @@ if __name__ == "__main__":
         root.update()
 
         # Initialize video window in a separate thread
-        try:
-            video_thread = threading.Thread(target=lambda: DraggableVideoWindow("videos/loop.mp4").run())
-            video_thread.daemon = True
-            video_thread.start()
-            logging.info("Video window initialized successfully")
-        except Exception as e:
-            logging.error(f"Failed to create video window: {e}")
+        def init_video_window():
+            try:
+                video_window = DraggableVideoWindow("videos/loop.mp4")
+                video_window.run()
+            except Exception as e:
+                logging.error(f"Failed to create video window: {e}")
+
+        video_thread = threading.Thread(target=init_video_window)
+        video_thread.daemon = True
+        video_thread.start()
+        logging.info("Video window initialized successfully")
         
         # Test audio but don't exit if it fails
         audio_ok = initialize_audio()
