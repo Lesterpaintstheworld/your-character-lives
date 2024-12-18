@@ -6,14 +6,22 @@ import logging
 import os
 
 class DraggableVideoWindow:
-    def __init__(self, video_path):
-        """Initialize video window with given video path"""
+    def __init__(self, idle_video_path):
+        """Initialize with path to idle/default video"""
         self.logger = logging.getLogger(__name__)
         self.logger.info("Initializing DraggableVideoWindow")
         
-        if not os.path.exists(video_path):
-            self.logger.error(f"Video file not found: {video_path}")
-            raise FileNotFoundError(f"Video file not found: {video_path}")
+        self.idle_video_path = idle_video_path
+        self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk.mp4")
+        self.current_video_path = idle_video_path
+        self.transition_requested = False
+        self.fade_frames = 15  # Number of frames for fade transition
+        self.fade_counter = 0
+        self.last_frame = None
+        
+        if not os.path.exists(idle_video_path):
+            self.logger.error(f"Video file not found: {idle_video_path}")
+            raise FileNotFoundError(f"Video file not found: {idle_video_path}")
         
         try:
             # Initialize video capture
@@ -129,12 +137,27 @@ class DraggableVideoWindow:
             raise
 
     def display_frame(self, frame):
-        """Convert and display a frame"""
+        """Convert and display a frame with transition support"""
         try:
             if frame is None:
                 self.logger.error("Received None frame")
                 return
-                
+
+            # Handle transition if requested
+            if self.transition_requested and self.last_frame is not None:
+                # Calculate transition alpha
+                alpha = self.fade_counter / self.fade_frames
+                # Blend frames
+                frame = cv2.addWeighted(self.last_frame, 1-alpha, frame, alpha, 0)
+                self.fade_counter -= 1
+                if self.fade_counter <= 0:
+                    self.transition_requested = False
+                    self.last_frame = None
+
+            # Store frame for next transition
+            if self.transition_requested and self.last_frame is None:
+                self.last_frame = frame.copy()
+
             # Convert frame from BGR to RGB
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
@@ -199,6 +222,26 @@ class DraggableVideoWindow:
             self.logger.error(f"Error in video window run: {e}")
             self.cleanup()
         
+    def switch_to_talk_video(self):
+        """Request transition to talking video"""
+        if self.current_video_path != self.talk_video_path:
+            self.transition_requested = True
+            self.fade_counter = self.fade_frames
+            self.current_video_path = self.talk_video_path
+            self.last_frame = None  # Store last frame for smooth transition
+            self.cap.release()
+            self.cap = cv2.VideoCapture(self.talk_video_path)
+
+    def switch_to_idle_video(self):
+        """Request transition to idle video"""
+        if self.current_video_path != self.idle_video_path:
+            self.transition_requested = True
+            self.fade_counter = self.fade_frames
+            self.current_video_path = self.idle_video_path
+            self.last_frame = None  # Store last frame for smooth transition
+            self.cap.release()
+            self.cap = cv2.VideoCapture(self.idle_video_path)
+
     def cleanup(self):
         """Release resources"""
         if hasattr(self, 'cap') and self.cap is not None:

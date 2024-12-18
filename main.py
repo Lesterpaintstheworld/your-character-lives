@@ -128,6 +128,10 @@ async def process_audio_chunk(audio_data: bytes):
         if not is_playing:
             return
             
+        # Switch to talking video before playing
+        if current_video_window:
+            current_video_window.switch_to_talk_video()
+
         # Initialize pygame mixer without specific device
         pygame.mixer.quit()  # Close existing mixer
         pygame.mixer.init()
@@ -152,6 +156,10 @@ async def process_audio_chunk(audio_data: bytes):
                     os.remove(temp_file)
                 except Exception as e:
                     logging.warning(f"Failed to remove temp file: {e}")
+
+            # Switch back to idle video after playing
+            if current_video_window:
+                current_video_window.switch_to_idle_video()
 
     except Exception as e:
         logging.error(f"Error playing audio: {e}")
@@ -837,40 +845,43 @@ if __name__ == "__main__":
 
         # Initialize video window in a separate thread
         def create_test_video():
-            """Create a simple test video if none exists"""
-            video_logger.info("Creating test video")
+            """Create test idle and talk videos if they don't exist"""
+            video_logger.info("Creating test videos")
             try:
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 videos_dir = os.path.join(script_dir, "videos")
-                video_path = os.path.join(videos_dir, "loop.mp4")
+                idle_path = os.path.join(videos_dir, "loop.mp4")
+                talk_path = os.path.join(videos_dir, "talk.mp4")
 
-                # Create videos directory if it doesn't exist
                 if not os.path.exists(videos_dir):
                     os.makedirs(videos_dir)
                     video_logger.info(f"Created videos directory: {videos_dir}")
 
-                # Only create test video if it doesn't exist
-                if not os.path.exists(video_path):
-                    video_logger.info("Creating new test video file")
-                    # Create a simple video with OpenCV
+                # Create idle video (green circle moving horizontally)
+                if not os.path.exists(idle_path):
                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')
-                    out = cv2.VideoWriter(video_path, fourcc, 30.0, (320,240))  # Smaller size for testing
-
-                    # Create some frames (a simple animation)
-                    for i in range(60):  # 2 seconds at 30fps
+                    out = cv2.VideoWriter(idle_path, fourcc, 30.0, (320,240))
+                    for i in range(60):
                         frame = np.zeros((240,320,3), dtype=np.uint8)
-                        # Draw something (e.g., a moving circle)
                         cv2.circle(frame, 
-                                  (160 + int(50*np.sin(i/10)), 120),  # Center coordinates
-                                  20,  # Radius
-                                  (0,255,0),  # Color (green)
-                                  -1)  # Filled circle
+                                  (160 + int(50*np.sin(i/10)), 120),
+                                  20, (0,255,0), -1)
                         out.write(frame)
-
                     out.release()
-                    video_logger.info(f"Created test video: {video_path}")
 
-                return video_path
+                # Create talk video (green circle moving vertically)
+                if not os.path.exists(talk_path):
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    out = cv2.VideoWriter(talk_path, fourcc, 30.0, (320,240))
+                    for i in range(60):
+                        frame = np.zeros((240,320,3), dtype=np.uint8)
+                        cv2.circle(frame, 
+                                  (160, 120 + int(30*np.sin(i/10))),
+                                  20, (0,255,0), -1)
+                        out.write(frame)
+                    out.release()
+
+                return idle_path
 
             except Exception as e:
                 video_logger.error(f"Failed to create test video: {e}", exc_info=True)
