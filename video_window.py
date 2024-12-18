@@ -3,11 +3,19 @@ import cv2
 from PIL import Image, ImageTk
 import tkinter as tk
 import logging
+import os
 
 class DraggableVideoWindow:
     def __init__(self, video_path):
         """Initialize video window with given video path"""
         self.logger = logging.getLogger(__name__)
+        
+        # Check if video file exists
+        if not os.path.exists(video_path):
+            self.logger.error(f"Video file not found: {video_path}")
+            raise FileNotFoundError(f"Video file not found: {video_path}")
+            
+        self.logger.info(f"Initializing video window with: {video_path}")
         
         # Initialize video capture first
         self.cap = cv2.VideoCapture(video_path)
@@ -18,6 +26,12 @@ class DraggableVideoWindow:
         # Get video properties
         self.width = int(self.cap.get(cv2.CAP_PROP_FRAME_WIDTH))
         self.height = int(self.cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+        
+        if self.width == 0 or self.height == 0:
+            self.logger.error("Invalid video dimensions")
+            raise ValueError("Invalid video dimensions")
+            
+        self.logger.info(f"Video dimensions: {self.width}x{self.height}")
         
         # Create main window
         self.window = tk.Toplevel()  # Use Toplevel instead of Tk
@@ -38,22 +52,27 @@ class DraggableVideoWindow:
         self.photo = None
         self.image = None
         
-        # Bind mouse events for dragging
+        # Initialize drag and resize data
+        self.drag_data = {'x': 0, 'y': 0}
+        self.resize_data = {'x': 0, 'y': 0}
+        self.is_transparent = False
+        
+        # Bind mouse events
         self.label.bind('<Button-1>', self.start_drag)
         self.label.bind('<B1-Motion>', self.drag)
-        
-        # Bind mouse events for resizing
-        self.label.bind('<Button-3>', self.start_resize)  # Right click
+        self.label.bind('<Button-3>', self.start_resize)
         self.label.bind('<B3-Motion>', self.resize)
-        
-        # Bind double-click to close
         self.label.bind('<Double-Button-1>', self.close_window)
-        
-        # Bind middle click to toggle transparency
         self.label.bind('<Button-2>', self.toggle_transparency)
         
-        # Store drag data
-        self.drag_data = {'x': 0, 'y': 0}
+        # Read first frame to initialize display
+        ret, frame = self.cap.read()
+        if ret:
+            self.display_frame(frame)
+            self.logger.info("First frame displayed successfully")
+        else:
+            self.logger.error("Failed to read first frame")
+            raise ValueError("Failed to read first frame")
         
         # Start video loop
         self.update_frame()

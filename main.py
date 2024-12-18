@@ -7,6 +7,8 @@ import time
 import io
 import wave
 import threading
+import cv2
+import numpy as np
 from video_window import DraggableVideoWindow
 from pathlib import Path
 from tkinter import messagebox, Canvas
@@ -801,17 +803,54 @@ if __name__ == "__main__":
         root.update()
 
         # Initialize video window in a separate thread
+        def create_test_video():
+            """Create a simple test video if none exists"""
+            try:
+                script_dir = os.path.dirname(os.path.abspath(__file__))
+                videos_dir = os.path.join(script_dir, "videos")
+                video_path = os.path.join(videos_dir, "loop.mp4")
+        
+                # Create videos directory if it doesn't exist
+                if not os.path.exists(videos_dir):
+                    os.makedirs(videos_dir)
+                    logging.info(f"Created videos directory: {videos_dir}")
+        
+                # Only create test video if it doesn't exist
+                if not os.path.exists(video_path):
+                    # Create a simple video with OpenCV
+                    fourcc = cv2.VideoWriter_fourcc(*'mp4v')
+                    out = cv2.VideoWriter(video_path, fourcc, 30.0, (640,480))
+            
+                    # Create some frames (a simple animation)
+                    for i in range(60):  # 2 seconds at 30fps
+                        frame = np.zeros((480,640,3), dtype=np.uint8)
+                        # Draw something (e.g., a moving circle)
+                        cv2.circle(frame, (320 + int(100*np.sin(i/10)), 240), 50, (0,255,0), -1)
+                        out.write(frame)
+            
+                    out.release()
+                    logging.info(f"Created test video: {video_path}")
+        
+                return video_path
+        
+            except Exception as e:
+                logging.error(f"Failed to create test video: {e}")
+                return None
+
         def init_video_window():
             try:
                 # Get the absolute path to the video file
                 script_dir = os.path.dirname(os.path.abspath(__file__))
                 video_path = os.path.join(script_dir, "videos", "loop.mp4")
         
-                # Check if video file exists
+                # If video doesn't exist, create a test video
                 if not os.path.exists(video_path):
-                    logging.error(f"Video file not found at: {video_path}")
-                    return
-            
+                    logging.warning(f"Video file not found at: {video_path}")
+                    video_path = create_test_video()
+                    if not video_path:
+                        logging.error("Could not create or find video file")
+                        return
+        
                 logging.info(f"Loading video from: {video_path}")
                 video_window = DraggableVideoWindow(video_path)
                 video_window.run()
