@@ -10,11 +10,12 @@ import io
 import time
 from contextlib import contextmanager
 from typing import Optional, Generator
+from device_manager import DeviceManager
 
 class AudioManager:
     def __init__(self, config):
         self.config = config
-        self.p = pyaudio.PyAudio()
+        self.device_manager = DeviceManager()
         self.recording_stream = None
         self.desktop_stream = None
         pygame.mixer.init()
@@ -323,5 +324,5 @@ class AudioManager:
         if self.desktop_stream:
             self.desktop_stream.stop_stream()
             self.desktop_stream.close()
-        self.p.terminate()
+        self.device_manager.cleanup()
         pygame.mixer.quit()

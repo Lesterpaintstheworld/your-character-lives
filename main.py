@@ -1036,6 +1036,10 @@ async def api_client(interval):
         update_status(f"❌ Error: {str(e)}")
 
 if __name__ == "__main__":
+    # Initialize managers
+    device_manager = DeviceManager()
+    audio_manager = AudioManager(config)
+    
     parser = argparse.ArgumentParser(
         description="CK3 AI Character with OpenAI Real-Time API",
         epilog="Before running, ensure you have:\n"
