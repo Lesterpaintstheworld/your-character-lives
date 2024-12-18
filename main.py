@@ -155,13 +155,13 @@ async def process_audio_chunk(audio_data: bytes):
 
         # Get selected output device
         selected = output_var.get() if output_var else None
+        device_name = None
         device_index = None
         
         if selected:
-            match = re.search(r'Device (\d+)', selected)
-            if match:
-                device_index = int(match.group(1))
-                logging.info(f"Using output device index: {device_index}")
+            # Extract device name without the index
+            device_name = selected.split(" (Device")[0].strip()
+            logging.info(f"Selected device name: {device_name}")
 
         # Don't play if paused
         if not is_playing:
@@ -180,18 +180,25 @@ async def process_audio_chunk(audio_data: bytes):
             try:
                 pygame.mixer.quit()  # Ensure clean state
                 
-                # Validate device index still exists
+                # Find device by name
                 p = pyaudio.PyAudio()
                 try:
-                    if device_index is not None:
-                        device_info = p.get_device_info_by_index(device_index)
-                        if device_info['maxOutputChannels'] == 0:
-                            raise ValueError("Device has no output channels")
-                    else:
-                        # Get default device if none specified
-                        device_info = p.get_default_output_device_info()
-                        device_index = device_info['index']
-                        logging.info(f"Using default output device: {device_info['name']}")
+                    # First try to find the exact device
+                    device_found = False
+                    for i in range(p.get_device_count()):
+                        info = p.get_device_info_by_index(i)
+                        if (device_name and device_name in info['name'] and 
+                            info['maxOutputChannels'] > 0):
+                            device_index = i
+                            device_found = True
+                            logging.info(f"Found matching device: {info['name']} (index: {i})")
+                            break
+                    
+                    # If device not found, use default
+                    if not device_found:
+                        info = p.get_default_output_device_info()
+                        device_index = info['index']
+                        logging.info(f"Using default device: {info['name']} (index: {device_index})")
                 finally:
                     p.terminate()
                 
