@@ -942,20 +942,27 @@ def toggle_auto_recording():
                     # Take screenshot
                     screenshot_data = take_screenshot()
                     
-                    # Collect text content
+                    # Collect text content as string
+                    logging.info("Collecting text content...")
                     text_content = collect_text_files_content()
+                    logging.info(f"Text content collected: {len(text_content)} bytes")
 
-                    # Prepare data for n8n
-                    files = {
-                        'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
-                        'audio': ('audio.wav', audio_data, 'audio/wav'),
-                        'text': ('text.txt', text_content, 'text/plain; charset=utf-8')
+                    # Prepare multipart form data with text in body
+                    data = {
+                        'text': text_content  # Send text directly in request body
                     }
 
-                    # Send to n8n
+                    files = {
+                        'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
+                        'audio': ('audio.wav', audio_data, 'audio/wav')
+                    }
+
+                    # Send request with text in body and files in multipart/form-data
+                    logging.info("Sending data to n8n...")
                     response = requests.post(
                         API_ENDPOINT,
-                        files=files,
+                        data=data,  # Text content in request body
+                        files=files,  # Binary files in multipart/form-data
                         timeout=REQUEST_TIMEOUT
                     )
                     response.raise_for_status()
@@ -1244,19 +1251,23 @@ async def api_client(interval):
         text_content = collect_text_files_content()
         logging.info(f"Text content collected: {len(text_content)} bytes")
 
-        # Prepare multipart form data for binary files and text
+        # Prepare multipart form data with text in body
+        data = {
+            'text': text_content  # Send text directly in request body
+        }
+
         files = {
             'initial_screenshot': ('initial_screenshot.jpg', initial_screenshot, 'image/jpeg'),
             'final_screenshot': ('final_screenshot.jpg', final_screenshot, 'image/jpeg'),
-            'audio': ('audio.wav', audio_data, 'audio/wav'),
-            'text': ('text.txt', text_content.encode('utf-8'), 'text/plain')  # Send text as a file
+            'audio': ('audio.wav', audio_data, 'audio/wav')
         }
 
-        # Send request with all data in multipart/form-data
+        # Send request with text in body and files in multipart/form-data
         logging.info("Sending data to n8n...")
         response = requests.post(
             "https://nlr.app.n8n.cloud/webhook/ycl-enpoint",
-            files=files,
+            data=data,  # Text content in request body
+            files=files,  # Binary files in multipart/form-data
             timeout=REQUEST_TIMEOUT
         )
         
