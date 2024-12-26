@@ -11,7 +11,7 @@ class NetworkConstants:
     REQUEST_TIMEOUT = 120
     RECONNECT_DELAY = 5
     MAX_RETRIES = 3
-    DEFAULT_SCREENSHOT_INTERVAL = 30
+    DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
     N8N_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint"
 
 class UIConstants:
