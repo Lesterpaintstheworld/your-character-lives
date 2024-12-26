@@ -974,7 +974,7 @@ def create_device_selectors():
     global interval_spinbox
     interval_spinbox = tk.Spinbox(auto_frame, from_=5, to=3600, width=5, increment=5)
     interval_spinbox.delete(0, tk.END)
-    interval_spinbox.insert(0, "50")  # default value
+    interval_spinbox.insert(0, "30")  # default value
     interval_spinbox.pack(side='left', padx=(0,5))
     tk.Label(auto_frame, text="sec").pack(side='left')
     
