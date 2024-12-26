@@ -127,88 +127,87 @@ logger = log_manager.get_logger(__name__)
 
 def collect_text_files_content():
     """Collect content from all .md and .txt files in current directory and subdirectories."""
-    content = []
-    
-    # Get execution directory (where the program is run from)
-    execution_dir = os.getcwd()
-    script_dir = os.path.dirname(os.path.abspath(__file__))
-    
-    logging.info("=== Path Debug Information ===")
-    logging.info(f"Current working directory (execution): {execution_dir}")
-    logging.info(f"Script directory (installation): {script_dir}")
-    
-    # Use execution directory to read files from where program is run
-    base_dir = execution_dir
-    logging.info(f"Using base directory: {base_dir}")
-    
-    content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
-    
-    # List all files recursively from execution directory
-    all_files = []
-    for root, dirs, files in os.walk(base_dir):
-        logging.debug(f"Scanning directory: {root}")
-        logging.debug(f"Found subdirectories: {dirs}")
-        logging.debug(f"Found files: {files}")
+    try:
+        content = []
         
-        # Exclude certain directories and the script directory itself
-        dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist')) 
-                  and os.path.abspath(os.path.join(root, d)) != script_dir]
+        # Get execution directory (where the program is run from)
+        execution_dir = os.getcwd()
+        script_dir = os.path.dirname(os.path.abspath(__file__))
         
-        for file in files:
-            # Case-insensitive extension check
-            if file.lower().endswith(('.md', '.txt', '.MD', '.TXT')):
-                full_path = os.path.join(root, file)
-                # Don't include files from script directory
-                if not os.path.abspath(full_path).startswith(script_dir):
-                    all_files.append(full_path)
-                    logging.info(f"Found file: {full_path}")
-            else:
-                logging.debug(f"Skipping non-text file: {file}")
-    
-    # Sort files by name for consistent output
-    all_files.sort()
-    logging.info(f"Total files found: {len(all_files)}")
-    
-    if len(all_files) == 0:
-        logging.warning("No text files found in directory structure!")
-        logging.info("Checking parent directory...")
+        logging.info("=== Path Debug Information ===")
+        logging.info(f"Current working directory (execution): {execution_dir}")
+        logging.info(f"Script directory (installation): {script_dir}")
         
-        # Try parent directory if no files found
-        parent_dir = os.path.dirname(base_dir)
-        if os.path.exists(parent_dir):
-            logging.info(f"Scanning parent directory: {parent_dir}")
-            for file in os.listdir(parent_dir):
-                if file.lower().endswith(('.md', '.txt')):
-                    full_path = os.path.join(parent_dir, file)
-                    if not os.path.abspath(full_path).startswith(script_dir):
-                        all_files.append(full_path)
-                        logging.info(f"Found file in parent dir: {full_path}")
-    
-    # Process each file
-    for file_path in all_files:
-        try:
-            rel_path = os.path.relpath(file_path, base_dir)
-            logging.info(f"Processing file: {rel_path}")
-            
-            content.append("\n" + "="*50)
-            content.append(f"FILE: {rel_path}")
-            content.append("="*50 + "\n")
-            
-            with open(file_path, 'r', encoding='utf-8') as f:
-                file_content = f.read()
-                content.append(file_content)
-                logging.debug(f"Successfully read {len(file_content)} bytes from {rel_path}")
+        # Use execution directory to read files from where program is run
+        base_dir = execution_dir
+        logging.info(f"Using base directory: {base_dir}")
+        
+        content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
+        
+        # List all files recursively from execution directory
+        all_files = []
+        for root, dirs, files in os.walk(base_dir):
+            try:
+                logging.debug(f"Scanning directory: {root}")
+                logging.debug(f"Found subdirectories: {dirs}")
+                logging.debug(f"Found files: {files}")
                 
-        except Exception as e:
-            error_msg = f"ERROR reading {rel_path}: {str(e)}"
-            logging.error(error_msg)
-            content.append(error_msg)
-    
-    content.append("\n" + "="*50)
-    content.append(f"End of document scan - {len(all_files)} files processed")
-    content.append("="*50)
-    
-    return "\n".join(content)
+                # Exclude certain directories and the script directory itself
+                dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist')) 
+                          and os.path.abspath(os.path.join(root, d)) != script_dir]
+                
+                for file in files:
+                    try:
+                        # Case-insensitive extension check
+                        if file.lower().endswith(('.md', '.txt', '.MD', '.TXT')):
+                            full_path = os.path.join(root, file)
+                            # Don't include files from script directory
+                            if not os.path.abspath(full_path).startswith(script_dir):
+                                all_files.append(full_path)
+                                logging.info(f"Found file: {full_path}")
+                        else:
+                            logging.debug(f"Skipping non-text file: {file}")
+                    except Exception as e:
+                        logging.error(f"Error processing file {file}: {str(e)}")
+                        continue
+                        
+            except Exception as e:
+                logging.error(f"Error processing directory {root}: {str(e)}")
+                continue
+        
+        # Sort files by name for consistent output
+        all_files.sort()
+        logging.info(f"Total files found: {len(all_files)}")
+        
+        # Process each file
+        for file_path in all_files:
+            try:
+                rel_path = os.path.relpath(file_path, base_dir)
+                logging.info(f"Processing file: {rel_path}")
+                
+                content.append("\n" + "="*50)
+                content.append(f"FILE: {rel_path}")
+                content.append("="*50 + "\n")
+                
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    file_content = f.read()
+                    content.append(file_content)
+                    logging.debug(f"Successfully read {len(file_content)} bytes from {rel_path}")
+                    
+            except Exception as e:
+                error_msg = f"ERROR reading {rel_path}: {str(e)}"
+                logging.error(error_msg)
+                content.append(error_msg)
+        
+        content.append("\n" + "="*50)
+        content.append(f"End of document scan - {len(all_files)} files processed")
+        content.append("="*50)
+        
+        return "\n".join(content)
+        
+    except Exception as e:
+        logging.error(f"Error in collect_text_files_content: {str(e)}")
+        return f"Error collecting text files: {str(e)}"
 
 def take_screenshot():
     """Capture a screenshot, resize it, and return it as binary data."""
@@ -1291,7 +1290,39 @@ async def api_client(interval):
         logging.error(f"Error occurred: {e}")
         update_status(f"❌ Error: {str(e)}")
 
+def setup_logging():
+    """Configure logging with Unicode support"""
+    # Force UTF-8 encoding for logging
+    class UTFStreamHandler(logging.StreamHandler):
+        def emit(self, record):
+            try:
+                msg = self.format(record)
+                stream = self.stream
+                # Ensure Unicode encoding
+                if isinstance(msg, str):
+                    stream.buffer.write(msg.encode('utf-8'))
+                    stream.buffer.write(b'\n')
+                else:
+                    stream.buffer.write(msg)
+                    stream.buffer.write(b'\n')
+                self.flush()
+            except Exception:
+                self.handleError(record)
+
+    # Remove existing handlers
+    for handler in logging.root.handlers[:]:
+        logging.root.removeHandler(handler)
+
+    # Add UTF-8 handler
+    handler = UTFStreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logging.root.addHandler(handler)
+    logging.root.setLevel(logging.INFO)
+
 if __name__ == "__main__":
+    # Initialize logging first
+    setup_logging()
+    
     # Initialize managers
     device_manager = DeviceManager()
     audio_manager = AudioManager(config)
