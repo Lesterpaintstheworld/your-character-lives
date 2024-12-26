@@ -125,6 +125,22 @@ logger = log_manager.get_logger(__name__)
 
 
 
+def collect_text_files_content():
+    """Collect content from all .md and .txt files in current directory."""
+    content = []
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    for file in os.listdir(current_dir):
+        if file.endswith(('.md', '.txt')):
+            try:
+                file_path = os.path.join(current_dir, file)
+                with open(file_path, 'r', encoding='utf-8') as f:
+                    content.append(f"=== {file} ===\n{f.read()}\n")
+            except Exception as e:
+                logging.error(f"Error reading file {file}: {e}")
+                
+    return "\n".join(content)
+
 def take_screenshot():
     """Capture a screenshot, resize it, and return it as binary data."""
     screenshot = pyautogui.screenshot()
@@ -871,10 +887,14 @@ def toggle_auto_recording():
                     # Take screenshot
                     screenshot_data = take_screenshot()
                     
+                    # Collect text content
+                    text_content = collect_text_files_content()
+
                     # Prepare data for n8n
                     files = {
                         'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
-                        'audio': ('audio.wav', audio_data, 'audio/wav')
+                        'audio': ('audio.wav', audio_data, 'audio/wav'),
+                        'text': ('text.txt', text_content.encode('utf-8'), 'text/plain')
                     }
 
                     # Send to n8n
