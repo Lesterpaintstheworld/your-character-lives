@@ -138,16 +138,20 @@ def collect_text_files_content():
         logging.info(f"Current working directory (execution): {execution_dir}")
         logging.info(f"Script directory (installation): {script_dir}")
         
-        # Use execution directory to read files from where program is run
+        # Use current directory only, not parent
         base_dir = execution_dir
         logging.info(f"Using base directory: {base_dir}")
         
         content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
         
-        # List all files recursively from execution directory
+        # List all files recursively from current directory only
         all_files = []
         for root, dirs, files in os.walk(base_dir):
             try:
+                # Skip if this is a parent directory of base_dir
+                if not os.path.abspath(root).startswith(os.path.abspath(base_dir)):
+                    continue
+                    
                 logging.debug(f"Scanning directory: {root}")
                 logging.debug(f"Found subdirectories: {dirs}")
                 logging.debug(f"Found files: {files}")
@@ -156,13 +160,16 @@ def collect_text_files_content():
                 dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist')) 
                           and os.path.abspath(os.path.join(root, d)) != script_dir]
                 
+                # Remove parent directory from dirs list
+                dirs[:] = [d for d in dirs if not os.path.abspath(os.path.join(root, d)).endswith('..')]
+                
                 for file in files:
                     try:
                         # Case-insensitive extension check
                         if file.lower().endswith(('.md', '.txt', '.MD', '.TXT')):
                             full_path = os.path.join(root, file)
-                            # Don't include files from script directory
-                            if not os.path.abspath(full_path).startswith(script_dir):
+                            # Additional check to ensure we're not in a parent directory
+                            if os.path.abspath(full_path).startswith(os.path.abspath(base_dir)):
                                 all_files.append(full_path)
                                 logging.info(f"Found file: {full_path}")
                         else:
