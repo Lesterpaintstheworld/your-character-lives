@@ -111,7 +111,7 @@ CHUNK = 1024
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 16000  # Standard sample rate that's widely supported
-AUDIO_TIMEOUT = 30  # seconds
+AUDIO_TIMEOUT = 120  # seconds
 AUDIO_FREQUENCY = 16000
 DEFAULT_SCREENSHOT_INTERVAL = 30
 REQUEST_TIMEOUT = 120
@@ -288,14 +288,18 @@ async def process_audio_chunk(audio_data: bytes):
                           output_device_index=device_index,
                           frames_per_buffer=1024)
             
-            # Play audio in chunks
+            # Play audio in chunks with progress tracking
             chunk_size = 1024 * 2  # 1024 16-bit samples = 2048 bytes
             offset = 0
             start_time = time.time()
+            last_progress_time = start_time
             
             while offset < len(raw_data):
-                if time.time() - start_time > AUDIO_TIMEOUT:
-                    logging.warning("Audio playback timeout")
+                current_time = time.time()
+                
+                # Only timeout if stuck (no progress for 5 seconds)
+                if current_time - last_progress_time > 5:
+                    logging.warning("Audio playback stuck - no progress for 5 seconds")
                     break
                     
                 # Get next chunk
@@ -306,11 +310,16 @@ async def process_audio_chunk(audio_data: bytes):
                 # Write to stream
                 stream.write(chunk)
                 offset += chunk_size
+                last_progress_time = current_time  # Update progress time
                 
                 # Allow other tasks to run
                 await asyncio.sleep(0.001)
                 
-            logging.info("Audio playback completed successfully")
+                # Log progress for very long audio
+                if current_time - start_time > 30:  # Log after 30 seconds
+                    logging.info(f"Long audio playback: {(offset/len(raw_data))*100:.1f}% complete")
+                    
+            logging.info(f"Audio playback completed in {time.time() - start_time:.1f} seconds")
                 
         except Exception as e:
             logging.error(f"Error during playback: {e}")
