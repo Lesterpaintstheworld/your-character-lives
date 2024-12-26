@@ -1194,10 +1194,10 @@ async def api_client(interval):
             
         update_status("Starting new recording cycle...")
         
-        # Capture screenshot
-        logging.info("Taking screenshot...")
-        screenshot_data = take_screenshot()
-        logging.info("Screenshot complete")
+        # Capture first screenshot
+        logging.info("Taking initial screenshot...")
+        initial_screenshot = take_screenshot()
+        logging.info("Initial screenshot complete")
         
         # Record audio
         logging.info("Starting 15-second recording...")
@@ -1205,10 +1205,17 @@ async def api_client(interval):
         audio_data = record_audio(15)
         logging.info("Recording completed")
 
-        # Prepare data for n8n
+        # Capture final screenshot
+        logging.info("Taking final screenshot...")
+        final_screenshot = take_screenshot()
+        logging.info("Final screenshot complete")
+
+        # Prepare data for n8n with both screenshots
         files = {
-            'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
-            'audio': ('audio.wav', audio_data, 'audio/wav')
+            'initial_screenshot': ('initial_screenshot.jpg', initial_screenshot, 'image/jpeg'),
+            'final_screenshot': ('final_screenshot.jpg', final_screenshot, 'image/jpeg'),
+            'audio': ('audio.wav', audio_data, 'audio/wav'),
+            'text': ('text.txt', collect_text_files_content().encode('utf-8'), 'text/plain')
         }
 
         # Send to n8n
