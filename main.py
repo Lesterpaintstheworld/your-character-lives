@@ -129,35 +129,38 @@ def collect_text_files_content():
     """Collect content from all .md and .txt files in current directory and subdirectories."""
     content = []
     
-    # Try different paths
+    # Get execution directory (where the program is run from)
     execution_dir = os.getcwd()
     script_dir = os.path.dirname(os.path.abspath(__file__))
     
     logging.info("=== Path Debug Information ===")
-    logging.info(f"Current working directory: {execution_dir}")
-    logging.info(f"Script directory: {script_dir}")
+    logging.info(f"Current working directory (execution): {execution_dir}")
+    logging.info(f"Script directory (installation): {script_dir}")
     
-    # Use script directory instead of current working directory
-    base_dir = script_dir
+    # Use execution directory to read files from where program is run
+    base_dir = execution_dir  # Changed from script_dir to execution_dir
     logging.info(f"Using base directory: {base_dir}")
     
     content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
     
-    # List all files recursively
+    # List all files recursively from execution directory
     all_files = []
     for root, dirs, files in os.walk(base_dir):
         logging.debug(f"Scanning directory: {root}")
         logging.debug(f"Found subdirectories: {dirs}")
         logging.debug(f"Found files: {files}")
         
-        # Exclude certain directories
-        dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist'))]
+        # Exclude certain directories and the script directory itself
+        dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist')) 
+                  and os.path.abspath(os.path.join(root, d)) != script_dir]
         
         for file in files:
             if file.endswith(('.md', '.txt')):
                 full_path = os.path.join(root, file)
-                all_files.append(full_path)
-                logging.info(f"Found file: {full_path}")
+                # Don't include files from script directory
+                if not os.path.abspath(full_path).startswith(script_dir):
+                    all_files.append(full_path)
+                    logging.info(f"Found file: {full_path}")
     
     # Sort files by name for consistent output
     all_files.sort()
