@@ -128,14 +128,14 @@ logger = log_manager.get_logger(__name__)
 def collect_text_files_content():
     """Collect content from all .md and .txt files in current directory with filenames."""
     content = []
-    current_dir = os.path.dirname(os.path.abspath(__file__))
+    execution_dir = os.getcwd()
     
     # Add header with date and time
     content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
     
     # List all files
     all_files = []
-    for root, dirs, files in os.walk(current_dir):
+    for root, dirs, files in os.walk(execution_dir):
         for file in files:
             if file.endswith(('.md', '.txt')):
                 all_files.append(os.path.join(root, file))
@@ -147,7 +147,7 @@ def collect_text_files_content():
     for file_path in all_files:
         try:
             # Get relative path for cleaner display
-            rel_path = os.path.relpath(file_path, current_dir)
+            rel_path = os.path.relpath(file_path, execution_dir)
             
             # Create visible separator for each file
             content.append("\n" + "="*50)
