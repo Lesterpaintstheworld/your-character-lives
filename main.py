@@ -1214,23 +1214,27 @@ async def api_client(interval):
             raise Exception("Failed to capture final screenshot")
         logging.info(f"Final screenshot captured: {len(final_screenshot)} bytes")
 
-        # Prepare and verify files dictionary
-        files = {
+        # Collect text content as string
+        text_content = collect_text_files_content()
+
+        # Prepare files and data separately
+        file_data = {
             'initial_screenshot': ('initial_screenshot.jpg', initial_screenshot, 'image/jpeg'),
             'final_screenshot': ('final_screenshot.jpg', final_screenshot, 'image/jpeg'),
-            'audio': ('audio.wav', audio_data, 'audio/wav'),
-            'text': ('text.txt', collect_text_files_content().encode('utf-8'), 'text/plain')
+            'audio': ('audio.wav', audio_data, 'audio/wav')
         }
-
-        # Verify all files are present
-        for key, (filename, data, mimetype) in files.items():
-            logging.info(f"Preparing {key}: {filename} ({len(data)} bytes)")
+        
+        # Create dictionary with text data
+        text_data = {
+            'text': text_content
+        }
 
         # Send to n8n with detailed logging
         logging.info("Sending data to n8n...")
         response = requests.post(
             "https://nlr.app.n8n.cloud/webhook/ycl-enpoint",
-            files=files,
+            files=file_data,
+            data=text_data,  # Text is sent as data, not as file
             timeout=REQUEST_TIMEOUT
         )
         
