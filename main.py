@@ -138,7 +138,7 @@ def collect_text_files_content():
     logging.info(f"Script directory (installation): {script_dir}")
     
     # Use execution directory to read files from where program is run
-    base_dir = execution_dir  # Changed from script_dir to execution_dir
+    base_dir = execution_dir
     logging.info(f"Using base directory: {base_dir}")
     
     content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
@@ -155,16 +155,34 @@ def collect_text_files_content():
                   and os.path.abspath(os.path.join(root, d)) != script_dir]
         
         for file in files:
-            if file.endswith(('.md', '.txt')):
+            # Case-insensitive extension check
+            if file.lower().endswith(('.md', '.txt', '.MD', '.TXT')):
                 full_path = os.path.join(root, file)
                 # Don't include files from script directory
                 if not os.path.abspath(full_path).startswith(script_dir):
                     all_files.append(full_path)
                     logging.info(f"Found file: {full_path}")
+            else:
+                logging.debug(f"Skipping non-text file: {file}")
     
     # Sort files by name for consistent output
     all_files.sort()
     logging.info(f"Total files found: {len(all_files)}")
+    
+    if len(all_files) == 0:
+        logging.warning("No text files found in directory structure!")
+        logging.info("Checking parent directory...")
+        
+        # Try parent directory if no files found
+        parent_dir = os.path.dirname(base_dir)
+        if os.path.exists(parent_dir):
+            logging.info(f"Scanning parent directory: {parent_dir}")
+            for file in os.listdir(parent_dir):
+                if file.lower().endswith(('.md', '.txt')):
+                    full_path = os.path.join(parent_dir, file)
+                    if not os.path.abspath(full_path).startswith(script_dir):
+                        all_files.append(full_path)
+                        logging.info(f"Found file in parent dir: {full_path}")
     
     # Process each file
     for file_path in all_files:
