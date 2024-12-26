@@ -1194,10 +1194,12 @@ async def api_client(interval):
             
         update_status("Starting new recording cycle...")
         
-        # Capture first screenshot
+        # Capture first screenshot with verification
         logging.info("Taking initial screenshot...")
         initial_screenshot = take_screenshot()
-        logging.info("Initial screenshot complete")
+        if not initial_screenshot:
+            raise Exception("Failed to capture initial screenshot")
+        logging.info(f"Initial screenshot captured: {len(initial_screenshot)} bytes")
         
         # Record audio
         logging.info("Starting 15-second recording...")
@@ -1205,12 +1207,14 @@ async def api_client(interval):
         audio_data = record_audio(15)
         logging.info("Recording completed")
 
-        # Capture final screenshot
+        # Capture final screenshot with verification
         logging.info("Taking final screenshot...")
         final_screenshot = take_screenshot()
-        logging.info("Final screenshot complete")
+        if not final_screenshot:
+            raise Exception("Failed to capture final screenshot")
+        logging.info(f"Final screenshot captured: {len(final_screenshot)} bytes")
 
-        # Prepare data for n8n with both screenshots
+        # Prepare and verify files dictionary
         files = {
             'initial_screenshot': ('initial_screenshot.jpg', initial_screenshot, 'image/jpeg'),
             'final_screenshot': ('final_screenshot.jpg', final_screenshot, 'image/jpeg'),
@@ -1218,13 +1222,22 @@ async def api_client(interval):
             'text': ('text.txt', collect_text_files_content().encode('utf-8'), 'text/plain')
         }
 
-        # Send to n8n
-        logging.info("Sending data to n8n")
+        # Verify all files are present
+        for key, (filename, data, mimetype) in files.items():
+            logging.info(f"Preparing {key}: {filename} ({len(data)} bytes)")
+
+        # Send to n8n with detailed logging
+        logging.info("Sending data to n8n...")
         response = requests.post(
             "https://nlr.app.n8n.cloud/webhook/ycl-enpoint",
             files=files,
             timeout=REQUEST_TIMEOUT
         )
+        
+        # Log response details
+        logging.info(f"n8n response status: {response.status_code}")
+        logging.info(f"n8n response headers: {response.headers}")
+        
         response.raise_for_status()
         
         # Process audio response
