@@ -126,45 +126,53 @@ logger = log_manager.get_logger(__name__)
 
 
 def collect_text_files_content():
-    """Collect content from all .md and .txt files in current directory with filenames."""
+    """Collect content from all .md and .txt files in current directory and subdirectories."""
     content = []
     execution_dir = os.getcwd()
     
-    # Add header with date and time
+    logging.info(f"Scanning directory: {execution_dir}")
     content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
     
-    # List all files
+    # List all files recursively
     all_files = []
     for root, dirs, files in os.walk(execution_dir):
+        logging.debug(f"Scanning directory: {root}")
+        logging.debug(f"Found subdirectories: {dirs}")
+        logging.debug(f"Found files: {files}")
+        
+        # Exclude certain directories
+        dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist'))]
+        
         for file in files:
             if file.endswith(('.md', '.txt')):
-                all_files.append(os.path.join(root, file))
+                full_path = os.path.join(root, file)
+                all_files.append(full_path)
+                logging.info(f"Found file: {full_path}")
     
     # Sort files by name for consistent output
     all_files.sort()
+    logging.info(f"Total files found: {len(all_files)}")
     
     # Process each file
     for file_path in all_files:
         try:
-            # Get relative path for cleaner display
             rel_path = os.path.relpath(file_path, execution_dir)
+            logging.info(f"Processing file: {rel_path}")
             
-            # Create visible separator for each file
             content.append("\n" + "="*50)
             content.append(f"FILE: {rel_path}")
             content.append("="*50 + "\n")
             
-            # Read and add file content
             with open(file_path, 'r', encoding='utf-8') as f:
                 file_content = f.read()
                 content.append(file_content)
+                logging.debug(f"Successfully read {len(file_content)} bytes from {rel_path}")
                 
         except Exception as e:
             error_msg = f"ERROR reading {rel_path}: {str(e)}"
             logging.error(error_msg)
             content.append(error_msg)
     
-    # Add footer
     content.append("\n" + "="*50)
     content.append(f"End of document scan - {len(all_files)} files processed")
     content.append("="*50)
