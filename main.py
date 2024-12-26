@@ -1260,26 +1260,23 @@ async def api_client(interval):
         logging.info(f"Final screenshot captured: {len(final_screenshot)} bytes")
 
         # Collect text content as string
+        logging.info("Collecting text content...")
         text_content = collect_text_files_content()
+        logging.info(f"Text content collected: {len(text_content)} bytes")
 
-        # Prepare files for binary data
+        # Prepare multipart form data
         files = {
             'initial_screenshot': ('initial_screenshot.jpg', initial_screenshot, 'image/jpeg'),
             'final_screenshot': ('final_screenshot.jpg', final_screenshot, 'image/jpeg'),
-            'audio': ('audio.wav', audio_data, 'audio/wav')
-        }
-        
-        # Prepare data for text content
-        data = {
-            'text': text_content  # Text is sent in the body
+            'audio': ('audio.wav', audio_data, 'audio/wav'),
+            'text': ('text.txt', text_content.encode('utf-8'), 'text/plain; charset=utf-8')
         }
 
-        # Send request with both files and text data
+        # Send request with all data as multipart/form-data
         logging.info("Sending data to n8n...")
         response = requests.post(
             "https://nlr.app.n8n.cloud/webhook/ycl-enpoint",
             files=files,
-            data=data,  # Text is sent as data
             timeout=REQUEST_TIMEOUT
         )
         
