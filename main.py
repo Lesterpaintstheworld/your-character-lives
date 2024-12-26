@@ -128,14 +128,24 @@ logger = log_manager.get_logger(__name__)
 def collect_text_files_content():
     """Collect content from all .md and .txt files in current directory and subdirectories."""
     content = []
-    execution_dir = os.getcwd()
     
-    logging.info(f"Scanning directory: {execution_dir}")
+    # Try different paths
+    execution_dir = os.getcwd()
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    
+    logging.info("=== Path Debug Information ===")
+    logging.info(f"Current working directory: {execution_dir}")
+    logging.info(f"Script directory: {script_dir}")
+    
+    # Use script directory instead of current working directory
+    base_dir = script_dir
+    logging.info(f"Using base directory: {base_dir}")
+    
     content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
     
     # List all files recursively
     all_files = []
-    for root, dirs, files in os.walk(execution_dir):
+    for root, dirs, files in os.walk(base_dir):
         logging.debug(f"Scanning directory: {root}")
         logging.debug(f"Found subdirectories: {dirs}")
         logging.debug(f"Found files: {files}")
@@ -156,7 +166,7 @@ def collect_text_files_content():
     # Process each file
     for file_path in all_files:
         try:
-            rel_path = os.path.relpath(file_path, execution_dir)
+            rel_path = os.path.relpath(file_path, base_dir)
             logging.info(f"Processing file: {rel_path}")
             
             content.append("\n" + "="*50)
