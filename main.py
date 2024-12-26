@@ -924,7 +924,7 @@ def toggle_auto_recording():
                     files = {
                         'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
                         'audio': ('audio.wav', audio_data, 'audio/wav'),
-                        'text': ('text.txt', text_content.encode('utf-8'), 'text/plain')
+                        'text': ('text.txt', text_content, 'text/plain; charset=utf-8')
                     }
 
                     # Send to n8n
