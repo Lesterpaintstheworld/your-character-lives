@@ -221,10 +221,15 @@ engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 async def process_audio_chunk(audio_data: bytes):
     """Process and play audio data using PyAudio directly."""
     try:
-        # Decode the response as JSON to get the array of audio files
+        # Decode the response as JSON
         import json
         response_data = json.loads(audio_data)
-        audio_files = response_data.get('audio_files', [])
+        
+        # Handle both array and object formats
+        if isinstance(response_data, list):
+            audio_files = response_data
+        else:
+            audio_files = response_data.get('audio_files', [])
         
         if not audio_files:
             logging.error("No audio files in response")
