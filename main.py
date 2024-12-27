@@ -290,13 +290,16 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
             logging.error(f"Audio validation failed: {e}")
             raise
 
-        # Set video states based on character
+        # Switch to talk video before starting playback
+        logging.info("Switching to talk video...")
         if is_daemon:
             if second_video_window:
                 second_video_window.switch_to_talk_video()
+                await asyncio.sleep(0.1)  # Small delay to ensure video switch
         else:
             if current_video_window:
                 current_video_window.switch_to_talk_video()
+                await asyncio.sleep(0.1)  # Small delay to ensure video switch
 
         # Write to temp file
         try:
@@ -448,7 +451,8 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
             except Exception as e:
                 logging.warning(f"Failed to remove temp file: {e}")
                 
-        # Reset video states based on character
+        # Switch back to idle video after playback
+        logging.info("Switching back to idle video...")
         if is_daemon:
             if second_video_window:
                 second_video_window.switch_to_idle_video()
