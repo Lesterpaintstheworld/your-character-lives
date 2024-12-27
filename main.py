@@ -1103,17 +1103,45 @@ def toggle_auto_recording():
                         files=files,  # Binary files in multipart/form-data
                         timeout=REQUEST_TIMEOUT
                     )
-                    
-                    # Get binary data directly from response content
-                    binary_data = response.content
-                    
-                    # Validate size
-                    if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
-                        logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
-                        raise ValueError("Audio data too small to be valid")
-                        
-                    # Process audio response
-                    await process_audio_chunk(binary_data)
+
+                    # Parse response JSON first
+                    try:
+                        response_json = response.json()
+                        if isinstance(response_json, list):
+                            response_json = response_json[0]  # Get first item if it's a list
+                            
+                        # Get the binary data from n8n's binary property
+                        if 'binary_keys' in response_json:
+                            # The actual binary data should be in the response headers
+                            binary_data_key = response_json['binary_keys'].split(',')[0]  # Get first key
+                            binary_data_header = f'x-binary-{binary_data_key}'
+                            
+                            if binary_data_header in response.headers:
+                                binary_data = base64.b64decode(response.headers[binary_data_header])
+                                
+                                # Validate size
+                                if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
+                                    logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
+                                    raise ValueError("Audio data too small to be valid")
+                                    
+                                # Process audio response
+                                await process_audio_chunk(binary_data)
+                            else:
+                                logging.error(f"Binary data header {binary_data_header} not found in response")
+                                logging.error(f"Available headers: {response.headers}")
+                                raise ValueError("Binary data not found in response headers")
+                        else:
+                            logging.error("No binary_keys found in response")
+                            logging.error(f"Response content: {response.text[:1000]}")
+                            raise ValueError("No binary data keys in response")
+                            
+                    except json.JSONDecodeError:
+                        logging.error("Failed to parse response as JSON")
+                        logging.error(f"Raw response: {response.text[:1000]}")
+                        raise
+                    except Exception as e:
+                        logging.error(f"Error processing response: {e}")
+                        raise
                     
                 except Exception as e:
                     logging.error(f"Error in auto recording loop: {e}")
