@@ -234,126 +234,121 @@ async def process_audio_chunk(audio_data: bytes):
         # Now decode the base64 audio data
         audio_bytes = base64.b64decode(audio_base64)
 
-        # Rest of your existing audio playback code using audio_bytes...
         temp_path = None
         p = None
         stream = None
         
         try:
-                # Decode base64 audio data
-                audio_bytes = base64.b64decode(audio_file)
+            # Save audio data to temporary file with .mp3 extension
+            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+                temp_path = temp_file.name
+                temp_file.write(audio_bytes)
+                temp_file.flush()
                 
-                # Save audio data to temporary file with .mp3 extension
-                with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
-                    temp_path = temp_file.name
-                    temp_file.write(audio_bytes)
-                    temp_file.flush()
-                    
-                # Get selected output device name
-                selected = output_var.get() if output_var else None
-                device_index = None
-                
-                # Don't play if paused
-                if not is_playing:
-                    return
+            # Get selected output device name
+            selected = output_var.get() if output_var else None
+            device_index = None
+            
+            # Don't play if paused
+            if not is_playing:
+                return
 
-                # Switch to appropriate talking video based on which audio we're playing
-                # Initialize PyAudio
-                p = pyaudio.PyAudio()
+            # Switch to appropriate talking video based on which audio we're playing
+            # Initialize PyAudio
+            p = pyaudio.PyAudio()
+            
+            try:
+                # First try to find selected device
+                if selected:
+                    device_name = re.match(r'^([^(]+)', selected).group(1).strip()
+                    logging.info(f"Looking for selected device: {device_name}")
+                    
+                    for j in range(p.get_device_count()):
+                        info = p.get_device_info_by_index(j)
+                        if (device_name.lower() in info['name'].lower() and 
+                            info['maxOutputChannels'] > 0):
+                            device_index = j
+                            logging.info(f"Found selected device: {info['name']} (index: {j})")
+                            break
                 
-                try:
-                    # First try to find selected device
-                    if selected:
-                        device_name = re.match(r'^([^(]+)', selected).group(1).strip()
-                        logging.info(f"Looking for selected device: {device_name}")
-                        
-                        for j in range(p.get_device_count()):
-                            info = p.get_device_info_by_index(j)
-                            if (device_name.lower() in info['name'].lower() and 
-                                info['maxOutputChannels'] > 0):
-                                device_index = j
-                                logging.info(f"Found selected device: {info['name']} (index: {j})")
-                                break
-                    
-                    # If no device found, use default output device
-                    if device_index is None:
-                        info = p.get_default_output_device_info()
-                        device_index = info['index']
-                        logging.info(f"Using default output device: {info['name']} (index: {device_index})")
+                # If no device found, use default output device
+                if device_index is None:
+                    info = p.get_default_output_device_info()
+                    device_index = info['index']
+                    logging.info(f"Using default output device: {info['name']} (index: {device_index})")
 
-                    # Load and convert audio using pydub
-                    audio = AudioSegment.from_mp3(temp_path)
+                # Load and convert audio using pydub
+                audio = AudioSegment.from_mp3(temp_path)
+                
+                # Convert to standard format
+                audio = audio.set_frame_rate(24000)
+                audio = audio.set_channels(1)
+                audio = audio.set_sample_width(2)
+                
+                # Get audio data as raw PCM
+                raw_data = audio.raw_data
+                
+                # Open stream with matching parameters
+                stream = p.open(format=pyaudio.paInt16,
+                              channels=1,
+                              rate=24000,
+                              output=True,
+                              output_device_index=device_index,
+                              frames_per_buffer=1024)
+                
+                # Play audio in chunks
+                chunk_size = 1024 * 2
+                offset = 0
+                start_time = time.time()
+                last_progress_time = start_time
+                
+                while offset < len(raw_data):
+                    current_time = time.time()
                     
-                    # Convert to standard format
-                    audio = audio.set_frame_rate(24000)
-                    audio = audio.set_channels(1)
-                    audio = audio.set_sample_width(2)
-                    
-                    # Get audio data as raw PCM
-                    raw_data = audio.raw_data
-                    
-                    # Open stream with matching parameters
-                    stream = p.open(format=pyaudio.paInt16,
-                                  channels=1,
-                                  rate=24000,
-                                  output=True,
-                                  output_device_index=device_index,
-                                  frames_per_buffer=1024)
-                    
-                    # Play audio in chunks
-                    chunk_size = 1024 * 2
-                    offset = 0
-                    start_time = time.time()
-                    last_progress_time = start_time
-                    
-                    while offset < len(raw_data):
-                        current_time = time.time()
+                    # Only timeout if stuck (no progress for 5 seconds)
+                    if current_time - last_progress_time > 5:
+                        logging.warning("Audio playback stuck - no progress for 5 seconds")
+                        break
                         
-                        # Only timeout if stuck (no progress for 5 seconds)
-                        if current_time - last_progress_time > 5:
-                            logging.warning("Audio playback stuck - no progress for 5 seconds")
-                            break
-                            
-                        # Get next chunk
-                        chunk = raw_data[offset:offset + chunk_size]
-                        if not chunk:
-                            break
-                            
-                        # Write to stream
-                        stream.write(chunk)
-                        offset += chunk_size
-                        last_progress_time = current_time
+                    # Get next chunk
+                    chunk = raw_data[offset:offset + chunk_size]
+                    if not chunk:
+                        break
                         
-                        await asyncio.sleep(0.001)
-                        
-                    logging.info(f"Audio {i+1} playback completed in {time.time() - start_time:.1f} seconds")
+                    # Write to stream
+                    stream.write(chunk)
+                    offset += chunk_size
+                    last_progress_time = current_time
                     
-                except Exception as e:
-                    logging.error(f"Error during playback of audio {i+1}: {e}")
-                    raise
+                    await asyncio.sleep(0.001)
                     
-                finally:
-                    # Switch back to idle video after each audio completes
-                    if i == 0 and current_video_window:
-                        current_video_window.switch_to_idle_video()
-                    elif i == 1 and second_video_window:
-                        second_video_window.switch_to_idle_video()
-                    
-                    # Cleanup audio resources
-                    if stream:
-                        stream.stop_stream()
-                        stream.close()
-                    if p:
-                        p.terminate()
-                    if temp_path and os.path.exists(temp_path):
-                        try:
-                            os.remove(temp_path)
-                        except Exception as e:
-                            logging.warning(f"Failed to remove temp file {temp_path}: {e}")
-                            
+                logging.info("Audio playback completed in {:.1f} seconds".format(time.time() - start_time))
+                
             except Exception as e:
-                logging.error(f"Error playing audio {i+1}: {e}")
-                continue
+                logging.error(f"Error during audio playback: {e}")
+                raise
+                
+            finally:
+                # Switch back to idle video
+                if current_video_window:
+                    current_video_window.switch_to_idle_video()
+                if second_video_window:
+                    second_video_window.switch_to_idle_video()
+                
+                # Cleanup audio resources
+                if stream:
+                    stream.stop_stream()
+                    stream.close()
+                if p:
+                    p.terminate()
+                
+        except Exception as e:
+            logging.error(f"Error playing audio: {e}")
+            if temp_path and os.path.exists(temp_path):
+                try:
+                    os.remove(temp_path)
+                except Exception as e:
+                    logging.warning(f"Failed to remove temp file {temp_path}: {e}")
 
     except Exception as e:
         logging.error(f"Error processing audio response: {e}")
