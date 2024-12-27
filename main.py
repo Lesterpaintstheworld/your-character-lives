@@ -1419,15 +1419,24 @@ async def api_client(interval):
         # First character (Emily)
         update_status("Starting Emily's recording cycle...")
         
-        # Record and process for Emily
+        # Take pre-recording screenshot for Emily
+        logging.info("Taking pre-recording screenshot for Emily...")
+        pre_screenshot_emily = take_screenshot()
+        
+        # Record audio for Emily
         logging.info("Starting 15-second recording for Emily...")
         audio_data = record_audio(15)
-        screenshot_data = take_screenshot()  # Take first screenshot
+        
+        # Take post-recording screenshot for Emily
+        logging.info("Taking post-recording screenshot for Emily...")
+        post_screenshot_emily = take_screenshot()
+        
         text_content = collect_text_files_content()
 
         data = {'text': text_content}
         files = {
-            'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
+            'pre_screenshot': ('pre_screenshot.jpg', pre_screenshot_emily, 'image/jpeg'),
+            'post_screenshot': ('post_screenshot.jpg', post_screenshot_emily, 'image/jpeg'),
             'audio': ('audio.wav', audio_data, 'audio/wav')
         }
 
@@ -1453,15 +1462,24 @@ async def api_client(interval):
             
         update_status("Starting Daemon's recording cycle...")
         
-        # Record and process for Daemon - take new screenshot
+        # Take pre-recording screenshot for Daemon
+        logging.info("Taking pre-recording screenshot for Daemon...")
+        pre_screenshot_daemon = take_screenshot()
+        
+        # Record audio for Daemon
         logging.info("Starting 15-second recording for Daemon...")
         audio_data = record_audio(15)
-        screenshot_data = take_screenshot()  # Take fresh screenshot for Daemon
+        
+        # Take post-recording screenshot for Daemon
+        logging.info("Taking post-recording screenshot for Daemon...")
+        post_screenshot_daemon = take_screenshot()
+        
         text_content = collect_text_files_content()
 
         data = {'text': text_content}
         files = {
-            'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
+            'pre_screenshot': ('pre_screenshot.jpg', pre_screenshot_daemon, 'image/jpeg'),
+            'post_screenshot': ('post_screenshot.jpg', post_screenshot_daemon, 'image/jpeg'),
             'audio': ('audio.wav', audio_data, 'audio/wav')
         }
 
