@@ -1467,9 +1467,9 @@ async def api_client(interval):
             await process_audio_chunk(response.content, is_daemon=False)
             logging.info("Emily's response completed")
             
-        # Wait 30 seconds after Emily's response finishes
-        logging.info("Waiting 30 seconds before Daemon's turn...")
-        await asyncio.sleep(30)
+        # Wait 1 second after Emily's response finishes
+        logging.info("Waiting 1 second before Daemon's turn...")
+        await asyncio.sleep(1)
         
         # Second character (Daemon)
         if not is_playing:  # Check if still playing after wait
