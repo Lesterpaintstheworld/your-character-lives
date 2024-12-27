@@ -226,23 +226,24 @@ async def process_audio_chunk(audio_data: bytes):
         response = json.loads(audio_data)
         logging.info(f"Raw response length: {len(audio_data)} bytes")
         logging.info(f"Response type: {type(response)}")
-        if isinstance(response, dict):
-            logging.info(f"Response keys: {list(response.keys())}")
-            for key in ['data_0', 'data_1']:
-                if key in response:
-                    logging.info(f"{key} type: {type(response[key])}")
-                    logging.info(f"{key} length: {len(response[key]) if response[key] else 0}")
-        
+
         # Extract audio data
         audio_segments = []
+        
         if isinstance(response, dict):
+            # Handle dictionary format
             if 'data_0' in response:
-                audio_segments.append(('data_0', response['data_0'], True))  # True for talk2
+                audio_segments.append(('data_0', response['data_0'], True))
             if 'data_1' in response:
-                audio_segments.append(('data_1', response['data_1'], False))  # False for talk
-        elif isinstance(response, list) and len(response) >= 2:
-            audio_segments.append(('data_0', response[0], True))
-            audio_segments.append(('data_1', response[1], False))
+                audio_segments.append(('data_1', response['data_1'], False))
+        elif isinstance(response, list):
+            # Handle list format - assume first two elements are audio data
+            if len(response) >= 1:
+                audio_segments.append(('data_0', response[0], True))
+            if len(response) >= 2:
+                audio_segments.append(('data_1', response[1], False))
+                
+        logging.info(f"Found {len(audio_segments)} audio segments")
             
         if not audio_segments:
             raise ValueError("No audio data found in response")
@@ -270,13 +271,19 @@ async def process_audio_chunk(audio_data: bytes):
             try:
                 # Write to temporary file
                 with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+                    # Handle different audio data formats
                     if isinstance(audio_data, str):
                         temp_file.write(audio_data.encode('utf-8'))
                     elif isinstance(audio_data, dict):
                         temp_file.write(json.dumps(audio_data).encode('utf-8'))
-                    else:
+                    elif isinstance(audio_data, bytes):
                         temp_file.write(audio_data)
+                    else:
+                        logging.error(f"Unexpected audio data type: {type(audio_data)}")
+                        continue
+                        
                     temp_path = temp_file.name
+                    logging.info(f"Wrote audio data to temp file: {temp_path}")
 
                 # Get selected output device
                 selected = output_var.get() if output_var else None
@@ -361,6 +368,17 @@ async def process_audio_chunk(audio_data: bytes):
                     current_video_window.switch_to_idle_video()
                 if second_video_window:
                     second_video_window.switch_to_idle_video()
+
+    except json.JSONDecodeError as e:
+        logging.error(f"Failed to decode JSON response: {e}")
+        # Try to handle raw binary audio data
+        try:
+            # Assume it's raw MP3 data
+            audio_segments = [('raw_audio', audio_data, True)]
+            # Continue with processing...
+        except Exception as e2:
+            logging.error(f"Failed to handle raw audio data: {e2}")
+            raise
 
     except Exception as e:
         logging.error(f"Error in process_audio_chunk: {e}")
