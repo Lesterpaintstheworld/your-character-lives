@@ -271,7 +271,7 @@ def validate_and_fix_audio_data(audio_data: bytes) -> bytes:
         logging.error(f"Error validating audio data: {e}")
         raise
 
-async def process_audio_chunk(audio_data: bytes):
+async def process_audio_chunk(audio_data: bytes, is_daemon=False):
     """Process and play raw binary audio data using PyAudio directly."""
     temp_path = None
     p = None
@@ -290,9 +290,13 @@ async def process_audio_chunk(audio_data: bytes):
             logging.error(f"Audio validation failed: {e}")
             raise
 
-        # Set video states
-        if current_video_window:
-            current_video_window.switch_to_talk_video()
+        # Set video states based on character
+        if is_daemon:
+            if second_video_window:
+                second_video_window.switch_to_talk_video()
+        else:
+            if current_video_window:
+                current_video_window.switch_to_talk_video()
 
         # Write to temp file
         try:
@@ -444,9 +448,13 @@ async def process_audio_chunk(audio_data: bytes):
             except Exception as e:
                 logging.warning(f"Failed to remove temp file: {e}")
                 
-        # Reset video states
-        if current_video_window:
-            current_video_window.switch_to_idle_video()
+        # Reset video states based on character
+        if is_daemon:
+            if second_video_window:
+                second_video_window.switch_to_idle_video()
+        else:
+            if current_video_window:
+                current_video_window.switch_to_idle_video()
 
 def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) -> bool:
     """Safely remove a file with retries and proper cleanup."""
@@ -1451,7 +1459,7 @@ async def api_client(interval):
         
         # Process Emily's response
         if response.status_code == 200:
-            await process_audio_chunk(response.content)
+            await process_audio_chunk(response.content, is_daemon=False)
             
         # Wait 30 seconds
         await asyncio.sleep(30)
@@ -1494,7 +1502,7 @@ async def api_client(interval):
         
         # Process Daemon's response
         if response.status_code == 200:
-            await process_audio_chunk(response.content)
+            await process_audio_chunk(response.content, is_daemon=True)
         
         # Log response details for debugging
         logging.info(f"Response status: {response.status_code}")
