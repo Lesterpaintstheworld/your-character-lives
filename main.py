@@ -1495,8 +1495,31 @@ async def api_client(interval):
         # Log response details for debugging
         logging.info(f"Response status: {response.status_code}")
         logging.info(f"Response headers: {response.headers}")
-        logging.info(f"Response content type: {response.headers.get('content-type', 'unknown')}")
-        logging.info(f"Response content length: {len(response.content)} bytes")
+        logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
+                    
+        # Inspect the raw binary content
+        binary_data = response.content
+        logging.info(f"Raw binary length: {len(binary_data)} bytes")
+        logging.info(f"First 100 bytes as hex: {binary_data[:100].hex()}")
+                    
+        # Try to detect content type from first few bytes
+        if binary_data.startswith(b'\xFF\xFB') or binary_data.startswith(b'ID3'):
+            logging.info("Appears to be MP3 data")
+        elif binary_data.startswith(b'RIFF'):
+            logging.info("Appears to be WAV data")
+        elif binary_data.startswith(b'\x89PNG'):
+            logging.info("Appears to be PNG data")
+        elif binary_data.startswith(b'\xFF\xD8\xFF'):
+            logging.info("Appears to be JPEG data")
+        else:
+            logging.info(f"Unknown binary format. First 8 bytes: {binary_data[:8].hex()}")
+
+        # If it looks like text, show it
+        try:
+            text_preview = binary_data[:200].decode('utf-8')
+            logging.info(f"Content as text: {text_preview}")
+        except UnicodeDecodeError:
+            logging.info("Content is not valid UTF-8 text")
 
         # Check if response is valid
         if response.status_code != 200:
