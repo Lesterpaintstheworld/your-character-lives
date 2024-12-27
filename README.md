@@ -1,6 +1,6 @@
 # CK3 AI Character
 
-An AI assistant that enhances Crusader Kings III gameplay through intelligent character interactions and dynamic responses.
+An AI assistant that enhances Crusader Kings III gameplay through intelligent character interactions and dynamic responses featuring two distinct AI personalities.
 
 ## Quick Start
 
@@ -50,6 +50,7 @@ python main.py --with-game
 
 - Python 3.10 or higher
 - Active internet connection
+- Working microphone and speakers/headphones
 - For game features: Crusader Kings III
 
 ## Configuration Options
@@ -77,12 +78,21 @@ ck3-ai-character/
 ## Troubleshooting
 
 1. **Connection Issues**
-- Verify your OpenAI API key
-- Check your internet connection
-- Ensure Solana wallet is properly configured
+- Verify your internet connection
+- Check endpoint URLs in configuration
+- Ensure both n8n webhooks are accessible
 
+2. **Audio Issues**
+- Check microphone and speaker settings
+- Verify correct audio device selection
+- Test both characters' audio output
 
-3. **Game Integration Issues**
+3. **Video Issues**
+- Ensure video files are present in correct location
+- Check for proper video codec installation
+- Verify both character windows are functioning
+
+4. **Game Integration Issues**
 - Verify mod installation
 - Check CK3 launcher mod activation
 - Ensure correct file permissions
