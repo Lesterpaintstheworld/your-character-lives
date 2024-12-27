@@ -299,8 +299,6 @@ async def process_audio_chunk(audio_data: bytes):
     temp_path = None
     p = None
     stream = None
-    audio = None
-    raw_data = None
     
     try:
         if not audio_data:
@@ -308,26 +306,18 @@ async def process_audio_chunk(audio_data: bytes):
             
         logging.info(f"Received raw audio data: {len(audio_data)} bytes")
         
-        # Validate audio data format
-        if len(audio_data) < 100:  # Minimum size check
-            raise ValueError(f"Audio data too small: {len(audio_data)} bytes")
-            
-        # Check if data appears to be valid MP3
-        if not audio_data.startswith(b'\xFF\xFB') and not audio_data.startswith(b'ID3'):
-            logging.warning("Audio data doesn't appear to be valid MP3")
-
-        # Set video states for first window
-        if current_video_window:
-            current_video_window.switch_to_talk_video()
-
         # Validate and fix audio data
         try:
             audio_data = validate_and_fix_audio_data(audio_data)
         except Exception as e:
             logging.error(f"Audio validation failed: {e}")
             raise
-            
-        # Write to temp file with error handling
+
+        # Set video states
+        if current_video_window:
+            current_video_window.switch_to_talk_video()
+
+        # Write to temp file
         try:
             with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
                 temp_file.write(audio_data)
@@ -354,13 +344,13 @@ async def process_audio_chunk(audio_data: bytes):
                             device_index = i
                             break
             
-            # Fall back to default device if selected device not found or not working
+            # Fall back to default device if needed
             if device_index is None:
                 info = p.get_default_output_device_info()
                 if validate_output_device(info['index']):
                     device_index = info['index']
                 else:
-                    # Last resort: try any working output device
+                    # Try any working output device
                     for i in range(p.get_device_count()):
                         if validate_output_device(i):
                             device_index = i
@@ -371,14 +361,8 @@ async def process_audio_chunk(audio_data: bytes):
                 
             logging.info(f"Using output device index: {device_index}")
 
-            # Load and convert audio with error checking
+            # Load and convert audio
             try:
-                # Make sure the file is closed before loading
-                audio = None
-                with open(temp_path, 'rb') as f:
-                    audio_data = f.read()
-                
-                # Create new AudioSegment from raw data
                 audio = AudioSegment.from_mp3(io.BytesIO(audio_data))
                 
                 if len(audio) == 0:
@@ -389,14 +373,9 @@ async def process_audio_chunk(audio_data: bytes):
                 audio = audio.set_channels(1)
                 audio = audio.set_sample_width(2)
                 
-                # Verify audio data
-                if not audio.raw_data:
-                    raise ValueError("No raw audio data available")
-                
                 raw_data = audio.raw_data
-                
-                if len(raw_data) == 0:
-                    raise ValueError("No PCM data generated")
+                if not raw_data:
+                    raise ValueError("No raw audio data available")
                 
                 logging.info(f"Successfully processed audio: {len(raw_data)} bytes")
                 
@@ -404,7 +383,7 @@ async def process_audio_chunk(audio_data: bytes):
                 logging.error(f"Error processing audio file: {e}")
                 raise
             
-            # Open audio stream with better error handling
+            # Open audio stream
             try:
                 stream = p.open(
                     format=pyaudio.paInt16,
@@ -413,51 +392,46 @@ async def process_audio_chunk(audio_data: bytes):
                     output=True,
                     output_device_index=device_index,
                     frames_per_buffer=1024,
-                    start=False  # Don't start yet
+                    start=False
                 )
                 
-                # Verify stream was created successfully
                 if not stream:
                     raise RuntimeError("Failed to create audio stream")
                 
-                # Start stream explicitly
                 stream.start_stream()
                 
-                # Verify stream is active
                 if not stream.is_active():
                     raise RuntimeError("Stream not active after starting")
                 
-                # Play audio in smaller chunks with progress tracking
+                # Play audio in chunks
                 chunk_size = 1024
-                total_chunks = len(raw_data) // chunk_size
-                offset = 0
+                total_bytes = len(raw_data)
                 
+                if total_bytes == 0:
+                    logging.warning("No audio data to play")
+                    return
+                    
+                total_chunks = (total_bytes + chunk_size - 1) // chunk_size  # Round up division
                 logging.info(f"Starting playback: {total_chunks} chunks to play")
                 
-                for i in range(total_chunks + 1):
-                    if not is_playing:  # Check if playback should continue
+                for i in range(total_chunks):
+                    if not is_playing:
                         logging.info("Playback interrupted")
                         break
                         
-                    chunk = raw_data[offset:offset + chunk_size]
+                    start = i * chunk_size
+                    end = min(start + chunk_size, total_bytes)
+                    chunk = raw_data[start:end]
+                    
                     if not chunk:
-                        break
+                        continue
                         
                     try:
                         stream.write(chunk)
-                        offset += chunk_size
-                        
-                        # Log progress periodically
-                        if i % 100 == 0:  # Every 100 chunks
-                            progress = (i / total_chunks) * 100
-                            logging.debug(f"Playback progress: {progress:.1f}%")
-                            
                     except Exception as e:
                         logging.error(f"Error writing chunk {i}: {e}")
-                        # Try to recover and continue with next chunk
                         continue
                     
-                    # Small delay to prevent audio glitches
                     await asyncio.sleep(0.001)
                     
                 logging.info("Playback completed successfully")
@@ -483,26 +457,19 @@ async def process_audio_chunk(audio_data: bytes):
 
     except Exception as e:
         logging.error(f"Error in process_audio_chunk: {e}")
-        update_status(f"❌ Audio playback error: {str(e)}")
         raise
 
     finally:
-        # Clean up temp file with retry
-        if temp_path:
-            for _ in range(3):  # Try 3 times
-                try:
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
-                    break
-                except Exception as e:
-                    logging.warning(f"Failed to remove temp file (attempt {_ + 1}): {e}")
-                    await asyncio.sleep(0.5)  # Wait before retry
-                    
+        # Clean up temp file
+        if temp_path and os.path.exists(temp_path):
+            try:
+                os.remove(temp_path)
+            except Exception as e:
+                logging.warning(f"Failed to remove temp file: {e}")
+                
         # Reset video states
         if current_video_window:
             current_video_window.switch_to_idle_video()
-        if second_video_window:
-            second_video_window.switch_to_idle_video()
 
 def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) -> bool:
     """Safely remove a file with retries and proper cleanup."""
