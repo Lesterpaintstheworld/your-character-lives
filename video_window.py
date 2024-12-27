@@ -1,5 +1,8 @@
 """Draggable borderless video window implementation"""
+import threading
 import cv2
+# Global lock for video operations
+video_lock = threading.Lock()
 from PIL import Image, ImageTk
 import tkinter as tk
 import logging
@@ -554,48 +557,51 @@ class DraggableVideoWindow:
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
     def reopen_video(self):
-        """Reopen video capture with thread safety"""
-        try:
-            # Create new capture before releasing old one
-            new_cap = cv2.VideoCapture(self.current_video_path)
-            if not new_cap.isOpened():
-                raise ValueError(f"Failed to open video: {self.current_video_path}")
+        """Reopen current video with improved thread synchronization"""
+        with video_lock:  # Use global video lock
+            try:
+                # Release existing capture if any
+                if self.cap is not None:
+                    try:
+                        self.cap.release()
+                        self.cap = None
+                        time.sleep(0.1)  # Allow time for release
+                    except Exception as e:
+                        self.logger.warning(f"Error releasing existing capture: {e}")
                 
-            # Configure new capture
-            new_cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-            if sys.platform == 'win32':
-                new_cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                # Create new capture
+                self.cap = cv2.VideoCapture(self.current_video_path)
+                if not self.cap.isOpened():
+                    raise ValueError(f"Failed to open video: {self.current_video_path}")
                 
-            # Test new capture
-            ret, test_frame = new_cap.read()
-            if not ret or test_frame is None:
-                raise ValueError("Failed to read first frame")
-            new_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-            
-            # Switch captures
-            if self.cap is not None:
-                old_cap = self.cap
-                self.cap = new_cap
-                try:
-                    old_cap.release()
-                except Exception as e:
-                    self.logger.warning(f"Error releasing old capture: {e}")
-            else:
-                self.cap = new_cap
+                # Configure capture
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+                if sys.platform == 'win32':
+                    self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 
-            # Add small delay for thread sync
-            time.sleep(0.1)
-            
-            # Preload frames
-            self.preload_frames()
-            
-            self.logger.info(f"Successfully reopened video: {self.current_video_path}")
-            
-        except Exception as e:
-            self.logger.error(f"Failed to reopen video: {e}")
-            if 'new_cap' in locals():
-                try:
-                    new_cap.release()
-                except:
-                    pass
-            raise
+                # Test capture
+                ret, test_frame = self.cap.read()
+                if not ret or test_frame is None:
+                    raise ValueError("Failed to read first frame")
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                
+                # Force garbage collection
+                gc.collect()
+                
+                # Wait for resources to be properly released
+                time.sleep(0.1)
+                
+                # Preload frames
+                self.preload_frames()
+                
+                self.logger.info(f"Successfully reopened video: {self.current_video_path}")
+                
+            except Exception as e:
+                self.logger.error(f"Failed to reopen video: {e}")
+                if self.cap is not None:
+                    try:
+                        self.cap.release()
+                    except:
+                        pass
+                    self.cap = None
+                raise
