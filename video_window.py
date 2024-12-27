@@ -17,7 +17,7 @@ class DraggableVideoWindow:
         DraggableVideoWindow.window_count += 1
         self.window_number = DraggableVideoWindow.window_count
         self.logger = logging.getLogger(f"{__name__}_{self.window_number}")
-        self.logger.info("Initializing DraggableVideoWindow")
+        self.logger.info(f"Initializing DraggableVideoWindow #{self.window_number}")
         
         # Initialize drag and resize data
         self.drag_data = {'x': 0, 'y': 0}
@@ -31,29 +31,42 @@ class DraggableVideoWindow:
             self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk2.mp4")
         else:
             self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk.mp4")
+            
+        self.logger.info(f"Idle video path: {self.idle_video_path}")
+        self.logger.info(f"Talk video path: {self.talk_video_path}")
+        
         self.current_video_path = idle_video_path
         self.transition_requested = False
-        self.fade_frames = 15  # Number of frames for fade transition
+        self.fade_frames = 15
         self.fade_counter = 0
         self.last_frame = None
         self.frame_buffer = []
-        self.buffer_size = 30  # Store 1 second of frames at 30fps
-        
-        if not os.path.exists(idle_video_path):
-            self.logger.error(f"Video file not found: {idle_video_path}")
-            raise FileNotFoundError(f"Video file not found: {idle_video_path}")
-        
+        self.buffer_size = 30
+
+        # Verify video files exist
+        if not os.path.exists(self.idle_video_path):
+            self.logger.error(f"Idle video not found: {self.idle_video_path}")
+            raise FileNotFoundError(f"Idle video not found: {self.idle_video_path}")
+        if not os.path.exists(self.talk_video_path):
+            self.logger.error(f"Talk video not found: {self.talk_video_path}")
+            raise FileNotFoundError(f"Talk video not found: {self.talk_video_path}")
+
+        # Initialize video capture with error checking
         try:
-            # Initialize video capture
             self.cap = cv2.VideoCapture(self.current_video_path)
             if not self.cap.isOpened():
-                self.logger.error("Failed to open video capture")
-                raise ValueError("Failed to open video capture")
-                
-            # Optimize video loading
+                raise ValueError(f"Failed to open video: {self.current_video_path}")
+            
+            # Set video properties
             self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
             if sys.platform == 'win32':
                 self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+            
+            # Get and verify FPS
+            self.fps = self.cap.get(cv2.CAP_PROP_FPS)
+            if self.fps <= 0:
+                self.fps = 30  # Default to 30fps if invalid
+            self.logger.info(f"Video FPS: {self.fps}")
             
             # Preload frames
             self.preload_frames()
@@ -343,53 +356,72 @@ class DraggableVideoWindow:
             self.cleanup()
         
     def switch_to_talk_video(self):
-        """Request transition to talking video"""
+        """Switch to talking video with improved error handling"""
         try:
             if self.current_video_path != self.talk_video_path:
-                self.cleanup_buffer()  # Clear buffer before switching
+                self.logger.info(f"Switching to talk video: {self.talk_video_path}")
+                self.cleanup_buffer()
                 self.transition_requested = True
                 self.fade_counter = self.fade_frames
-                self.current_video_path = self.talk_video_path
-                self.last_frame = None
+                
+                # Release current video capture
                 if self.cap is not None:
                     self.cap.release()
+                
+                # Open new video capture
                 self.cap = cv2.VideoCapture(self.talk_video_path)
                 if not self.cap.isOpened():
                     raise ValueError(f"Failed to open talk video: {self.talk_video_path}")
-                # Try to disable audio if the property exists
-                try:
-                    if hasattr(cv2, 'CAP_PROP_AUDIO_ENABLE'):
-                        self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
-                except Exception as e:
-                    self.logger.warning(f"Could not disable audio: {e}")
+                
+                # Set video properties
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+                if sys.platform == 'win32':
+                    self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                
+                self.current_video_path = self.talk_video_path
+                self.logger.info("Successfully switched to talk video")
+                
         except Exception as e:
             self.logger.error(f"Failed to switch to talk video: {e}")
-            # Try to recover by staying on current video
-            self.transition_requested = False
+            # Try to recover by reopening current video
+            try:
+                self.cap = cv2.VideoCapture(self.current_video_path)
+            except Exception as recover_error:
+                self.logger.error(f"Recovery failed: {recover_error}")
 
     def switch_to_idle_video(self):
-        """Request transition to idle video"""
+        """Switch to idle video with improved error handling"""
         try:
             if self.current_video_path != self.idle_video_path:
+                self.logger.info(f"Switching to idle video: {self.idle_video_path}")
+                self.cleanup_buffer()
                 self.transition_requested = True
                 self.fade_counter = self.fade_frames
-                self.current_video_path = self.idle_video_path
-                self.last_frame = None
+                
+                # Release current video capture
                 if self.cap is not None:
                     self.cap.release()
+                
+                # Open new video capture
                 self.cap = cv2.VideoCapture(self.idle_video_path)
                 if not self.cap.isOpened():
                     raise ValueError(f"Failed to open idle video: {self.idle_video_path}")
-                # Try to disable audio if the property exists
-                try:
-                    if hasattr(cv2, 'CAP_PROP_AUDIO_ENABLE'):
-                        self.cap.set(cv2.CAP_PROP_AUDIO_ENABLE, 0)
-                except Exception as e:
-                    self.logger.warning(f"Could not disable audio: {e}")
+                
+                # Set video properties
+                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+                if sys.platform == 'win32':
+                    self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                
+                self.current_video_path = self.idle_video_path
+                self.logger.info("Successfully switched to idle video")
+                
         except Exception as e:
             self.logger.error(f"Failed to switch to idle video: {e}")
-            # Try to recover by staying on current video
-            self.transition_requested = False
+            # Try to recover by reopening current video
+            try:
+                self.cap = cv2.VideoCapture(self.current_video_path)
+            except Exception as recover_error:
+                self.logger.error(f"Recovery failed: {recover_error}")
 
     def cleanup(self):
         """Release resources"""
