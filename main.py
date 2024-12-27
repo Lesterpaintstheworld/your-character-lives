@@ -15,8 +15,9 @@ from pydub import AudioSegment
 from video_window import DraggableVideoWindow
 from device_manager import DeviceManager
 
-# Global reference to current video window
+# Global references to video windows
 current_video_window = None
+second_video_window = None
 
 # Add video-specific debug logging
 video_logger = logging.getLogger('video')
@@ -1370,29 +1371,49 @@ if __name__ == "__main__":
                 else:
                     fourcc = cv2.VideoWriter_fourcc(*'mp4v')  # Fallback codec
 
-                # Create idle video (green circle moving horizontally)
+                # Create first set of videos (green circle)
                 if not os.path.exists(idle_path):
                     out = cv2.VideoWriter(idle_path, fourcc, 30.0, (320,240), isColor=True)
                     if not out.isOpened():
                         raise Exception("Failed to create idle video writer")
-            
-                    for i in range(90):  # Plus de frames pour une animation plus fluide
+                    for i in range(90):
                         frame = np.zeros((240,320,3), dtype=np.uint8)
-                        x = 160 + int(100*np.sin(2*np.pi*i/90))  # Mouvement plus fluide
+                        x = 160 + int(100*np.sin(2*np.pi*i/90))
                         cv2.circle(frame, (x, 120), 20, (0,255,0), -1)
                         out.write(frame)
                     out.release()
 
-                # Create talk video (green circle moving vertically)
                 if not os.path.exists(talk_path):
                     out = cv2.VideoWriter(talk_path, fourcc, 30.0, (320,240), isColor=True)
                     if not out.isOpened():
                         raise Exception("Failed to create talk video writer")
-            
-                    for i in range(90):  # Plus de frames pour une animation plus fluide
+                    for i in range(90):
                         frame = np.zeros((240,320,3), dtype=np.uint8)
-                        y = 120 + int(60*np.sin(2*np.pi*i/90))  # Mouvement plus fluide
+                        y = 120 + int(60*np.sin(2*np.pi*i/90))
                         cv2.circle(frame, (160, y), 20, (0,255,0), -1)
+                        out.write(frame)
+                    out.release()
+
+                # Create second set of videos (red circle)
+                if not os.path.exists(idle_path2):
+                    out = cv2.VideoWriter(idle_path2, fourcc, 30.0, (320,240), isColor=True)
+                    if not out.isOpened():
+                        raise Exception("Failed to create idle2 video writer")
+                    for i in range(90):
+                        frame = np.zeros((240,320,3), dtype=np.uint8)
+                        x = 160 + int(100*np.sin(2*np.pi*i/90))
+                        cv2.circle(frame, (x, 120), 20, (0,0,255), -1)
+                        out.write(frame)
+                    out.release()
+
+                if not os.path.exists(talk_path2):
+                    out = cv2.VideoWriter(talk_path2, fourcc, 30.0, (320,240), isColor=True)
+                    if not out.isOpened():
+                        raise Exception("Failed to create talk2 video writer")
+                    for i in range(90):
+                        frame = np.zeros((240,320,3), dtype=np.uint8)
+                        y = 120 + int(60*np.sin(2*np.pi*i/90))
+                        cv2.circle(frame, (160, y), 20, (0,0,255), -1)
                         out.write(frame)
                     out.release()
 
@@ -1444,15 +1465,27 @@ if __name__ == "__main__":
                 logging.error(f"Failed to create video window: {e}", exc_info=True)
 
         def create_video_window(video_path):
-            """Create video window in the main thread"""
+            """Create video windows in the main thread"""
             try:
-                video_window = DraggableVideoWindow(video_path)
-                # Store reference to prevent garbage collection
-                global current_video_window
-                current_video_window = video_window
-                logging.info("Video window created successfully")
+                # Create first video window
+                video_window1 = DraggableVideoWindow(video_path)
+        
+                # Create second video window with loop2.mp4
+                videos_dir = os.path.dirname(video_path)
+                video_path2 = os.path.join(videos_dir, "loop2.mp4")
+                video_window2 = DraggableVideoWindow(video_path2)
+        
+                # Store references to prevent garbage collection
+                global current_video_window, second_video_window
+                current_video_window = video_window1
+                second_video_window = video_window2
+        
+                # Offset second window position
+                second_video_window.window.geometry(f"+{300}+{100}")  # Offset by 300 pixels
+        
+                logging.info("Video windows created successfully")
             except Exception as e:
-                logging.error(f"Failed to create video window in main thread: {e}", exc_info=True)
+                logging.error(f"Failed to create video windows in main thread: {e}", exc_info=True)
 
         # Initialize video subsystem first
         if not init_video():

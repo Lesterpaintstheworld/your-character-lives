@@ -7,9 +7,13 @@ import os
 import numpy as np
 
 class DraggableVideoWindow:
+    window_count = 0  # Track number of windows
+    
     def __init__(self, idle_video_path):
         """Initialize with path to idle/default video"""
-        self.logger = logging.getLogger(__name__)
+        DraggableVideoWindow.window_count += 1
+        self.window_number = DraggableVideoWindow.window_count
+        self.logger = logging.getLogger(f"{__name__}_{self.window_number}")
         self.logger.info("Initializing DraggableVideoWindow")
         
         # Initialize drag and resize data
@@ -18,7 +22,12 @@ class DraggableVideoWindow:
         self.is_transparent = False
         
         self.idle_video_path = idle_video_path
-        self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk.mp4")
+        # Set talk video path based on window number
+        base_name = os.path.splitext(idle_video_path)[0]
+        if base_name.endswith('2'):
+            self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk2.mp4")
+        else:
+            self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk.mp4")
         self.current_video_path = idle_video_path
         self.transition_requested = False
         self.fade_frames = 15  # Number of frames for fade transition
