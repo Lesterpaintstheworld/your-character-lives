@@ -207,8 +207,13 @@ class DraggableVideoWindow:
 
     def cleanup_buffer(self):
         """Clean up frame buffer to free memory"""
-        self.frame_buffer.clear()
-        gc.collect()
+        try:
+            # Clear buffer with thread safety
+            with threading.Lock():
+                self.frame_buffer.clear()
+                gc.collect()
+        except Exception as e:
+            self.logger.error(f"Error cleaning buffer: {e}")
 
     def _bind_events(self):
         """Bind all window events"""
@@ -380,7 +385,7 @@ class DraggableVideoWindow:
             self.cleanup()
         
     def switch_to_talk_video(self):
-        """Switch to talking video with improved error handling"""
+        """Switch to talking video with improved error handling and thread safety"""
         try:
             if self.current_video_path != self.talk_video_path:
                 self.logger.info(f"Switching to talk video: {self.talk_video_path}")
@@ -390,40 +395,68 @@ class DraggableVideoWindow:
                     self.logger.error(f"Talk video not found: {self.talk_video_path}")
                     return
                     
+                # Clear buffer and request transition
                 self.cleanup_buffer()
                 self.transition_requested = True
                 self.fade_counter = self.fade_frames
                 
-                # Release current video capture
-                if self.cap is not None:
-                    self.cap.release()
-                
-                # Open new video capture
-                self.cap = cv2.VideoCapture(self.talk_video_path)
-                if not self.cap.isOpened():
-                    raise ValueError(f"Failed to open talk video: {self.talk_video_path}")
-                
-                # Set video properties
-                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-                if sys.platform == 'win32':
-                    self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-                
-                # Reset position to start of video
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                
-                # Update current path
-                self.current_video_path = self.talk_video_path
-                
-                # Preload frames for smooth transition
-                self.preload_frames()
-                
-                self.logger.info("Successfully switched to talk video")
-                
+                # Create new capture before releasing old one
+                try:
+                    new_cap = cv2.VideoCapture(self.talk_video_path)
+                    if not new_cap.isOpened():
+                        raise ValueError(f"Failed to open talk video: {self.talk_video_path}")
+                    
+                    # Configure new capture
+                    new_cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+                    if sys.platform == 'win32':
+                        new_cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                        
+                    # Ensure first frame can be read
+                    ret, test_frame = new_cap.read()
+                    if not ret or test_frame is None:
+                        raise ValueError("Failed to read first frame from new video")
+                    new_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    
+                    # Only release old capture after new one is confirmed working
+                    if self.cap is not None:
+                        old_cap = self.cap
+                        self.cap = new_cap  # Assign new capture first
+                        
+                        # Release old capture in try block
+                        try:
+                            old_cap.release()
+                        except Exception as e:
+                            self.logger.warning(f"Error releasing old capture: {e}")
+                    else:
+                        self.cap = new_cap
+                    
+                    # Update current path only after successful switch
+                    self.current_video_path = self.talk_video_path
+                    
+                    # Add small delay to allow thread synchronization
+                    time.sleep(0.1)
+                    
+                    # Preload frames for new video
+                    self.preload_frames()
+                    
+                    self.logger.info("Successfully switched to talk video")
+                    
+                except Exception as e:
+                    self.logger.error(f"Failed to switch video: {e}")
+                    # Try to recover
+                    if 'new_cap' in locals():
+                        try:
+                            new_cap.release()
+                        except:
+                            pass
+                    self.reopen_video()
+                    raise
+                    
         except Exception as e:
             self.logger.error(f"Failed to switch to talk video: {e}")
             # Try to recover by reopening current video
             try:
-                self.cap = cv2.VideoCapture(self.current_video_path)
+                self.reopen_video()
             except Exception as recover_error:
                 self.logger.error(f"Recovery failed: {recover_error}")
 
@@ -495,22 +528,37 @@ class DraggableVideoWindow:
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
     def reopen_video(self):
-        """Reopen video capture if it fails"""
+        """Reopen video capture with thread safety"""
         try:
-            if self.cap is not None:
-                self.cap.release()
-                
-            self.cap = cv2.VideoCapture(self.current_video_path)
-            if not self.cap.isOpened():
+            # Create new capture before releasing old one
+            new_cap = cv2.VideoCapture(self.current_video_path)
+            if not new_cap.isOpened():
                 raise ValueError(f"Failed to open video: {self.current_video_path}")
                 
-            # Set video properties
-            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+            # Configure new capture
+            new_cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
             if sys.platform == 'win32':
-                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                new_cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 
-            # Reset position to start
-            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            # Test new capture
+            ret, test_frame = new_cap.read()
+            if not ret or test_frame is None:
+                raise ValueError("Failed to read first frame")
+            new_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            
+            # Switch captures
+            if self.cap is not None:
+                old_cap = self.cap
+                self.cap = new_cap
+                try:
+                    old_cap.release()
+                except Exception as e:
+                    self.logger.warning(f"Error releasing old capture: {e}")
+            else:
+                self.cap = new_cap
+                
+            # Add small delay for thread sync
+            time.sleep(0.1)
             
             # Preload frames
             self.preload_frames()
@@ -519,4 +567,9 @@ class DraggableVideoWindow:
             
         except Exception as e:
             self.logger.error(f"Failed to reopen video: {e}")
+            if 'new_cap' in locals():
+                try:
+                    new_cap.release()
+                except:
+                    pass
             raise
