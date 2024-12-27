@@ -220,164 +220,96 @@ engine.setProperty('rate', 150)  # Speech rate (default is 200)
 engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
 async def process_audio_chunk(audio_data: bytes):
-    """Process and play audio data using PyAudio directly."""
+    """Process and play raw binary audio data using PyAudio directly."""
     try:
-        # Decode the response as JSON first
-        response = json.loads(audio_data)
-        logging.info(f"Raw response length: {len(audio_data)} bytes")
-        logging.info(f"Response type: {type(response)}")
+        logging.info(f"Received raw audio data: {len(audio_data)} bytes")
 
-        # Extract audio data
-        audio_segments = []
-        
-        if isinstance(response, dict):
-            # Handle dictionary format
-            if 'data_0' in response:
-                audio_segments.append(('data_0', response['data_0'], True))
-            if 'data_1' in response:
-                audio_segments.append(('data_1', response['data_1'], False))
-        elif isinstance(response, list):
-            # Handle list format - assume first two elements are audio data
-            if len(response) >= 1:
-                audio_segments.append(('data_0', response[0], True))
-            if len(response) >= 2:
-                audio_segments.append(('data_1', response[1], False))
-                
-        logging.info(f"Found {len(audio_segments)} audio segments")
+        # Set video states for first window
+        if current_video_window:
+            current_video_window.switch_to_talk_video()
+
+        try:
+            # Write raw audio data to temporary file
+            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+                temp_file.write(audio_data)
+                temp_path = temp_file.name
+                logging.info(f"Wrote audio data to temp file: {temp_path}")
+
+            # Get selected output device
+            selected = output_var.get() if output_var else None
+            device_index = None
             
-        if not audio_segments:
-            raise ValueError("No audio data found in response")
-
-        # Process each audio segment
-        for segment_name, audio_data, use_talk2 in audio_segments:
-            logging.info(f"Processing {segment_name}")
+            p = pyaudio.PyAudio()
             
-            if not audio_data:
-                logging.warning(f"Empty audio data for {segment_name}")
-                continue
-
-            # Set video states
-            if use_talk2:
-                if second_video_window:
-                    second_video_window.switch_to_talk_video()
-                if current_video_window:
-                    current_video_window.switch_to_idle_video()
-            else:
-                if current_video_window:
-                    current_video_window.switch_to_talk_video()
-                if second_video_window:
-                    second_video_window.switch_to_idle_video()
-
             try:
-                # Write to temporary file
-                with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
-                    # Handle different audio data formats
-                    if isinstance(audio_data, str):
-                        temp_file.write(audio_data.encode('utf-8'))
-                    elif isinstance(audio_data, dict):
-                        temp_file.write(json.dumps(audio_data).encode('utf-8'))
-                    elif isinstance(audio_data, bytes):
-                        temp_file.write(audio_data)
-                    else:
-                        logging.error(f"Unexpected audio data type: {type(audio_data)}")
-                        continue
-                        
-                    temp_path = temp_file.name
-                    logging.info(f"Wrote audio data to temp file: {temp_path}")
-
-                # Get selected output device
-                selected = output_var.get() if output_var else None
-                device_index = None
-                
-                p = pyaudio.PyAudio()
-                
-                try:
-                    # Find selected device
-                    if selected:
-                        device_name = re.match(r'^([^(]+)', selected).group(1).strip()
-                        for i in range(p.get_device_count()):
-                            info = p.get_device_info_by_index(i)
-                            if device_name.lower() in info['name'].lower():
-                                device_index = i
-                                break
-                    
-                    if device_index is None:
-                        info = p.get_default_output_device_info()
-                        device_index = info['index']
-
-                    # Load and convert audio
-                    audio = AudioSegment.from_mp3(temp_path)
-                    audio = audio.set_frame_rate(24000)
-                    audio = audio.set_channels(1)
-                    audio = audio.set_sample_width(2)
-                    
-                    # Convert to raw PCM data
-                    raw_data = audio.raw_data
-                    
-                    # Open audio stream
-                    stream = p.open(
-                        format=pyaudio.paInt16,
-                        channels=1,
-                        rate=24000,
-                        output=True,
-                        output_device_index=device_index,
-                        frames_per_buffer=1024
-                    )
-
-                    # Play audio in smaller chunks
-                    chunk_size = 1024
-                    offset = 0
-                    
-                    while offset < len(raw_data):
-                        if not is_playing:  # Check if playback should continue
+                # Find selected device
+                if selected:
+                    device_name = re.match(r'^([^(]+)', selected).group(1).strip()
+                    for i in range(p.get_device_count()):
+                        info = p.get_device_info_by_index(i)
+                        if device_name.lower() in info['name'].lower():
+                            device_index = i
                             break
-                            
-                        chunk = raw_data[offset:offset + chunk_size]
-                        if not chunk:
-                            break
-                            
-                        stream.write(chunk)
-                        offset += chunk_size
+                
+                if device_index is None:
+                    info = p.get_default_output_device_info()
+                    device_index = info['index']
+
+                # Load and convert audio
+                audio = AudioSegment.from_mp3(temp_path)
+                audio = audio.set_frame_rate(24000)
+                audio = audio.set_channels(1)
+                audio = audio.set_sample_width(2)
+                
+                # Convert to raw PCM data
+                raw_data = audio.raw_data
+                
+                # Open audio stream
+                stream = p.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=24000,
+                    output=True,
+                    output_device_index=device_index,
+                    frames_per_buffer=1024
+                )
+
+                # Play audio in smaller chunks
+                chunk_size = 1024
+                offset = 0
+                
+                while offset < len(raw_data):
+                    if not is_playing:  # Check if playback should continue
+                        break
                         
-                        # Small delay to prevent audio glitches
-                        await asyncio.sleep(0.001)
+                    chunk = raw_data[offset:offset + chunk_size]
+                    if not chunk:
+                        break
+                        
+                    stream.write(chunk)
+                    offset += chunk_size
+                    
+                    # Small delay to prevent audio glitches
+                    await asyncio.sleep(0.001)
 
-                    # Ensure all audio is played
-                    stream.stop_stream()
-                    stream.close()
-                    p.terminate()
-
-                except Exception as e:
-                    logging.error(f"Error during audio playback: {e}")
-                    raise
-
-                finally:
-                    # Clean up temp file
-                    try:
-                        os.remove(temp_path)
-                    except Exception as e:
-                        logging.warning(f"Failed to remove temp file: {e}")
+                # Ensure all audio is played
+                stream.stop_stream()
+                stream.close()
+                p.terminate()
 
             except Exception as e:
-                logging.error(f"Error processing {segment_name}: {e}")
-                continue
+                logging.error(f"Error during audio playback: {e}")
+                raise
 
             finally:
-                # Reset video states
-                if current_video_window:
-                    current_video_window.switch_to_idle_video()
-                if second_video_window:
-                    second_video_window.switch_to_idle_video()
+                # Clean up temp file
+                try:
+                    os.remove(temp_path)
+                except Exception as e:
+                    logging.warning(f"Failed to remove temp file: {e}")
 
-    except json.JSONDecodeError as e:
-        logging.error(f"Failed to decode JSON response: {e}")
-        # Try to handle raw binary audio data
-        try:
-            # Assume it's raw MP3 data
-            audio_segments = [('raw_audio', audio_data, True)]
-            # Continue with processing...
-        except Exception as e2:
-            logging.error(f"Failed to handle raw audio data: {e2}")
+        except Exception as e:
+            logging.error(f"Error processing audio: {e}")
             raise
 
     except Exception as e:
@@ -386,7 +318,7 @@ async def process_audio_chunk(audio_data: bytes):
         raise
 
     finally:
-        # Ensure videos return to idle state
+        # Reset video states
         if current_video_window:
             current_video_window.switch_to_idle_video()
         if second_video_window:
