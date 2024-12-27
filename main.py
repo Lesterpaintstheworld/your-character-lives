@@ -219,16 +219,61 @@ engine = pyttsx3.init()
 engine.setProperty('rate', 150)  # Speech rate (default is 200)
 engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
+def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) -> bool:
+    """Safely remove a file with retries and proper cleanup."""
+    import gc
+    for attempt in range(max_retries):
+        try:
+            # Force garbage collection to release file handles
+            gc.collect()
+            
+            # Try to close any remaining handles (Windows specific)
+            if os.name == 'nt':
+                import ctypes
+                kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+                handle = kernel32.CreateFileW(
+                    filepath, 
+                    0x80000000, # GENERIC_READ
+                    0,          # No sharing
+                    None,       # No security
+                    3,          # OPEN_EXISTING
+                    0x80,       # FILE_ATTRIBUTE_NORMAL
+                    None        # No template
+                )
+                if handle != -1:  # INVALID_HANDLE_VALUE
+                    kernel32.CloseHandle(handle)
+            
+            # Remove the file
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                logging.info(f"Successfully removed temp file: {filepath}")
+                return True
+                
+        except Exception as e:
+            logging.warning(f"Failed to remove temp file (attempt {attempt + 1}): {e}")
+            time.sleep(delay)
+            continue
+            
+    return False
+
 async def process_audio_chunk(audio_data: bytes):
     """Process and play raw binary audio data using PyAudio directly."""
     temp_path = None
     p = None
     stream = None
+    audio = None
+    raw_data = None
     
     try:
         logging.info(f"Received raw audio data: {len(audio_data)} bytes")
-        if len(audio_data) == 0:
+        
+        # Validate audio data
+        if not audio_data:
             raise ValueError("Empty audio data received")
+            
+        # Check if data appears to be valid MP3
+        if not audio_data.startswith(b'\xFF\xFB') and not audio_data.startswith(b'ID3'):
+            logging.warning("Audio data doesn't appear to be valid MP3")
 
         # Set video states for first window
         if current_video_window:
@@ -262,18 +307,32 @@ async def process_audio_chunk(audio_data: bytes):
 
             # Load and convert audio with error checking
             try:
-                audio = AudioSegment.from_mp3(temp_path)
+                # Make sure the file is closed before loading
+                audio = None
+                with open(temp_path, 'rb') as f:
+                    audio_data = f.read()
+                
+                # Create new AudioSegment from raw data
+                audio = AudioSegment.from_mp3(io.BytesIO(audio_data))
+                
                 if len(audio) == 0:
                     raise ValueError("Audio file is empty")
-                    
+                
+                # Force specific format
                 audio = audio.set_frame_rate(24000)
                 audio = audio.set_channels(1)
                 audio = audio.set_sample_width(2)
                 
-                # Convert to raw PCM data
+                # Verify audio data
+                if not audio.raw_data:
+                    raise ValueError("No raw audio data available")
+                
                 raw_data = audio.raw_data
+                
                 if len(raw_data) == 0:
                     raise ValueError("No PCM data generated")
+                
+                logging.info(f"Successfully processed audio: {len(raw_data)} bytes")
                 
             except Exception as e:
                 logging.error(f"Error processing audio file: {e}")
