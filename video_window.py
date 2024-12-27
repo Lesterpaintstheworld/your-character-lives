@@ -360,6 +360,12 @@ class DraggableVideoWindow:
         try:
             if self.current_video_path != self.talk_video_path:
                 self.logger.info(f"Switching to talk video: {self.talk_video_path}")
+                
+                # Verify talk video exists
+                if not os.path.exists(self.talk_video_path):
+                    self.logger.error(f"Talk video not found: {self.talk_video_path}")
+                    return
+                    
                 self.cleanup_buffer()
                 self.transition_requested = True
                 self.fade_counter = self.fade_frames
@@ -378,7 +384,15 @@ class DraggableVideoWindow:
                 if sys.platform == 'win32':
                     self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 
+                # Reset position to start of video
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                
+                # Update current path
                 self.current_video_path = self.talk_video_path
+                
+                # Preload frames for smooth transition
+                self.preload_frames()
+                
                 self.logger.info("Successfully switched to talk video")
                 
         except Exception as e:
@@ -394,6 +408,12 @@ class DraggableVideoWindow:
         try:
             if self.current_video_path != self.idle_video_path:
                 self.logger.info(f"Switching to idle video: {self.idle_video_path}")
+                
+                # Verify idle video exists
+                if not os.path.exists(self.idle_video_path):
+                    self.logger.error(f"Idle video not found: {self.idle_video_path}")
+                    return
+                    
                 self.cleanup_buffer()
                 self.transition_requested = True
                 self.fade_counter = self.fade_frames
@@ -412,7 +432,15 @@ class DraggableVideoWindow:
                 if sys.platform == 'win32':
                     self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
                 
+                # Reset position to start of video
+                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                
+                # Update current path
                 self.current_video_path = self.idle_video_path
+                
+                # Preload frames for smooth transition
+                self.preload_frames()
+                
                 self.logger.info("Successfully switched to idle video")
                 
         except Exception as e:
