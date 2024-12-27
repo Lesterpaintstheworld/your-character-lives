@@ -237,13 +237,13 @@ async def process_audio_chunk(audio_data: bytes):
 
         # Process each audio file
         for i, audio_base64 in enumerate(audio_files):
+            temp_path = None
+            p = None
+            stream = None
+            
             try:
                 # Decode the base64 audio data
                 audio_bytes = base64.b64decode(audio_base64)
-
-                temp_path = None
-                p = None
-                stream = None
                 
                 try:
                     # Save audio data to temporary file with .mp3 extension
