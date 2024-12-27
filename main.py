@@ -237,10 +237,18 @@ async def process_audio_chunk(audio_data: bytes):
             # If dictionary, look for data_0 and data_1 keys
             for key in ['data_0', 'data_1']:
                 if key in response:
-                    audio_files.append(response[key])
+                    # Convert dictionary data to JSON string then encode to bytes
+                    if isinstance(response[key], dict):
+                        audio_files.append(json.dumps(response[key]).encode('utf-8'))
+                    else:
+                        audio_files.append(response[key])
         elif isinstance(response, list):
-            # If list, use all elements as audio data
-            audio_files = response
+            # If list, process each element
+            for item in response:
+                if isinstance(item, dict):
+                    audio_files.append(json.dumps(item).encode('utf-8'))
+                else:
+                    audio_files.append(item)
         else:
             logging.error(f"Unexpected response type: {type(response)}")
             return
@@ -256,11 +264,14 @@ async def process_audio_chunk(audio_data: bytes):
             stream = None
             
             try:
-                # Write audio data directly to temporary file
+                # Write the audio data directly to temporary file
                 with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
                     temp_path = temp_file.name
+                    # Ensure audio_data is bytes
                     if isinstance(audio_data, str):
                         temp_file.write(audio_data.encode('utf-8'))
+                    elif isinstance(audio_data, dict):
+                        temp_file.write(json.dumps(audio_data).encode('utf-8'))
                     else:
                         temp_file.write(audio_data)
                     temp_file.flush()
