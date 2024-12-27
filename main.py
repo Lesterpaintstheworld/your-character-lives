@@ -264,10 +264,10 @@ async def process_audio_chunk(audio_data: bytes):
                     return
 
                 # Switch to appropriate talking video based on which audio we're playing
-            # Initialize PyAudio
-            p = pyaudio.PyAudio()
-            
-            try:
+                # Initialize PyAudio
+                p = pyaudio.PyAudio()
+                
+                try:
                 # First try to find selected device
                 if selected:
                     device_name = re.match(r'^([^(]+)', selected).group(1).strip()
