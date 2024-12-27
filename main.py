@@ -229,47 +229,41 @@ async def process_audio_chunk(audio_data: bytes):
         logging.debug(f"Response type: {type(response)}")
         logging.debug(f"Response content: {response}")
         
-        # Initialize list to store audio data
-        audio_files = []
+        # Initialize ordered audio data
+        first_audio = None  # For data_0 (talk2 animation)
+        second_audio = None # For data_1 (talk animation)
         
-        # Handle both list and dictionary responses
+        # Extract audio in correct order
         if isinstance(response, dict):
-            # If dictionary, look for data_0 and data_1 keys
-            for key in ['data_0', 'data_1']:
-                if key in response:
-                    # Convert dictionary data to JSON string then encode to bytes
-                    if isinstance(response[key], dict):
-                        audio_files.append(json.dumps(response[key]).encode('utf-8'))
-                    else:
-                        audio_files.append(response[key])
-        elif isinstance(response, list):
-            # If list, process each element
-            for item in response:
-                if isinstance(item, dict):
-                    audio_files.append(json.dumps(item).encode('utf-8'))
-                else:
-                    audio_files.append(item)
-        else:
-            logging.error(f"Unexpected response type: {type(response)}")
-            return
+            if 'data_0' in response:
+                first_audio = response['data_0']
+            if 'data_1' in response:
+                second_audio = response['data_1']
+        elif isinstance(response, list) and len(response) >= 2:
+            first_audio = response[0]
+            second_audio = response[1]
         
-        if not audio_files:
-            logging.error("No audio data found in response")
-            return
-
-        # Process each audio file
-        for i, audio_data in enumerate(audio_files):
+        # Process audio in sequence
+        for sequence_num, audio_data in enumerate([first_audio, second_audio]):
+            if audio_data is None:
+                continue
             temp_path = None
             p = None
             stream = None
             
             try:
-                # Switch to talking video
-                logging.info("Switching to talk video...")
-                if current_video_window:
-                    current_video_window.switch_to_talk_video()
-                if second_video_window:
-                    second_video_window.switch_to_talk_video()
+                # Switch to appropriate talking video based on sequence
+                logging.info(f"Switching to {'talk2' if sequence_num == 0 else 'talk'} video...")
+                if sequence_num == 0:  # First audio uses talk2
+                    if second_video_window:
+                        second_video_window.switch_to_talk_video()
+                    if current_video_window:
+                        current_video_window.switch_to_idle_video()
+                else:  # Second audio uses talk
+                    if current_video_window:
+                        current_video_window.switch_to_talk_video()
+                    if second_video_window:
+                        second_video_window.switch_to_idle_video()
 
                 # Write the audio data directly to temporary file
                 with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
@@ -335,7 +329,7 @@ async def process_audio_chunk(audio_data: bytes):
                                   output_device_index=device_index,
                                   frames_per_buffer=1024)
                     
-                    logging.info("Starting audio playback...")
+                    logging.info(f"Starting audio playback for {'first' if sequence_num == 0 else 'second'} voice...")
                     
                     # Play audio in chunks
                     chunk_size = 1024 * 2
@@ -348,7 +342,7 @@ async def process_audio_chunk(audio_data: bytes):
                         offset += chunk_size
                         await asyncio.sleep(0.001)
                     
-                    logging.info("Audio playback completed")
+                    logging.info(f"Audio playback completed for {'first' if sequence_num == 0 else 'second'} voice")
                 
             except Exception as e:
                 logging.error(f"Error during audio playback: {e}")
