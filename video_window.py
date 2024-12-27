@@ -244,25 +244,33 @@ class DraggableVideoWindow:
             # Check if we're falling behind
             current_time = time.time()
             if hasattr(self, 'last_frame_time'):
-                frame_delta = current_time - self.last_frame_time
-                target_delta = 1.0 / self.cap.get(cv2.CAP_PROP_FPS)
-                
-                # Skip frame if we're more than half a frame behind
-                if frame_delta < target_delta * 0.5:
-                    return
+                try:
+                    frame_delta = current_time - self.last_frame_time
+                    target_delta = 1.0 / max(0.1, self.cap.get(cv2.CAP_PROP_FPS))  # Prevent division by zero
+                    
+                    # Skip frame if we're more than half a frame behind
+                    if frame_delta < target_delta * 0.5:
+                        return
+                except Exception as e:
+                    self.logger.warning(f"Frame timing calculation error: {e}")
+                    # Continue with frame display even if timing fails
                     
             self.last_frame_time = current_time
 
             # Handle transition if requested
             if self.transition_requested and self.last_frame is not None:
-                # Calculate transition alpha
-                alpha = self.fade_counter / self.fade_frames
-                # Blend frames
-                frame = cv2.addWeighted(self.last_frame, 1-alpha, frame, alpha, 0)
-                self.fade_counter -= 1
-                if self.fade_counter <= 0:
-                    self.transition_requested = False
-                    self.last_frame = None
+                try:
+                    # Calculate transition alpha
+                    alpha = self.fade_counter / max(1, self.fade_frames)  # Prevent division by zero
+                    # Blend frames
+                    frame = cv2.addWeighted(self.last_frame, 1-alpha, frame, alpha, 0)
+                    self.fade_counter -= 1
+                    if self.fade_counter <= 0:
+                        self.transition_requested = False
+                        self.last_frame = None
+                except Exception as e:
+                    self.logger.warning(f"Frame transition error: {e}")
+                    # Continue with normal frame display if transition fails
 
             # Store frame for next transition
             if self.transition_requested and self.last_frame is None:
