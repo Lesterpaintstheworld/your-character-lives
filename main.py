@@ -264,6 +264,13 @@ async def process_audio_chunk(audio_data: bytes):
             stream = None
             
             try:
+                # Switch to talking video
+                logging.info("Switching to talk video...")
+                if current_video_window:
+                    current_video_window.switch_to_talk_video()
+                if second_video_window:
+                    second_video_window.switch_to_talk_video()
+
                 # Write the audio data directly to temporary file
                 with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
                     temp_path = temp_file.name
@@ -275,6 +282,8 @@ async def process_audio_chunk(audio_data: bytes):
                     else:
                         temp_file.write(audio_data)
                     temp_file.flush()
+                
+                logging.info(f"Audio data written to temp file: {temp_path}")
             except Exception as e:
                 logging.error(f"Error saving temporary audio file: {e}")
                 raise
@@ -283,11 +292,6 @@ async def process_audio_chunk(audio_data: bytes):
                 selected = output_var.get() if output_var else None
                 device_index = None
                 
-                # Don't play if paused
-                if not is_playing:
-                    return
-
-                # Switch to appropriate talking video based on which audio we're playing
                 # Initialize PyAudio
                 p = pyaudio.PyAudio()
                 
@@ -310,77 +314,65 @@ async def process_audio_chunk(audio_data: bytes):
                         info = p.get_default_output_device_info()
                         device_index = info['index']
                         logging.info(f"Using default output device: {info['name']} (index: {device_index})")
-                except Exception as e:
-                    logging.error(f"Error selecting audio device: {e}")
-                    raise
 
-                # Load and convert audio using pydub
-                audio = AudioSegment.from_mp3(temp_path)
-                
-                # Convert to standard format
-                audio = audio.set_frame_rate(24000)
-                audio = audio.set_channels(1)
-                audio = audio.set_sample_width(2)
-                
-                # Get audio data as raw PCM
-                raw_data = audio.raw_data
-                
-                # Open stream with matching parameters
-                stream = p.open(format=pyaudio.paInt16,
-                              channels=1,
-                              rate=24000,
-                              output=True,
-                              output_device_index=device_index,
-                              frames_per_buffer=1024)
-                
-                # Play audio in chunks
-                chunk_size = 1024 * 2
-                offset = 0
-                start_time = time.time()
-                last_progress_time = start_time
-                
-                while offset < len(raw_data):
-                    current_time = time.time()
+                    # Load and convert audio using pydub
+                    logging.info("Loading audio file with pydub...")
+                    audio = AudioSegment.from_mp3(temp_path)
                     
-                    # Only timeout if stuck (no progress for 5 seconds)
-                    if current_time - last_progress_time > 5:
-                        logging.warning("Audio playback stuck - no progress for 5 seconds")
-                        break
-                        
-                    # Get next chunk
-                    chunk = raw_data[offset:offset + chunk_size]
-                    if not chunk:
-                        break
-                        
-                    # Write to stream
-                    stream.write(chunk)
-                    offset += chunk_size
-                    last_progress_time = current_time
+                    # Convert to standard format
+                    audio = audio.set_frame_rate(24000)
+                    audio = audio.set_channels(1)
+                    audio = audio.set_sample_width(2)
                     
-                    await asyncio.sleep(0.001)
+                    # Get audio data as raw PCM
+                    raw_data = audio.raw_data
                     
-                logging.info("Audio playback completed in {:.1f} seconds".format(time.time() - start_time))
+                    # Open stream with matching parameters
+                    stream = p.open(format=pyaudio.paInt16,
+                                  channels=1,
+                                  rate=24000,
+                                  output=True,
+                                  output_device_index=device_index,
+                                  frames_per_buffer=1024)
+                    
+                    logging.info("Starting audio playback...")
+                    
+                    # Play audio in chunks
+                    chunk_size = 1024 * 2
+                    offset = 0
+                    while offset < len(raw_data):
+                        chunk = raw_data[offset:offset + chunk_size]
+                        if not chunk:
+                            break
+                        stream.write(chunk)
+                        offset += chunk_size
+                        await asyncio.sleep(0.001)
+                    
+                    logging.info("Audio playback completed")
                 
             except Exception as e:
-                logging.error(f"Error playing audio: {e}")
-                if temp_path and os.path.exists(temp_path):
-                    try:
-                        os.remove(temp_path)
-                    except Exception as e:
-                        logging.warning(f"Failed to remove temp file {temp_path}: {e}")
+                logging.error(f"Error during audio playback: {e}")
+                raise
+
             finally:
-                # Switch back to idle video
-                if current_video_window:
-                    current_video_window.switch_to_idle_video()
-                if second_video_window:
-                    second_video_window.switch_to_idle_video()
-                
-                # Cleanup audio resources
+                # Clean up resources
                 if stream:
                     stream.stop_stream()
                     stream.close()
                 if p:
                     p.terminate()
+                if temp_path and os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception as e:
+                        logging.warning(f"Failed to remove temp file {temp_path}: {e}")
+                
+                # Switch back to idle video
+                logging.info("Switching back to idle video...")
+                if current_video_window:
+                    current_video_window.switch_to_idle_video()
+                if second_video_window:
+                    second_video_window.switch_to_idle_video()
 
     except Exception as e:
         logging.error(f"Error processing audio response: {e}")
