@@ -1103,10 +1103,33 @@ def toggle_auto_recording():
                         files=files,  # Binary files in multipart/form-data
                         timeout=REQUEST_TIMEOUT
                     )
-                    response.raise_for_status()
                     
-                    # Process audio response
-                    asyncio.run(process_audio_chunk(response.content))
+                    # Log response details for debugging
+                    logging.info(f"Response status: {response.status_code}")
+                    logging.info(f"Response headers: {response.headers}")
+
+                    # Check if response is valid
+                    if response.status_code != 200:
+                        logging.error(f"Error response from n8n: {response.status_code}")
+                        logging.error(f"Response content: {response.text[:1000]}")
+                        response.raise_for_status()
+
+                    # Try to parse response to get binary data
+                    try:
+                        # Get binary data directly from response
+                        binary_data = response.content
+                        logging.info(f"Received binary data: {len(binary_data)} bytes")
+
+                        if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
+                            logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
+                            raise ValueError("Audio data too small to be valid")
+                            
+                        # Process audio response
+                        await process_audio_chunk(binary_data)
+                        
+                    except Exception as e:
+                        logging.error(f"Error processing audio response: {e}")
+                        raise
                     
                 except Exception as e:
                     logging.error(f"Error in auto recording thread: {e}")
