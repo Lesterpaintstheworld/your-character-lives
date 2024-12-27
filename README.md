@@ -97,17 +97,27 @@ ck3-ai-character/
 - Check CK3 launcher mod activation
 - Ensure correct file permissions
 
-## Security Considerations
+## Features
 
-- Store API keys securely
-- Use hardware wallet when possible
-- Enable 2FA on all accounts
-- Regularly monitor transactions
-- Keep software updated
+- Two distinct AI characters (Emily and Daemon) with unique personalities
+- Sequential interaction system with 30-second intervals between characters
+- Real-time video avatars for both characters
+- Voice interaction through microphone input
+- Dynamic response generation based on game context
+- Draggable and resizable character windows
+- Automatic recording mode with configurable intervals
 
-## Risk Warning
+## Character Interaction
 
-Cryptocurrency investments carry significant risks. Only invest what you can afford to lose. This software is provided as-is with no guarantees of returns or security.
+The system alternates between two AI characters:
+1. **Emily**: First character to respond
+2. **Daemon**: Responds 30 seconds after Emily
+
+Each character:
+- Has their own distinct video avatar
+- Processes game context independently
+- Provides unique perspectives and responses
+- Features individual interaction styles
 
 ## Support
 
