@@ -292,7 +292,7 @@ class DraggableVideoWindow:
             raise
 
     def update_frame(self):
-        """Update video frame with buffering"""
+        """Update video frame with buffering and FPS protection"""
         if not hasattr(self, 'window') or not self.window.winfo_exists():
             return
             
@@ -319,8 +319,10 @@ class DraggableVideoWindow:
             
         finally:
             if hasattr(self, 'window') and self.window.winfo_exists():
-                # Adjust frame rate based on video properties
+                # Get FPS with protection against zero
                 fps = self.cap.get(cv2.CAP_PROP_FPS)
+                if fps <= 0:
+                    fps = 30  # Default to 30fps if invalid
                 delay = int(1000 / fps)  # Convert to milliseconds
                 self.window.after(delay, self.update_frame)
             
