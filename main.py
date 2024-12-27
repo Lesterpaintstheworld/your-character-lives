@@ -270,16 +270,16 @@ async def process_audio_chunk(audio_data: bytes):
                 try:
                     # First try to find selected device
                     if selected:
-                    device_name = re.match(r'^([^(]+)', selected).group(1).strip()
-                    logging.info(f"Looking for selected device: {device_name}")
-                    
-                    for j in range(p.get_device_count()):
-                        info = p.get_device_info_by_index(j)
-                        if (device_name.lower() in info['name'].lower() and 
-                            info['maxOutputChannels'] > 0):
-                            device_index = j
-                            logging.info(f"Found selected device: {info['name']} (index: {j})")
-                            break
+                        device_name = re.match(r'^([^(]+)', selected).group(1).strip()
+                        logging.info(f"Looking for selected device: {device_name}")
+                        
+                        for j in range(p.get_device_count()):
+                            info = p.get_device_info_by_index(j)
+                            if (device_name.lower() in info['name'].lower() and 
+                                info['maxOutputChannels'] > 0):
+                                device_index = j
+                                logging.info(f"Found selected device: {info['name']} (index: {j})")
+                                break
                 
                 # If no device found, use default output device
                 if device_index is None:
