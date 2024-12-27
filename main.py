@@ -1457,11 +1457,14 @@ async def api_client(interval):
             timeout=NetworkConstants.REQUEST_TIMEOUT
         )
         
-        # Process Emily's response
+        # Process Emily's response and wait for completion
         if response.status_code == 200:
+            logging.info("Playing Emily's response...")
             await process_audio_chunk(response.content, is_daemon=False)
+            logging.info("Emily's response completed")
             
-        # Wait 30 seconds
+        # Wait 30 seconds after Emily's response finishes
+        logging.info("Waiting 30 seconds before Daemon's turn...")
         await asyncio.sleep(30)
         
         # Second character (Daemon)
@@ -1500,9 +1503,11 @@ async def api_client(interval):
             timeout=NetworkConstants.REQUEST_TIMEOUT
         )
         
-        # Process Daemon's response
+        # Process Daemon's response and wait for completion
         if response.status_code == 200:
+            logging.info("Playing Daemon's response...")
             await process_audio_chunk(response.content, is_daemon=True)
+            logging.info("Daemon's response completed")
         
         # Log response details for debugging
         logging.info(f"Response status: {response.status_code}")
