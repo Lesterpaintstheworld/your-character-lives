@@ -247,6 +247,7 @@ async def process_audio_chunk(audio_data: bytes):
         for sequence_num, audio_data in enumerate([first_audio, second_audio]):
             if audio_data is None:
                 continue
+                
             temp_path = None
             p = None
             stream = None
@@ -278,9 +279,6 @@ async def process_audio_chunk(audio_data: bytes):
                     temp_file.flush()
                 
                 logging.info(f"Audio data written to temp file: {temp_path}")
-            except Exception as e:
-                logging.error(f"Error saving temporary audio file: {e}")
-                raise
                 
                 # Get selected output device name
                 selected = output_var.get() if output_var else None
@@ -289,60 +287,59 @@ async def process_audio_chunk(audio_data: bytes):
                 # Initialize PyAudio
                 p = pyaudio.PyAudio()
                 
-                try:
-                    # First try to find selected device
-                    if selected:
-                        device_name = re.match(r'^([^(]+)', selected).group(1).strip()
-                        logging.info(f"Looking for selected device: {device_name}")
-                        
-                        for j in range(p.get_device_count()):
-                            info = p.get_device_info_by_index(j)
-                            if (device_name.lower() in info['name'].lower() and 
-                                info['maxOutputChannels'] > 0):
-                                device_index = j
-                                logging.info(f"Found selected device: {info['name']} (index: {j})")
-                                break
+                # First try to find selected device
+                if selected:
+                    device_name = re.match(r'^([^(]+)', selected).group(1).strip()
+                    logging.info(f"Looking for selected device: {device_name}")
                     
-                    # If no device found, use default output device
-                    if device_index is None:
-                        info = p.get_default_output_device_info()
-                        device_index = info['index']
-                        logging.info(f"Using default output device: {info['name']} (index: {device_index})")
-
-                    # Load and convert audio using pydub
-                    logging.info("Loading audio file with pydub...")
-                    audio = AudioSegment.from_mp3(temp_path)
-                    
-                    # Convert to standard format
-                    audio = audio.set_frame_rate(24000)
-                    audio = audio.set_channels(1)
-                    audio = audio.set_sample_width(2)
-                    
-                    # Get audio data as raw PCM
-                    raw_data = audio.raw_data
-                    
-                    # Open stream with matching parameters
-                    stream = p.open(format=pyaudio.paInt16,
-                                  channels=1,
-                                  rate=24000,
-                                  output=True,
-                                  output_device_index=device_index,
-                                  frames_per_buffer=1024)
-                    
-                    logging.info(f"Starting audio playback for {'first' if sequence_num == 0 else 'second'} voice...")
-                    
-                    # Play audio in chunks
-                    chunk_size = 1024 * 2
-                    offset = 0
-                    while offset < len(raw_data):
-                        chunk = raw_data[offset:offset + chunk_size]
-                        if not chunk:
+                    for j in range(p.get_device_count()):
+                        info = p.get_device_info_by_index(j)
+                        if (device_name.lower() in info['name'].lower() and 
+                            info['maxOutputChannels'] > 0):
+                            device_index = j
+                            logging.info(f"Found selected device: {info['name']} (index: {j})")
                             break
-                        stream.write(chunk)
-                        offset += chunk_size
-                        await asyncio.sleep(0.001)
-                    
-                    logging.info(f"Audio playback completed for {'first' if sequence_num == 0 else 'second'} voice")
+                
+                # If no device found, use default output device
+                if device_index is None:
+                    info = p.get_default_output_device_info()
+                    device_index = info['index']
+                    logging.info(f"Using default output device: {info['name']} (index: {device_index})")
+
+                # Load and convert audio using pydub
+                logging.info("Loading audio file with pydub...")
+                audio = AudioSegment.from_mp3(temp_path)
+                
+                # Convert to standard format
+                audio = audio.set_frame_rate(24000)
+                audio = audio.set_channels(1)
+                audio = audio.set_sample_width(2)
+                
+                # Get audio data as raw PCM
+                raw_data = audio.raw_data
+                
+                # Open stream with matching parameters
+                stream = p.open(format=pyaudio.paInt16,
+                              channels=1,
+                              rate=24000,
+                              output=True,
+                              output_device_index=device_index,
+                              frames_per_buffer=1024)
+                
+                logging.info(f"Starting audio playback for {'first' if sequence_num == 0 else 'second'} voice...")
+                
+                # Play audio in chunks
+                chunk_size = 1024 * 2
+                offset = 0
+                while offset < len(raw_data):
+                    chunk = raw_data[offset:offset + chunk_size]
+                    if not chunk:
+                        break
+                    stream.write(chunk)
+                    offset += chunk_size
+                    await asyncio.sleep(0.001)
+                
+                logging.info(f"Audio playback completed for {'first' if sequence_num == 0 else 'second'} voice")
                 
             except Exception as e:
                 logging.error(f"Error during audio playback: {e}")
