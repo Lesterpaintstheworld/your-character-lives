@@ -355,13 +355,13 @@ async def process_audio_chunk(audio_data: bytes):
                 if p:
                     p.terminate()
                 
-        except Exception as e:
-            logging.error(f"Error playing audio: {e}")
-            if temp_path and os.path.exists(temp_path):
-                try:
-                    os.remove(temp_path)
-                except Exception as e:
-                    logging.warning(f"Failed to remove temp file {temp_path}: {e}")
+            except Exception as e:
+                logging.error(f"Error playing audio: {e}")
+                if temp_path and os.path.exists(temp_path):
+                    try:
+                        os.remove(temp_path)
+                    except Exception as e:
+                        logging.warning(f"Failed to remove temp file {temp_path}: {e}")
 
     except Exception as e:
         logging.error(f"Error processing audio response: {e}")
