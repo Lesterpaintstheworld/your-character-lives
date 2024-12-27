@@ -1444,15 +1444,33 @@ async def api_client(interval):
             timeout=REQUEST_TIMEOUT
         )
         
-        # Log response details
-        logging.info(f"n8n response status: {response.status_code}")
-        logging.info(f"n8n response headers: {response.headers}")
-        
-        response.raise_for_status()
-        
-        # Process audio response
-        await process_audio_chunk(response.content)
-        logging.info("Audio response played")
+        # Log response details for debugging
+        logging.info(f"Response status: {response.status_code}")
+        logging.info(f"Response headers: {response.headers}")
+        logging.info(f"Response content type: {response.headers.get('content-type', 'unknown')}")
+        logging.info(f"Response content length: {len(response.content)} bytes")
+
+        # Check if response is valid
+        if response.status_code != 200:
+            logging.error(f"Error response from n8n: {response.status_code}")
+            logging.error(f"Response content: {response.text[:1000]}")  # Log first 1000 chars
+            response.raise_for_status()
+
+        # Try to get binary audio content
+        try:
+            audio_data = response.content  # Get raw binary content
+            if len(audio_data) < 1000:  # Arbitrary minimum size for valid audio
+                logging.warning(f"Audio data suspiciously small: {len(audio_data)} bytes")
+                logging.warning(f"Response content: {response.text[:1000]}")  # Log content for debugging
+                raise ValueError("Audio data too small to be valid")
+                
+            # Process audio response
+            await process_audio_chunk(audio_data)
+            logging.info("Audio response played")
+            
+        except Exception as e:
+            logging.error(f"Error processing audio response: {e}")
+            raise
 
     except Exception as e:
         logging.error(f"Error occurred: {e}")
