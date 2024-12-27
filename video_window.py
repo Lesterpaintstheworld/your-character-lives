@@ -490,67 +490,87 @@ class DraggableVideoWindow:
                 self.is_switching = False
 
     def switch_to_idle_video(self):
-        """Switch to idle video with improved error handling"""
+        """Switch to idle video with improved thread synchronization"""
         try:
             if self.current_video_path != self.idle_video_path:
                 self.logger.info(f"Switching to idle video: {self.idle_video_path}")
+                
+                # Set switching flag
+                self.is_switching = True
+                
+                # Add small delay for thread sync
+                time.sleep(0.1)
                 
                 # Verify idle video exists
                 if not os.path.exists(self.idle_video_path):
                     self.logger.error(f"Idle video not found: {self.idle_video_path}")
                     return
                     
-                self.cleanup_buffer()
-                self.transition_requested = True
-                self.fade_counter = self.fade_frames
-                
-                # Release current video capture with protection
-                if self.cap is not None:
-                    try:
-                        self.cap.release()
-                    except Exception as e:
-                        self.logger.warning(f"Error releasing capture: {e}")
-                        
-                # Open new video capture with retry
-                max_retries = 3
-                for attempt in range(max_retries):
-                    try:
-                        self.cap = cv2.VideoCapture(self.idle_video_path)
-                        if not self.cap.isOpened():
-                            raise ValueError(f"Failed to open idle video: {self.idle_video_path}")
-                        
-                        # Set video properties
-                        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-                        if sys.platform == 'win32':
-                            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-                        
-                        # Reset position to start
-                        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                        
-                        # Update current path
-                        self.current_video_path = self.idle_video_path
-                        
-                        # Preload frames
-                        self.preload_frames()
-                        
-                        self.logger.info("Successfully switched to idle video")
-                        break
-                        
-                    except Exception as e:
-                        if attempt < max_retries - 1:
-                            self.logger.warning(f"Attempt {attempt + 1} failed, retrying: {e}")
-                            time.sleep(0.5)
-                        else:
-                            self.logger.error(f"Failed to switch to idle video after {max_retries} attempts: {e}")
+                with video_lock:  # Use global video lock
+                    # Release current capture with protection
+                    if self.cap is not None:
+                        try:
+                            self.cap.release()
+                            self.cap = None  # Clear reference
+                            time.sleep(0.1)  # Allow time for release
+                        except Exception as e:
+                            self.logger.warning(f"Error releasing capture: {e}")
+                    
+                    # Clear buffer before switching
+                    self.cleanup_buffer()
+                    self.transition_requested = True
+                    self.fade_counter = self.fade_frames
+                    
+                    # Create new capture with retry mechanism
+                    max_retries = 3
+                    for attempt in range(max_retries):
+                        try:
+                            # Create new capture
+                            self.cap = cv2.VideoCapture(self.idle_video_path)
+                            if not self.cap.isOpened():
+                                raise ValueError(f"Failed to open idle video: {self.idle_video_path}")
+                            
+                            # Configure capture
+                            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+                            if sys.platform == 'win32':
+                                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                            
+                            # Test capture
+                            ret, test_frame = self.cap.read()
+                            if not ret or test_frame is None:
+                                raise ValueError("Failed to read first frame")
+                                
+                            # Reset position
+                            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                            
+                            # Update current path
+                            self.current_video_path = self.idle_video_path
+                            
+                            # Force garbage collection
+                            gc.collect()
+                            
+                            # Preload frames
+                            self.preload_frames()
+                            
+                            self.logger.info("Successfully switched to idle video")
+                            break
+                            
+                        except Exception as e:
+                            if attempt < max_retries - 1:
+                                self.logger.warning(f"Attempt {attempt + 1} failed: {e}")
+                                time.sleep(0.5)  # Wait before retry
+                                if self.cap is not None:
+                                    self.cap.release()
+                                    self.cap = None
+                                continue
                             raise
-                        
+                            
         except Exception as e:
             self.logger.error(f"Failed to switch to idle video: {e}")
-            # Try to recover by reopening current video
-            try:
-                self.reopen_video()
-            except Exception as recover_error:
-                self.logger.error(f"Recovery failed: {recover_error}")
+            self.reopen_video()
+            
+        finally:
+            self.is_switching = False
 
     def cleanup(self):
         """Release resources"""
