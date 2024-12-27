@@ -256,6 +256,44 @@ def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) ->
             
     return False
 
+def validate_and_fix_audio_data(audio_data: bytes) -> bytes:
+    """Validate and attempt to fix audio data if needed."""
+    try:
+        # Check for MP3 header
+        if not (audio_data.startswith(b'\xFF\xFB') or audio_data.startswith(b'ID3')):
+            logging.warning("Invalid MP3 header - attempting to fix")
+            
+            # Try to convert raw PCM to MP3
+            try:
+                import numpy as np
+                from pydub import AudioSegment
+                
+                # Convert bytes to numpy array
+                audio_array = np.frombuffer(audio_data, dtype=np.int16)
+                
+                # Create AudioSegment from raw PCM
+                audio_segment = AudioSegment(
+                    audio_array.tobytes(),
+                    frame_rate=24000,
+                    sample_width=2,
+                    channels=1
+                )
+                
+                # Export as MP3
+                buffer = io.BytesIO()
+                audio_segment.export(buffer, format='mp3')
+                return buffer.getvalue()
+                
+            except Exception as e:
+                logging.error(f"Failed to fix audio data: {e}")
+                raise ValueError("Invalid audio data format")
+                
+        return audio_data
+        
+    except Exception as e:
+        logging.error(f"Error validating audio data: {e}")
+        raise
+
 async def process_audio_chunk(audio_data: bytes):
     """Process and play raw binary audio data using PyAudio directly."""
     temp_path = None
@@ -282,11 +320,22 @@ async def process_audio_chunk(audio_data: bytes):
         if current_video_window:
             current_video_window.switch_to_talk_video()
 
-        # Write raw audio data to temporary file
-        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
-            temp_file.write(audio_data)
-            temp_path = temp_file.name
-            logging.info(f"Wrote audio data to temp file: {temp_path}")
+        # Validate and fix audio data
+        try:
+            audio_data = validate_and_fix_audio_data(audio_data)
+        except Exception as e:
+            logging.error(f"Audio validation failed: {e}")
+            raise
+            
+        # Write to temp file with error handling
+        try:
+            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+                temp_file.write(audio_data)
+                temp_path = temp_file.name
+                logging.info(f"Wrote audio data to temp file: {temp_path}")
+        except Exception as e:
+            logging.error(f"Failed to write temp file: {e}")
+            raise
 
         # Get selected output device
         selected = output_var.get() if output_var else None

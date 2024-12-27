@@ -212,7 +212,7 @@ class DraggableVideoWindow:
             raise
 
     def display_frame(self, frame):
-        """Convert and display a frame with transition support and frame skipping"""
+        """Convert and display a frame with better error handling."""
         try:
             if frame is None:
                 self.logger.error("Received None frame")
@@ -248,17 +248,21 @@ class DraggableVideoWindow:
             # Convert frame from BGR to RGB
             rgb_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
             
-            # Get current window dimensions
+            # Get current window dimensions with error protection
             try:
-                current_width = self.window.winfo_width()
-                current_height = self.window.winfo_height()
+                current_width = max(1, self.window.winfo_width())  # Ensure non-zero
+                current_height = max(1, self.window.winfo_height()) # Ensure non-zero
             except Exception as e:
                 self.logger.error(f"Failed to get window dimensions: {e}")
-                current_width = self.width
-                current_height = self.height
+                current_width = max(1, self.width)
+                current_height = max(1, self.height)
                 
-            # Resize frame
-            resized = cv2.resize(rgb_frame, (current_width, current_height))
+            # Resize frame with dimension validation
+            if current_width > 0 and current_height > 0:
+                resized = cv2.resize(rgb_frame, (current_width, current_height))
+            else:
+                self.logger.error("Invalid dimensions for resize")
+                return
             
             # Convert to PIL Image
             image = Image.fromarray(resized)
