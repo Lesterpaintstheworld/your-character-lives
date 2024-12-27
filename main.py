@@ -290,44 +290,35 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
             logging.error(f"Audio validation failed: {e}")
             raise
 
-        # Switch to talk video before starting playback
+        # Switch videos sequentially, not simultaneously
         logging.info(f"Attempting to switch to talk video (is_daemon={is_daemon})...")
         if is_daemon:
             if second_video_window:
                 logging.info("Switching Daemon to talk video...")
                 second_video_window.switch_to_talk_video()
-                # Add verification
-                logging.info(f"Daemon video path after switch: {second_video_window.current_video_path}")
-                await asyncio.sleep(0.1)  # Small delay to ensure video switch
+                await asyncio.sleep(0.2)  # Give time for video switch
             else:
                 logging.error("Second video window not initialized")
         else:
             if current_video_window:
                 logging.info("Switching Emily to talk video...")
                 current_video_window.switch_to_talk_video()
-                # Add verification
-                logging.info(f"Emily video path after switch: {current_video_window.current_video_path}")
-                await asyncio.sleep(0.1)  # Small delay to ensure video switch
+                await asyncio.sleep(0.2)  # Give time for video switch
             else:
                 logging.error("First video window not initialized")
 
-        # Write to temp file
+        # Play audio
         try:
             with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
                 temp_file.write(audio_data)
                 temp_path = temp_file.name
-                logging.info(f"Wrote audio data to temp file: {temp_path}")
-        except Exception as e:
-            logging.error(f"Failed to write temp file: {e}")
-            raise
 
-        # Get selected output device
-        selected = output_var.get() if output_var else None
-        device_index = None
-        
-        p = pyaudio.PyAudio()
-        
-        try:
+            # Get selected output device
+            selected = output_var.get() if output_var else None
+            device_index = None
+            
+            p = pyaudio.PyAudio()
+            
             # Find selected device
             if selected:
                 device_name = re.match(r'^([^(]+)', selected).group(1).strip()
@@ -337,117 +328,58 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
                         if validate_output_device(i):
                             device_index = i
                             break
-            
-            # Fall back to default device if needed
-            if device_index is None:
-                info = p.get_default_output_device_info()
-                if validate_output_device(info['index']):
-                    device_index = info['index']
-                else:
-                    # Try any working output device
-                    for i in range(p.get_device_count()):
-                        if validate_output_device(i):
-                            device_index = i
-                            break
-            
-            if device_index is None:
-                raise RuntimeError("No working output device found")
-                
-            logging.info(f"Using output device index: {device_index}")
 
-            # Load and convert audio
-            try:
-                audio = AudioSegment.from_mp3(io.BytesIO(audio_data))
-                
-                if len(audio) == 0:
-                    raise ValueError("Audio file is empty")
-                
-                # Force specific format
-                audio = audio.set_frame_rate(24000)
-                audio = audio.set_channels(1)
-                audio = audio.set_sample_width(2)
-                
-                raw_data = audio.raw_data
-                if not raw_data:
-                    raise ValueError("No raw audio data available")
-                
-                logging.info(f"Successfully processed audio: {len(raw_data)} bytes")
-                
-            except Exception as e:
-                logging.error(f"Error processing audio file: {e}")
-                raise
+            # Process and play audio
+            audio = AudioSegment.from_mp3(io.BytesIO(audio_data))
+            if len(audio) == 0:
+                raise ValueError("Audio file is empty")
             
-            # Open audio stream
-            try:
-                stream = p.open(
-                    format=pyaudio.paInt16,
-                    channels=1,
-                    rate=24000,
-                    output=True,
-                    output_device_index=device_index,
-                    frames_per_buffer=1024,
-                    start=False
-                )
-                
-                if not stream:
-                    raise RuntimeError("Failed to create audio stream")
-                
-                stream.start_stream()
-                
-                if not stream.is_active():
-                    raise RuntimeError("Stream not active after starting")
-                
-                # Play audio in chunks
-                chunk_size = 1024
-                total_bytes = len(raw_data)
-                
-                if total_bytes == 0:
-                    logging.warning("No audio data to play")
-                    return
-                    
-                total_chunks = (total_bytes + chunk_size - 1) // chunk_size  # Round up division
-                logging.info(f"Starting playback: {total_chunks} chunks to play")
-                
-                for i in range(total_chunks):
-                    if not is_playing:
-                        logging.info("Playback interrupted")
-                        break
-                        
-                    start = i * chunk_size
-                    end = min(start + chunk_size, total_bytes)
-                    chunk = raw_data[start:end]
-                    
-                    if not chunk:
-                        continue
-                        
-                    try:
-                        stream.write(chunk)
-                    except Exception as e:
-                        logging.error(f"Error writing chunk {i}: {e}")
-                        continue
-                    
-                    await asyncio.sleep(0.001)
-                    
-                logging.info("Playback completed successfully")
+            # Force specific format
+            audio = audio.set_frame_rate(24000)
+            audio = audio.set_channels(1)
+            audio = audio.set_sample_width(2)
+            
+            raw_data = audio.raw_data
+            if not raw_data:
+                raise ValueError("No raw audio data available")
 
-            except Exception as e:
-                logging.error(f"Error during audio playback: {e}")
-                raise
+            # Open and configure audio stream
+            stream = p.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=24000,
+                output=True,
+                output_device_index=device_index,
+                frames_per_buffer=1024,
+                start=False
+            )
+            
+            stream.start_stream()
+            
+            # Play audio in smaller chunks with yields to prevent blocking
+            chunk_size = 1024
+            total_bytes = len(raw_data)
+            total_chunks = (total_bytes + chunk_size - 1) // chunk_size
+
+            for i in range(total_chunks):
+                if not is_playing:
+                    break
+                    
+                start = i * chunk_size
+                end = min(start + chunk_size, total_bytes)
+                chunk = raw_data[start:end]
+                
+                if chunk:
+                    stream.write(chunk)
+                    await asyncio.sleep(0.001)  # Yield to other tasks
 
         finally:
-            # Clean up audio resources
+            # Cleanup audio resources
             if stream:
-                try:
-                    stream.stop_stream()
-                    stream.close()
-                except Exception as e:
-                    logging.warning(f"Error closing stream: {e}")
-                    
+                stream.stop_stream()
+                stream.close()
             if p:
-                try:
-                    p.terminate()
-                except Exception as e:
-                    logging.warning(f"Error terminating PyAudio: {e}")
+                p.terminate()
 
     except Exception as e:
         logging.error(f"Error in process_audio_chunk: {e}")
@@ -461,16 +393,16 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
             except Exception as e:
                 logging.warning(f"Failed to remove temp file: {e}")
                 
-        # Switch back to idle video after playback with verification
-        logging.info("Switching back to idle video...")
+        # Switch back to idle videos sequentially
+        logging.info("Switching back to idle videos...")
         if is_daemon:
             if second_video_window:
                 second_video_window.switch_to_idle_video()
-                logging.info(f"Daemon video path after idle switch: {second_video_window.current_video_path}")
+                await asyncio.sleep(0.2)  # Give time for video switch
         else:
             if current_video_window:
                 current_video_window.switch_to_idle_video()
-                logging.info(f"Emily video path after idle switch: {current_video_window.current_video_path}")
+                await asyncio.sleep(0.2)  # Give time for video switch
 
 def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) -> bool:
     """Safely remove a file with retries and proper cleanup."""
