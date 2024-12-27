@@ -292,20 +292,20 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
 
         # Switch videos sequentially, not simultaneously
         logging.info(f"Attempting to switch to talk video (is_daemon={is_daemon})...")
-        if is_daemon:
+        if not is_daemon:  # Emily (first speaker) uses loop2/talk2
+            if current_video_window:
+                logging.info("Switching Emily to talk2 video...")
+                current_video_window.switch_to_talk_video()  # This will use talk2.mp4
+                await asyncio.sleep(0.2)  # Give time for video switch
+            else:
+                logging.error("First video window (Emily) not initialized")
+        else:  # Daemon uses loop/talk
             if second_video_window:
                 logging.info("Switching Daemon to talk video...")
-                second_video_window.switch_to_talk_video()
+                second_video_window.switch_to_talk_video()  # This will use talk.mp4
                 await asyncio.sleep(0.2)  # Give time for video switch
             else:
-                logging.error("Second video window not initialized")
-        else:
-            if current_video_window:
-                logging.info("Switching Emily to talk video...")
-                current_video_window.switch_to_talk_video()
-                await asyncio.sleep(0.2)  # Give time for video switch
-            else:
-                logging.error("First video window not initialized")
+                logging.error("Second video window (Daemon) not initialized")
 
         # Play audio
         try:
@@ -395,13 +395,13 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
                 
         # Switch back to idle videos sequentially
         logging.info("Switching back to idle videos...")
-        if is_daemon:
-            if second_video_window:
-                second_video_window.switch_to_idle_video()
-                await asyncio.sleep(0.2)  # Give time for video switch
-        else:
+        if not is_daemon:  # Emily back to loop2
             if current_video_window:
-                current_video_window.switch_to_idle_video()
+                current_video_window.switch_to_idle_video()  # This will use loop2.mp4
+                await asyncio.sleep(0.2)  # Give time for video switch
+        else:  # Daemon back to loop
+            if second_video_window:
+                second_video_window.switch_to_idle_video()  # This will use loop.mp4
                 await asyncio.sleep(0.2)  # Give time for video switch
 
 def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) -> bool:
@@ -1655,19 +1655,19 @@ if __name__ == "__main__":
         def create_video_window(video_path):
             """Create video windows in the main thread"""
             try:
-                # Create first video window
-                video_window1 = DraggableVideoWindow(video_path)
-        
-                # Create second video window with loop2.mp4
+                # Create first video window (Emily) with loop2.mp4
                 videos_dir = os.path.dirname(video_path)
                 video_path2 = os.path.join(videos_dir, "loop2.mp4")
-                video_window2 = DraggableVideoWindow(video_path2)
-        
+                video_window1 = DraggableVideoWindow(video_path2)  # Emily uses loop2/talk2
+
+                # Create second video window (Daemon) with loop.mp4
+                video_window2 = DraggableVideoWindow(video_path)  # Daemon uses loop/talk
+
                 # Store references to prevent garbage collection
                 global current_video_window, second_video_window
-                current_video_window = video_window1
-                second_video_window = video_window2
-        
+                current_video_window = video_window1  # Emily's window
+                second_video_window = video_window2   # Daemon's window
+
                 # Offset second window position
                 second_video_window.window.geometry(f"+{300}+{100}")  # Offset by 300 pixels
         
