@@ -1,3 +1,4 @@
+pyperclip>=1.8.2
 requests>=2.31.0
 scipy>=1.11.0
 pyautogui>=0.9.54

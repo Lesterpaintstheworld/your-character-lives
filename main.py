@@ -99,6 +99,7 @@ import pyautogui
 import requests
 import pyaudio
 import pygame
+import pyperclip
 import pyttsx3
 from dotenv import load_dotenv
 
@@ -1104,8 +1105,15 @@ def toggle_auto_recording():
                         timeout=REQUEST_TIMEOUT
                     )
 
-                    # Parse response JSON first
+                    # Copy response text to clipboard and parse JSON
                     try:
+                        response_text = response.text
+                        try:
+                            pyperclip.copy(response_text)
+                            logging.info("Copied response text to clipboard")
+                        except Exception as e:
+                            logging.error(f"Failed to copy to clipboard: {e}")
+
                         response_json = response.json()
                         if isinstance(response_json, list):
                             response_json = response_json[0]  # Get first item if it's a list
