@@ -227,8 +227,8 @@ async def process_audio_chunk(audio_data: bytes):
         
         # Look for data_0, data_1 fields
         audio_files = []
-        for key in response_dict:
-            if key.startswith('data_'):
+        for key in response_dict.keys():  # Get the keys as strings
+            if isinstance(key, str) and key.startswith('data_'):  # Check if it's a string and starts with 'data_'
                 audio_files.append(response_dict[key])
 
         if not audio_files:
