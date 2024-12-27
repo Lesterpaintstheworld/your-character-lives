@@ -1071,7 +1071,7 @@ def toggle_auto_recording():
     if auto_recording:
         update_status(f"🔄 Starting continuous recording...")
         
-        def auto_record_thread():
+        async def auto_record_loop():
             while auto_recording and is_playing:
                 try:
                     # Record audio for the entire interval
@@ -1104,63 +1104,9 @@ def toggle_auto_recording():
                         timeout=REQUEST_TIMEOUT
                     )
                     
-                    # Log response details for debugging
-                    logging.info(f"Response status: {response.status_code}")
-                    logging.info(f"Response headers: {response.headers}")
-                    logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
-                    
-                    # Inspect the raw binary content
-                    binary_data = response.content
-                    logging.info(f"Raw binary length: {len(binary_data)} bytes")
-                    logging.info(f"First 100 bytes as hex: {binary_data[:100].hex()}")
-                    
-                    # Try to detect content type from first few bytes
-                    if binary_data.startswith(b'\xFF\xFB') or binary_data.startswith(b'ID3'):
-                        logging.info("Appears to be MP3 data")
-                    elif binary_data.startswith(b'RIFF'):
-                        logging.info("Appears to be WAV data")
-                    elif binary_data.startswith(b'\x89PNG'):
-                        logging.info("Appears to be PNG data")
-                    elif binary_data.startswith(b'\xFF\xD8\xFF'):
-                        logging.info("Appears to be JPEG data")
-                    else:
-                        logging.info(f"Unknown binary format. First 8 bytes: {binary_data[:8].hex()}")
-
-                    # If it looks like text, show it
-                    try:
-                        text_preview = binary_data[:200].decode('utf-8')
-                        logging.info(f"Content as text: {text_preview}")
-                    except UnicodeDecodeError:
-                        logging.info("Content is not valid UTF-8 text")
-
-                    # Check if response is valid
-                    if response.status_code != 200:
-                        logging.error(f"Error response from n8n: {response.status_code}")
-                        logging.error(f"Response content: {response.text[:1000]}")
-                        response.raise_for_status()
-
-                    # Log response details for debugging
-                    logging.info(f"Response status: {response.status_code}")
-                    logging.info(f"Response headers: {response.headers}")
-                    logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
-                    
                     # Get binary data directly from response content
                     binary_data = response.content
-                    logging.info(f"Raw binary length: {len(binary_data)} bytes")
-                    logging.info(f"First 100 bytes as hex: {binary_data[:100].hex()}")
                     
-                    # Try to detect content type from first few bytes
-                    if binary_data.startswith(b'\xFF\xFB') or binary_data.startswith(b'ID3'):
-                        logging.info("Appears to be MP3 data")
-                    elif binary_data.startswith(b'RIFF'):
-                        logging.info("Appears to be WAV data")
-                    elif binary_data.startswith(b'\x89PNG'):
-                        logging.info("Appears to be PNG data")
-                    elif binary_data.startswith(b'\xFF\xD8\xFF'):
-                        logging.info("Appears to be JPEG data")
-                    else:
-                        logging.info(f"Unknown binary format. First 8 bytes: {binary_data[:8].hex()}")
-
                     # Validate size
                     if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
                         logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
@@ -1170,14 +1116,12 @@ def toggle_auto_recording():
                     await process_audio_chunk(binary_data)
                     
                 except Exception as e:
-                    logging.error(f"Error in auto recording thread: {e}")
+                    logging.error(f"Error in auto recording loop: {e}")
                     update_status(f"❌ Auto recording error: {str(e)}")
                     break
-        
-        # Start auto recording thread
-        auto_thread = threading.Thread(target=auto_record_thread)
-        auto_thread.daemon = True
-        auto_thread.start()
+
+        # Start auto recording loop in asyncio event loop
+        asyncio.create_task(auto_record_loop())
     else:
         update_status("⏹️ Automatic recording stopped")
 
