@@ -1105,48 +1105,30 @@ def toggle_auto_recording():
                         timeout=REQUEST_TIMEOUT
                     )
 
-                    # Copy response text to clipboard and parse JSON
-                    try:
-                        response_text = response.text
-                        try:
-                            pyperclip.copy(response_text)
-                            logging.info("Copied response text to clipboard")
-                        except Exception as e:
-                            logging.error(f"Failed to copy to clipboard: {e}")
-
-                        response_json = response.json()
-                        if isinstance(response_json, list):
-                            response_json = response_json[0]  # Get first item if it's a list
-                            
-                        # Get the binary data from n8n's binary property
-                        if 'binary_keys' in response_json:
-                            # The actual binary data should be in the response headers
-                            binary_data_key = response_json['binary_keys'].split(',')[0]  # Get first key
-                            binary_data_header = f'x-binary-{binary_data_key}'
-                            
-                            if binary_data_header in response.headers:
-                                binary_data = base64.b64decode(response.headers[binary_data_header])
+                    # Log response details for debugging
+                    logging.info(f"Response status: {response.status_code}")
+                    logging.info(f"Response headers: {response.headers}")
+                    logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
                                 
-                                # Validate size
-                                if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
-                                    logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
-                                    raise ValueError("Audio data too small to be valid")
-                                    
-                                # Process audio response
-                                await process_audio_chunk(binary_data)
-                            else:
-                                logging.error(f"Binary data header {binary_data_header} not found in response")
-                                logging.error(f"Available headers: {response.headers}")
-                                raise ValueError("Binary data not found in response headers")
-                        else:
-                            logging.error("No binary_keys found in response")
-                            logging.error(f"Response content: {response.text[:1000]}")
-                            raise ValueError("No binary data keys in response")
+                    # Get raw binary content
+                    binary_data = response.content
+                    logging.info(f"Raw binary length: {len(binary_data)} bytes")
+                        
+                    # Basic validation
+                    if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
+                        logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
+                        raise ValueError("Audio data too small to be valid")
                             
-                    except json.JSONDecodeError:
-                        logging.error("Failed to parse response as JSON")
-                        logging.error(f"Raw response: {response.text[:1000]}")
-                        raise
+                    # Check if it looks like an audio file
+                    if (binary_data.startswith(b'\xFF\xFB') or  # MP3
+                        binary_data.startswith(b'ID3') or       # MP3 with ID3
+                        binary_data.startswith(b'RIFF')):       # WAV
+                        logging.info("Valid audio format detected")
+                    else:
+                        logging.warning(f"Unknown binary format. First 8 bytes: {binary_data[:8].hex()}")
+                            
+                    # Process audio response
+                    await process_audio_chunk(binary_data)
                     except Exception as e:
                         logging.error(f"Error processing response: {e}")
                         raise
