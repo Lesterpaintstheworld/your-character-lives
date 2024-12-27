@@ -259,35 +259,46 @@ def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) ->
 def validate_and_fix_audio_data(audio_data: bytes) -> bytes:
     """Validate and attempt to fix audio data if needed."""
     try:
-        # Check for MP3 header
-        if not (audio_data.startswith(b'\xFF\xFB') or audio_data.startswith(b'ID3')):
-            logging.warning("Invalid MP3 header - attempting to fix")
+        # First try to load it directly as MP3
+        try:
+            audio = AudioSegment.from_mp3(io.BytesIO(audio_data))
+            # If we can load it, it's valid
+            return audio_data
+        except Exception as e:
+            logging.warning("Audio data doesn't appear to be valid MP3")
             
-            # Try to convert raw PCM to MP3
-            try:
-                import numpy as np
-                from pydub import AudioSegment
-                
-                # Convert bytes to numpy array
-                audio_array = np.frombuffer(audio_data, dtype=np.int16)
-                
-                # Create AudioSegment from raw PCM
-                audio_segment = AudioSegment(
-                    audio_array.tobytes(),
-                    frame_rate=24000,
-                    sample_width=2,
-                    channels=1
-                )
-                
-                # Export as MP3
-                buffer = io.BytesIO()
-                audio_segment.export(buffer, format='mp3')
-                return buffer.getvalue()
-                
-            except Exception as e:
-                logging.error(f"Failed to fix audio data: {e}")
-                raise ValueError("Invalid audio data format")
-                
+        # Check for common audio headers
+        common_headers = [
+            b'\xFF\xFB',    # MPEG audio
+            b'ID3',         # ID3 tag
+            b'RIFF',        # WAV
+            b'OggS',        # Ogg
+            b'fLaC'         # FLAC
+        ]
+        
+        if any(audio_data.startswith(header) for header in common_headers):
+            return audio_data
+            
+        # If we get here, try to convert the data
+        logging.warning("Invalid MP3 header - attempting to fix")
+        try:
+            # Try to load as raw PCM first
+            audio_segment = AudioSegment(
+                audio_data,
+                frame_rate=24000,
+                sample_width=2,
+                channels=1
+            )
+            
+            # Export as MP3
+            buffer = io.BytesIO()
+            audio_segment.export(buffer, format='mp3')
+            return buffer.getvalue()
+            
+        except Exception as e:
+            logging.error(f"Failed to fix audio data: {e}")
+            raise ValueError("Invalid audio data format")
+            
         return audio_data
         
     except Exception as e:
