@@ -280,12 +280,15 @@ async def process_audio_chunk(audio_data: bytes):
                                 device_index = j
                                 logging.info(f"Found selected device: {info['name']} (index: {j})")
                                 break
-                
-                # If no device found, use default output device
-                if device_index is None:
-                    info = p.get_default_output_device_info()
-                    device_index = info['index']
-                    logging.info(f"Using default output device: {info['name']} (index: {device_index})")
+                    
+                    # If no device found, use default output device
+                    if device_index is None:
+                        info = p.get_default_output_device_info()
+                        device_index = info['index']
+                        logging.info(f"Using default output device: {info['name']} (index: {device_index})")
+                except Exception as e:
+                    logging.error(f"Error selecting audio device: {e}")
+                    raise
 
                 # Load and convert audio using pydub
                 audio = AudioSegment.from_mp3(temp_path)
