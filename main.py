@@ -229,24 +229,15 @@ async def process_audio_chunk(audio_data: bytes):
         logging.debug(f"Response type: {type(response)}")
         logging.debug(f"Response content: {response}")
         
-        # Initialize audio_files list
+        # Extract audio data from data_0 and data_1 keys
         audio_files = []
+        for key in ['data_0', 'data_1']:
+            if key in response:
+                audio_files.append(response[key])
         
-        # Handle different response formats
-        if isinstance(response, dict):
-            # Dictionary format - look for data_* keys
-            for key in response.keys():
-                if isinstance(key, str) and key.startswith('data_'):
-                    audio_files.append(response[key])
-        elif isinstance(response, list):
-            # List format - assume all items are audio data
-            audio_files = response
-        else:
-            logging.error(f"Unexpected response type: {type(response)}")
-            return
-
         if not audio_files:
-            logging.error("No audio data found in response")
+            logging.error("No audio data found in data_0 or data_1 keys")
+            logging.debug(f"Available keys: {list(response.keys())}")
             return
 
         # Process each audio file
@@ -259,7 +250,10 @@ async def process_audio_chunk(audio_data: bytes):
                 # Write audio data directly to temporary file
                 with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
                     temp_path = temp_file.name
-                    temp_file.write(audio_data if isinstance(audio_data, bytes) else audio_data.encode())
+                    if isinstance(audio_data, str):
+                        temp_file.write(audio_data.encode('utf-8'))
+                    else:
+                        temp_file.write(audio_data)
                     temp_file.flush()
             except Exception as e:
                 logging.error(f"Error saving temporary audio file: {e}")
