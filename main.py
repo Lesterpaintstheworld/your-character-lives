@@ -265,11 +265,14 @@ async def process_audio_chunk(audio_data: bytes):
     raw_data = None
     
     try:
-        logging.info(f"Received raw audio data: {len(audio_data)} bytes")
-        
-        # Validate audio data
         if not audio_data:
             raise ValueError("Empty audio data received")
+            
+        logging.info(f"Received raw audio data: {len(audio_data)} bytes")
+        
+        # Validate audio data format
+        if len(audio_data) < 100:  # Minimum size check
+            raise ValueError(f"Audio data too small: {len(audio_data)} bytes")
             
         # Check if data appears to be valid MP3
         if not audio_data.startswith(b'\xFF\xFB') and not audio_data.startswith(b'ID3'):
@@ -451,6 +454,43 @@ async def process_audio_chunk(audio_data: bytes):
             current_video_window.switch_to_idle_video()
         if second_video_window:
             second_video_window.switch_to_idle_video()
+
+def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) -> bool:
+    """Safely remove a file with retries and proper cleanup."""
+    import gc
+    for attempt in range(max_retries):
+        try:
+            # Force garbage collection to release file handles
+            gc.collect()
+            
+            # Try to close any remaining handles (Windows specific)
+            if os.name == 'nt':
+                import ctypes
+                kernel32 = ctypes.WinDLL('kernel32', use_last_error=True)
+                handle = kernel32.CreateFileW(
+                    filepath, 
+                    0x80000000, # GENERIC_READ
+                    0,          # No sharing
+                    None,       # No security
+                    3,          # OPEN_EXISTING
+                    0x80,       # FILE_ATTRIBUTE_NORMAL
+                    None        # No template
+                )
+                if handle != -1:  # INVALID_HANDLE_VALUE
+                    kernel32.CloseHandle(handle)
+            
+            # Remove the file
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                logging.info(f"Successfully removed temp file: {filepath}")
+                return True
+                
+        except Exception as e:
+            logging.warning(f"Failed to remove temp file (attempt {attempt + 1}): {e}")
+            time.sleep(delay)
+            continue
+            
+    return False
 
 def update_status(message):
     """Update status in UI"""

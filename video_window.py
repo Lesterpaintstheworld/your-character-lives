@@ -320,10 +320,13 @@ class DraggableVideoWindow:
         finally:
             if hasattr(self, 'window') and self.window.winfo_exists():
                 # Get FPS with protection against zero
-                fps = self.cap.get(cv2.CAP_PROP_FPS)
-                if fps <= 0:
-                    fps = 30  # Default to 30fps if invalid
-                delay = int(1000 / fps)  # Convert to milliseconds
+                try:
+                    fps = self.cap.get(cv2.CAP_PROP_FPS)
+                    if fps <= 0 or not fps:
+                        fps = 30  # Default to 30fps if invalid
+                    delay = max(1, int(1000 / fps))  # Ensure delay is at least 1ms
+                except:
+                    delay = 33  # ~30fps as fallback
                 self.window.after(delay, self.update_frame)
             
     def run(self):
