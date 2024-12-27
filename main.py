@@ -225,19 +225,25 @@ async def process_audio_chunk(audio_data: bytes):
         # Decode the response as JSON first
         response_dict = json.loads(audio_data)
         
-        # Get the audio data from the response
-        if 'audio' in response_dict:
-            audio_base64 = response_dict['audio']
-        else:
-            logging.error("No audio field in response")
+        # Look for data_0, data_1 fields
+        audio_files = []
+        for key in response_dict:
+            if key.startswith('data_'):
+                audio_files.append(response_dict[key])
+
+        if not audio_files:
+            logging.error("No audio data found in response")
             return
 
-        # Now decode the base64 audio data
-        audio_bytes = base64.b64decode(audio_base64)
+        # Process each audio file
+        for i, audio_base64 in enumerate(audio_files):
+            try:
+                # Decode the base64 audio data
+                audio_bytes = base64.b64decode(audio_base64)
 
-        temp_path = None
-        p = None
-        stream = None
+                temp_path = None
+                p = None
+                stream = None
         
         try:
             # Save audio data to temporary file with .mp3 extension
