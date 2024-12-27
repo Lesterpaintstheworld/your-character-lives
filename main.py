@@ -1411,58 +1411,72 @@ def on_closing():
 
 
 async def api_client(interval):
-    """Execute a single recording/response cycle"""
+    """Execute recording/response cycles for both characters sequentially"""
     try:
-        # Check if paused
         if not is_playing:
             return
             
-        update_status("Starting new recording cycle...")
+        # First character (Emily)
+        update_status("Starting Emily's recording cycle...")
         
-        # Capture first screenshot with verification
-        logging.info("Taking initial screenshot...")
-        initial_screenshot = take_screenshot()
-        if not initial_screenshot:
-            raise Exception("Failed to capture initial screenshot")
-        logging.info(f"Initial screenshot captured: {len(initial_screenshot)} bytes")
-        
-        # Record audio
-        logging.info("Starting 15-second recording...")
-        update_status("Recording audio...")
+        # Record and process for Emily
+        logging.info("Starting 15-second recording for Emily...")
         audio_data = record_audio(15)
-        logging.info("Recording completed")
-
-        # Capture final screenshot with verification
-        logging.info("Taking final screenshot...")
-        final_screenshot = take_screenshot()
-        if not final_screenshot:
-            raise Exception("Failed to capture final screenshot")
-        logging.info(f"Final screenshot captured: {len(final_screenshot)} bytes")
-
-        # Collect text content as string
-        logging.info("Collecting text content...")
+        screenshot_data = take_screenshot()
         text_content = collect_text_files_content()
-        logging.info(f"Text content collected: {len(text_content)} bytes")
 
-        # Prepare multipart form data with text in body
-        data = {
-            'text': text_content  # Send text directly in request body
-        }
-
+        data = {'text': text_content}
         files = {
-            'initial_screenshot': ('initial_screenshot.jpg', initial_screenshot, 'image/jpeg'),
-            'final_screenshot': ('final_screenshot.jpg', final_screenshot, 'image/jpeg'),
+            'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
             'audio': ('audio.wav', audio_data, 'audio/wav')
         }
 
-        # Send request with text in body and files in multipart/form-data
-        logging.info("Sending data to n8n...")
+        # Send request for Emily
+        logging.info("Sending data to Emily endpoint...")
         response = requests.post(
-            "https://nlr.app.n8n.cloud/webhook/ycl-enpoint",
-            data=data,  # Text content in request body
-            files=files,  # Binary files in multipart/form-data
-            timeout=REQUEST_TIMEOUT
+            NetworkConstants.N8N_ENDPOINT_EMILY,
+            data=data,
+            files=files,
+            timeout=NetworkConstants.REQUEST_TIMEOUT
         )
+        
+        # Process Emily's response
+        if response.status_code == 200:
+            await process_audio_chunk(response.content)
+            
+        # Wait 30 seconds
+        await asyncio.sleep(30)
+        
+        # Second character (Daemon)
+        if not is_playing:  # Check if still playing after wait
+            return
+            
+        update_status("Starting Daemon's recording cycle...")
+        
+        # Record and process for Daemon
+        logging.info("Starting 15-second recording for Daemon...")
+        audio_data = record_audio(15)
+        screenshot_data = take_screenshot()
+        text_content = collect_text_files_content()
+
+        data = {'text': text_content}
+        files = {
+            'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
+            'audio': ('audio.wav', audio_data, 'audio/wav')
+        }
+
+        # Send request for Daemon
+        logging.info("Sending data to Daemon endpoint...")
+        response = requests.post(
+            NetworkConstants.N8N_ENDPOINT_DAEMON,
+            data=data,
+            files=files,
+            timeout=NetworkConstants.REQUEST_TIMEOUT
+        )
+        
+        # Process Daemon's response
+        if response.status_code == 200:
+            await process_audio_chunk(response.content)
         
         # Log response details for debugging
         logging.info(f"Response status: {response.status_code}")
