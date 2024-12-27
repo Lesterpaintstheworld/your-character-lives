@@ -5,6 +5,9 @@ import tkinter as tk
 import logging
 import os
 import numpy as np
+import gc
+import time
+import sys
 
 class DraggableVideoWindow:
     window_count = 0  # Track number of windows
@@ -33,6 +36,8 @@ class DraggableVideoWindow:
         self.fade_frames = 15  # Number of frames for fade transition
         self.fade_counter = 0
         self.last_frame = None
+        self.frame_buffer = []
+        self.buffer_size = 30  # Store 1 second of frames at 30fps
         
         if not os.path.exists(idle_video_path):
             self.logger.error(f"Video file not found: {idle_video_path}")
@@ -44,6 +49,14 @@ class DraggableVideoWindow:
             if not self.cap.isOpened():
                 self.logger.error("Failed to open video capture")
                 raise ValueError("Failed to open video capture")
+                
+            # Optimize video loading
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+            if sys.platform == 'win32':
+                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+            
+            # Preload frames
+            self.preload_frames()
             
             # Try to disable audio if the property exists
             try:
@@ -162,6 +175,28 @@ class DraggableVideoWindow:
         self.is_transparent = not self.is_transparent
         self.window.attributes('-alpha', 0.5 if self.is_transparent else 1.0)
         
+    def preload_frames(self):
+        """Preload frames into buffer to smooth playback"""
+        try:
+            self.frame_buffer.clear()
+            ret = True
+            while ret and len(self.frame_buffer) < self.buffer_size:
+                ret, frame = self.cap.read()
+                if ret:
+                    self.frame_buffer.append(frame)
+                else:
+                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret, frame = self.cap.read()
+                    if ret:
+                        self.frame_buffer.append(frame)
+        except Exception as e:
+            self.logger.error(f"Error preloading frames: {e}")
+
+    def cleanup_buffer(self):
+        """Clean up frame buffer to free memory"""
+        self.frame_buffer.clear()
+        gc.collect()
+
     def _bind_events(self):
         """Bind all window events"""
         try:
@@ -177,11 +212,23 @@ class DraggableVideoWindow:
             raise
 
     def display_frame(self, frame):
-        """Convert and display a frame with transition support"""
+        """Convert and display a frame with transition support and frame skipping"""
         try:
             if frame is None:
                 self.logger.error("Received None frame")
                 return
+
+            # Check if we're falling behind
+            current_time = time.time()
+            if hasattr(self, 'last_frame_time'):
+                frame_delta = current_time - self.last_frame_time
+                target_delta = 1.0 / self.cap.get(cv2.CAP_PROP_FPS)
+                
+                # Skip frame if we're more than half a frame behind
+                if frame_delta < target_delta * 0.5:
+                    return
+                    
+            self.last_frame_time = current_time
 
             # Handle transition if requested
             if self.transition_requested and self.last_frame is not None:
@@ -245,35 +292,37 @@ class DraggableVideoWindow:
             raise
 
     def update_frame(self):
-        """Update video frame"""
+        """Update video frame with buffering"""
         if not hasattr(self, 'window') or not self.window.winfo_exists():
             return
             
         try:
-            ret, frame = self.cap.read()
-            if not ret or frame is None:
-                # Réinitialiser la vidéo proprement
-                self.cap.release()
-                self.cap = cv2.VideoCapture(self.current_video_path)
-                if not self.cap.isOpened():
-                    self.logger.error("Failed to reopen video file")
-                    return
-                ret, frame = self.cap.read()
+            # Get frame from buffer
+            if self.frame_buffer:
+                frame = self.frame_buffer.pop(0)
+                
+                # Replenish buffer
+                ret, new_frame = self.cap.read()
                 if not ret:
-                    self.logger.error("Could not read frame after reopening")
-                    return
-            
-            if frame is not None:
-                # Save last valid frame
-                self.last_valid_frame = frame.copy()
-                self.display_frame(frame)
-            
+                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret, new_frame = self.cap.read()
+                
+                if ret:
+                    self.frame_buffer.append(new_frame)
+                
+                if frame is not None:
+                    self.last_valid_frame = frame.copy()
+                    self.display_frame(frame)
+                    
         except Exception as e:
             self.logger.error(f"Error updating video frame: {e}")
             
         finally:
             if hasattr(self, 'window') and self.window.winfo_exists():
-                self.window.after(33, self.update_frame)
+                # Adjust frame rate based on video properties
+                fps = self.cap.get(cv2.CAP_PROP_FPS)
+                delay = int(1000 / fps)  # Convert to milliseconds
+                self.window.after(delay, self.update_frame)
             
     def run(self):
         """Start the video window"""
@@ -288,6 +337,7 @@ class DraggableVideoWindow:
         """Request transition to talking video"""
         try:
             if self.current_video_path != self.talk_video_path:
+                self.cleanup_buffer()  # Clear buffer before switching
                 self.transition_requested = True
                 self.fade_counter = self.fade_frames
                 self.current_video_path = self.talk_video_path
