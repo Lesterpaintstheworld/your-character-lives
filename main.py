@@ -224,150 +224,155 @@ async def process_audio_chunk(audio_data: bytes):
     try:
         # Decode the response as JSON first
         response = json.loads(audio_data)
+        logging.info(f"Raw response length: {len(audio_data)} bytes")
+        logging.info(f"Response type: {type(response)}")
+        if isinstance(response, dict):
+            logging.info(f"Response keys: {list(response.keys())}")
+            for key in ['data_0', 'data_1']:
+                if key in response:
+                    logging.info(f"{key} type: {type(response[key])}")
+                    logging.info(f"{key} length: {len(response[key]) if response[key] else 0}")
         
-        # Log the response for debugging
-        logging.debug(f"Response type: {type(response)}")
-        logging.debug(f"Response content: {response}")
-        
-        # Initialize ordered audio data
-        first_audio = None  # For data_0 (talk2 animation)
-        second_audio = None # For data_1 (talk animation)
-        
-        # Extract audio in correct order
+        # Extract audio data
+        audio_segments = []
         if isinstance(response, dict):
             if 'data_0' in response:
-                first_audio = response['data_0']
+                audio_segments.append(('data_0', response['data_0'], True))  # True for talk2
             if 'data_1' in response:
-                second_audio = response['data_1']
+                audio_segments.append(('data_1', response['data_1'], False))  # False for talk
         elif isinstance(response, list) and len(response) >= 2:
-            first_audio = response[0]
-            second_audio = response[1]
-        
-        # Process audio in sequence
-        for sequence_num, audio_data in enumerate([first_audio, second_audio]):
-            if audio_data is None:
-                continue
-                
-            temp_path = None
-            p = None
-            stream = None
+            audio_segments.append(('data_0', response[0], True))
+            audio_segments.append(('data_1', response[1], False))
             
-            try:
-                # Switch to appropriate talking video based on sequence
-                logging.info(f"Switching to {'talk2' if sequence_num == 0 else 'talk'} video...")
-                if sequence_num == 0:  # First audio uses talk2
-                    if second_video_window:
-                        second_video_window.switch_to_talk_video()
-                    if current_video_window:
-                        current_video_window.switch_to_idle_video()
-                else:  # Second audio uses talk
-                    if current_video_window:
-                        current_video_window.switch_to_talk_video()
-                    if second_video_window:
-                        second_video_window.switch_to_idle_video()
+        if not audio_segments:
+            raise ValueError("No audio data found in response")
 
-                # Write the audio data directly to temporary file
+        # Process each audio segment
+        for segment_name, audio_data, use_talk2 in audio_segments:
+            logging.info(f"Processing {segment_name}")
+            
+            if not audio_data:
+                logging.warning(f"Empty audio data for {segment_name}")
+                continue
+
+            # Set video states
+            if use_talk2:
+                if second_video_window:
+                    second_video_window.switch_to_talk_video()
+                if current_video_window:
+                    current_video_window.switch_to_idle_video()
+            else:
+                if current_video_window:
+                    current_video_window.switch_to_talk_video()
+                if second_video_window:
+                    second_video_window.switch_to_idle_video()
+
+            try:
+                # Write to temporary file
                 with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
-                    temp_path = temp_file.name
-                    # Ensure audio_data is bytes
                     if isinstance(audio_data, str):
                         temp_file.write(audio_data.encode('utf-8'))
                     elif isinstance(audio_data, dict):
                         temp_file.write(json.dumps(audio_data).encode('utf-8'))
                     else:
                         temp_file.write(audio_data)
-                    temp_file.flush()
-                
-                logging.info(f"Audio data written to temp file: {temp_path}")
-                
-                # Get selected output device name
+                    temp_path = temp_file.name
+
+                # Get selected output device
                 selected = output_var.get() if output_var else None
                 device_index = None
                 
-                # Initialize PyAudio
                 p = pyaudio.PyAudio()
                 
-                # First try to find selected device
-                if selected:
-                    device_name = re.match(r'^([^(]+)', selected).group(1).strip()
-                    logging.info(f"Looking for selected device: {device_name}")
+                try:
+                    # Find selected device
+                    if selected:
+                        device_name = re.match(r'^([^(]+)', selected).group(1).strip()
+                        for i in range(p.get_device_count()):
+                            info = p.get_device_info_by_index(i)
+                            if device_name.lower() in info['name'].lower():
+                                device_index = i
+                                break
                     
-                    for j in range(p.get_device_count()):
-                        info = p.get_device_info_by_index(j)
-                        if (device_name.lower() in info['name'].lower() and 
-                            info['maxOutputChannels'] > 0):
-                            device_index = j
-                            logging.info(f"Found selected device: {info['name']} (index: {j})")
+                    if device_index is None:
+                        info = p.get_default_output_device_info()
+                        device_index = info['index']
+
+                    # Load and convert audio
+                    audio = AudioSegment.from_mp3(temp_path)
+                    audio = audio.set_frame_rate(24000)
+                    audio = audio.set_channels(1)
+                    audio = audio.set_sample_width(2)
+                    
+                    # Convert to raw PCM data
+                    raw_data = audio.raw_data
+                    
+                    # Open audio stream
+                    stream = p.open(
+                        format=pyaudio.paInt16,
+                        channels=1,
+                        rate=24000,
+                        output=True,
+                        output_device_index=device_index,
+                        frames_per_buffer=1024
+                    )
+
+                    # Play audio in smaller chunks
+                    chunk_size = 1024
+                    offset = 0
+                    
+                    while offset < len(raw_data):
+                        if not is_playing:  # Check if playback should continue
                             break
-                
-                # If no device found, use default output device
-                if device_index is None:
-                    info = p.get_default_output_device_info()
-                    device_index = info['index']
-                    logging.info(f"Using default output device: {info['name']} (index: {device_index})")
+                            
+                        chunk = raw_data[offset:offset + chunk_size]
+                        if not chunk:
+                            break
+                            
+                        stream.write(chunk)
+                        offset += chunk_size
+                        
+                        # Small delay to prevent audio glitches
+                        await asyncio.sleep(0.001)
 
-                # Load and convert audio using pydub
-                logging.info("Loading audio file with pydub...")
-                audio = AudioSegment.from_mp3(temp_path)
-                
-                # Convert to standard format
-                audio = audio.set_frame_rate(24000)
-                audio = audio.set_channels(1)
-                audio = audio.set_sample_width(2)
-                
-                # Get audio data as raw PCM
-                raw_data = audio.raw_data
-                
-                # Open stream with matching parameters
-                stream = p.open(format=pyaudio.paInt16,
-                              channels=1,
-                              rate=24000,
-                              output=True,
-                              output_device_index=device_index,
-                              frames_per_buffer=1024)
-                
-                logging.info(f"Starting audio playback for {'first' if sequence_num == 0 else 'second'} voice...")
-                
-                # Play audio in chunks
-                chunk_size = 1024 * 2
-                offset = 0
-                while offset < len(raw_data):
-                    chunk = raw_data[offset:offset + chunk_size]
-                    if not chunk:
-                        break
-                    stream.write(chunk)
-                    offset += chunk_size
-                    await asyncio.sleep(0.001)
-                
-                logging.info(f"Audio playback completed for {'first' if sequence_num == 0 else 'second'} voice")
-                
-            except Exception as e:
-                logging.error(f"Error during audio playback: {e}")
-                raise
-
-            finally:
-                # Clean up resources
-                if stream:
+                    # Ensure all audio is played
                     stream.stop_stream()
                     stream.close()
-                if p:
                     p.terminate()
-                if temp_path and os.path.exists(temp_path):
+
+                except Exception as e:
+                    logging.error(f"Error during audio playback: {e}")
+                    raise
+
+                finally:
+                    # Clean up temp file
                     try:
                         os.remove(temp_path)
                     except Exception as e:
-                        logging.warning(f"Failed to remove temp file {temp_path}: {e}")
-                
-                # Switch back to idle video
-                logging.info("Switching back to idle video...")
+                        logging.warning(f"Failed to remove temp file: {e}")
+
+            except Exception as e:
+                logging.error(f"Error processing {segment_name}: {e}")
+                continue
+
+            finally:
+                # Reset video states
                 if current_video_window:
                     current_video_window.switch_to_idle_video()
                 if second_video_window:
                     second_video_window.switch_to_idle_video()
 
     except Exception as e:
-        logging.error(f"Error processing audio response: {e}")
+        logging.error(f"Error in process_audio_chunk: {e}")
         update_status(f"❌ Audio playback error: {str(e)}")
+        raise
+
+    finally:
+        # Ensure videos return to idle state
+        if current_video_window:
+            current_video_window.switch_to_idle_video()
+        if second_video_window:
+            second_video_window.switch_to_idle_video()
 
 def update_status(message):
     """Update status in UI"""
