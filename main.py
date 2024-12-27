@@ -12,6 +12,7 @@ import cv2
 import numpy as np
 from scipy import signal
 import base64
+import json
 from pydub import AudioSegment
 from video_window import DraggableVideoWindow
 from device_manager import DeviceManager
