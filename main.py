@@ -291,15 +291,25 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
             raise
 
         # Switch to talk video before starting playback
-        logging.info("Switching to talk video...")
+        logging.info(f"Attempting to switch to talk video (is_daemon={is_daemon})...")
         if is_daemon:
             if second_video_window:
+                logging.info("Switching Daemon to talk video...")
                 second_video_window.switch_to_talk_video()
+                # Add verification
+                logging.info(f"Daemon video path after switch: {second_video_window.current_video_path}")
                 await asyncio.sleep(0.1)  # Small delay to ensure video switch
+            else:
+                logging.error("Second video window not initialized")
         else:
             if current_video_window:
+                logging.info("Switching Emily to talk video...")
                 current_video_window.switch_to_talk_video()
+                # Add verification
+                logging.info(f"Emily video path after switch: {current_video_window.current_video_path}")
                 await asyncio.sleep(0.1)  # Small delay to ensure video switch
+            else:
+                logging.error("First video window not initialized")
 
         # Write to temp file
         try:
