@@ -1124,8 +1124,8 @@ def toggle_auto_recording():
                             logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
                             raise ValueError("Audio data too small to be valid")
                             
-                        # Process audio response
-                        await process_audio_chunk(binary_data)
+                        # Process audio response asynchronously
+                        asyncio.run(process_audio_chunk(binary_data))
                         
                     except Exception as e:
                         logging.error(f"Error processing audio response: {e}")
