@@ -225,18 +225,37 @@ async def process_audio_chunk(audio_data: bytes):
         import json
         response_data = json.loads(audio_data)
         
-        # Handle both array and object formats
-        if isinstance(response_data, list):
+        # Extract audio data from response
+        if isinstance(response_data, dict):
+            audio_files = response_data.get('audio_files', [])
+            if not isinstance(audio_files, list):
+                audio_files = [audio_files]
+        elif isinstance(response_data, list):
             audio_files = response_data
         else:
-            audio_files = response_data.get('audio_files', [])
-        
+            logging.error(f"Unexpected response format: {type(response_data)}")
+            return
+
         if not audio_files:
             logging.error("No audio files in response")
             return
 
         # Play each audio file sequentially
         for i, audio_file in enumerate(audio_files):
+            if isinstance(audio_file, dict):
+                # If audio file is an object, get the base64 data
+                audio_base64 = audio_file.get('audio', '')
+            else:
+                # If audio file is a string, use it directly
+                audio_base64 = audio_file
+
+            # Decode base64 audio data
+            try:
+                audio_bytes = base64.b64decode(audio_base64)
+            except Exception as e:
+                logging.error(f"Error decoding base64 for audio {i+1}: {e}")
+                continue
+
             temp_path = None
             p = None
             stream = None
