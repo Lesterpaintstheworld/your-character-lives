@@ -223,13 +223,23 @@ async def process_audio_chunk(audio_data: bytes):
     """Process and play audio data using PyAudio directly."""
     try:
         # Decode the response as JSON first
-        response_dict = json.loads(audio_data)
+        response = json.loads(audio_data)
         
-        # Look for data_0, data_1 fields
+        # Initialize audio_files list
         audio_files = []
-        for key in response_dict.keys():  # Get the keys as strings
-            if isinstance(key, str) and key.startswith('data_'):  # Check if it's a string and starts with 'data_'
-                audio_files.append(response_dict[key])
+        
+        # Handle different response formats
+        if isinstance(response, dict):
+            # Dictionary format - look for data_* keys
+            for key in response.keys():
+                if isinstance(key, str) and key.startswith('data_'):
+                    audio_files.append(response[key])
+        elif isinstance(response, list):
+            # List format - assume all items are audio data
+            audio_files = response
+        else:
+            logging.error(f"Unexpected response type: {type(response)}")
+            return
 
         if not audio_files:
             logging.error("No audio data found in response")
