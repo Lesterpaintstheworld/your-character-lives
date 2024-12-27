@@ -10,6 +10,9 @@ import time
 import sys
 import threading
 
+# Global lock for video operations
+video_lock = threading.Lock()
+
 class DraggableVideoWindow:
     window_count = 0  # Track number of windows
     
@@ -19,6 +22,7 @@ class DraggableVideoWindow:
         self.window_number = DraggableVideoWindow.window_count
         self.logger = logging.getLogger(f"{__name__}_{self.window_number}")
         self.logger.info(f"Initializing DraggableVideoWindow #{self.window_number}")
+        self.is_switching = False  # Flag for video switching state
         
         # Initialize drag and resize data
         self.drag_data = {'x': 0, 'y': 0}
@@ -319,6 +323,12 @@ class DraggableVideoWindow:
         if not hasattr(self, 'window') or not self.window.winfo_exists():
             return
             
+        if getattr(self, 'is_switching', False):
+            # Skip frame update during video switch
+            if hasattr(self, 'window') and self.window.winfo_exists():
+                self.window.after(int(1000/30), self.update_frame)  # Try again in ~33ms
+            return
+            
         try:
             # Get frame from buffer with protection
             if self.frame_buffer:
@@ -386,80 +396,87 @@ class DraggableVideoWindow:
             self.cleanup()
         
     def switch_to_talk_video(self):
-        """Switch to talking video with improved error handling and thread safety"""
-        try:
-            if self.current_video_path != self.talk_video_path:
-                self.logger.info(f"Switching to talk video: {self.talk_video_path}")
-                
-                # Verify talk video exists
-                if not os.path.exists(self.talk_video_path):
-                    self.logger.error(f"Talk video not found: {self.talk_video_path}")
-                    return
-                    
-                # Clear buffer and request transition
-                self.cleanup_buffer()
-                self.transition_requested = True
-                self.fade_counter = self.fade_frames
-                
-                # Create new capture before releasing old one
-                try:
-                    new_cap = cv2.VideoCapture(self.talk_video_path)
-                    if not new_cap.isOpened():
-                        raise ValueError(f"Failed to open talk video: {self.talk_video_path}")
-                    
-                    # Configure new capture
-                    new_cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-                    if sys.platform == 'win32':
-                        new_cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-                        
-                    # Ensure first frame can be read
-                    ret, test_frame = new_cap.read()
-                    if not ret or test_frame is None:
-                        raise ValueError("Failed to read first frame from new video")
-                    new_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                    
-                    # Only release old capture after new one is confirmed working
-                    if self.cap is not None:
-                        old_cap = self.cap
-                        self.cap = new_cap  # Assign new capture first
-                        
-                        # Release old capture in try block
-                        try:
-                            old_cap.release()
-                        except Exception as e:
-                            self.logger.warning(f"Error releasing old capture: {e}")
-                    else:
-                        self.cap = new_cap
-                    
-                    # Update current path only after successful switch
-                    self.current_video_path = self.talk_video_path
-                    
-                    # Add small delay to allow thread synchronization
-                    time.sleep(0.1)
-                    
-                    # Preload frames for new video
-                    self.preload_frames()
-                    
-                    self.logger.info("Successfully switched to talk video")
-                    
-                except Exception as e:
-                    self.logger.error(f"Failed to switch video: {e}")
-                    # Try to recover
-                    if 'new_cap' in locals():
-                        try:
-                            new_cap.release()
-                        except:
-                            pass
-                    self.reopen_video()
-                    raise
-                    
-        except Exception as e:
-            self.logger.error(f"Failed to switch to talk video: {e}")
-            # Try to recover by reopening current video
+        """Switch to talking video with global lock and improved thread safety"""
+        global video_lock
+        
+        with video_lock:  # Global lock for video operations
             try:
+                if self.current_video_path != self.talk_video_path:
+                    self.logger.info(f"Switching to talk video: {self.talk_video_path}")
+                    
+                    # Verify talk video exists
+                    if not os.path.exists(self.talk_video_path):
+                        self.logger.error(f"Talk video not found: {self.talk_video_path}")
+                        return
+                        
+                    # Stop current video processing
+                    self.is_switching = True
+                    time.sleep(0.1)  # Allow current frame processing to complete
+                    
+                    # Clear buffer and request transition
+                    self.cleanup_buffer()
+                    self.transition_requested = True
+                    self.fade_counter = self.fade_frames
+                    
+                    # Create new capture with retry mechanism
+                    max_retries = 3
+                    for attempt in range(max_retries):
+                        try:
+                            # Create new capture
+                            new_cap = cv2.VideoCapture(self.talk_video_path)
+                            if not new_cap.isOpened():
+                                raise ValueError(f"Failed to open talk video: {self.talk_video_path}")
+                            
+                            # Configure new capture
+                            new_cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+                            if sys.platform == 'win32':
+                                new_cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                            
+                            # Test new capture
+                            ret, test_frame = new_cap.read()
+                            if not ret or test_frame is None:
+                                raise ValueError("Failed to read first frame")
+                            new_cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                            
+                            # Switch captures with proper cleanup
+                            if self.cap is not None:
+                                old_cap = self.cap
+                                self.cap = None  # Clear reference first
+                                try:
+                                    old_cap.release()
+                                    del old_cap  # Explicitly delete
+                                except Exception as e:
+                                    self.logger.warning(f"Error releasing old capture: {e}")
+                            
+                            # Assign new capture and update path
+                            self.cap = new_cap
+                            self.current_video_path = self.talk_video_path
+                            
+                            # Force garbage collection
+                            gc.collect()
+                            
+                            # Wait for resources to be properly released
+                            time.sleep(0.2)
+                            
+                            # Preload frames
+                            self.preload_frames()
+                            
+                            self.logger.info("Successfully switched to talk video")
+                            break
+                            
+                        except Exception as e:
+                            if attempt < max_retries - 1:
+                                self.logger.warning(f"Attempt {attempt + 1} failed: {e}, retrying...")
+                                time.sleep(0.5)  # Wait before retry
+                                continue
+                            raise
+                            
+            except Exception as e:
+                self.logger.error(f"Failed to switch to talk video: {e}")
                 self.reopen_video()
-            except Exception as recover_error:
-                self.logger.error(f"Recovery failed: {recover_error}")
+                
+            finally:
+                self.is_switching = False
 
     def switch_to_idle_video(self):
         """Switch to idle video with improved error handling"""
