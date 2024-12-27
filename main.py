@@ -1422,7 +1422,7 @@ async def api_client(interval):
         # Record and process for Emily
         logging.info("Starting 15-second recording for Emily...")
         audio_data = record_audio(15)
-        screenshot_data = take_screenshot()
+        screenshot_data = take_screenshot()  # Take first screenshot
         text_content = collect_text_files_content()
 
         data = {'text': text_content}
@@ -1453,10 +1453,10 @@ async def api_client(interval):
             
         update_status("Starting Daemon's recording cycle...")
         
-        # Record and process for Daemon
+        # Record and process for Daemon - take new screenshot
         logging.info("Starting 15-second recording for Daemon...")
         audio_data = record_audio(15)
-        screenshot_data = take_screenshot()
+        screenshot_data = take_screenshot()  # Take fresh screenshot for Daemon
         text_content = collect_text_files_content()
 
         data = {'text': text_content}
