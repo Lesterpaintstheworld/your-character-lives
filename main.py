@@ -257,9 +257,9 @@ async def process_audio_chunk(audio_data: bytes):
                 
                 # Get selected output device name
                 selected = output_var.get() if output_var else None
-            device_index = None
-            
-            # Don't play if paused
+                device_index = None
+                
+                # Don't play if paused
             if not is_playing:
                 return
 
