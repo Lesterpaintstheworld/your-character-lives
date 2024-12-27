@@ -1522,9 +1522,10 @@ async def api_client(interval):
         # Process Daemon's response and wait for completion
         if response.status_code == 200:
             logging.info("Playing Daemon's response...")
+            # Only process audio once for Daemon
             await process_audio_chunk(response.content, is_daemon=True)
             logging.info("Daemon's response completed")
-        
+            
         # Log response details for debugging
         logging.info(f"Response status: {response.status_code}")
         logging.info(f"Response headers: {response.headers}")
@@ -1533,48 +1534,16 @@ async def api_client(interval):
         # Inspect the raw binary content
         binary_data = response.content
         logging.info(f"Raw binary length: {len(binary_data)} bytes")
-        logging.info(f"First 100 bytes as hex: {binary_data[:100].hex()}")
-                    
-        # Try to detect content type from first few bytes
-        if binary_data.startswith(b'\xFF\xFB') or binary_data.startswith(b'ID3'):
-            logging.info("Appears to be MP3 data")
-        elif binary_data.startswith(b'RIFF'):
-            logging.info("Appears to be WAV data")
-        elif binary_data.startswith(b'\x89PNG'):
-            logging.info("Appears to be PNG data")
-        elif binary_data.startswith(b'\xFF\xD8\xFF'):
-            logging.info("Appears to be JPEG data")
-        else:
-            logging.info(f"Unknown binary format. First 8 bytes: {binary_data[:8].hex()}")
-
-        # If it looks like text, show it
-        try:
-            text_preview = binary_data[:200].decode('utf-8')
-            logging.info(f"Content as text: {text_preview}")
-        except UnicodeDecodeError:
-            logging.info("Content is not valid UTF-8 text")
-
-        # Check if response is valid
+        
+        # Basic validation of response
         if response.status_code != 200:
             logging.error(f"Error response from n8n: {response.status_code}")
-            logging.error(f"Response content: {response.text[:1000]}")  # Log first 1000 chars
+            logging.error(f"Response content: {response.text[:1000]}")
             response.raise_for_status()
-
-        # Try to get binary audio content
-        try:
-            audio_data = response.content  # Get raw binary content
-            if len(audio_data) < 1000:  # Arbitrary minimum size for valid audio
-                logging.warning(f"Audio data suspiciously small: {len(audio_data)} bytes")
-                logging.warning(f"Response content: {response.text[:1000]}")  # Log content for debugging
-                raise ValueError("Audio data too small to be valid")
-                
-            # Process audio response
-            await process_audio_chunk(audio_data)
-            logging.info("Audio response played")
             
-        except Exception as e:
-            logging.error(f"Error processing audio response: {e}")
-            raise
+        if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
+            logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
+            raise ValueError("Audio data too small to be valid")
 
     except Exception as e:
         logging.error(f"Error occurred: {e}")
