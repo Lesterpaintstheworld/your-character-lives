@@ -260,10 +260,10 @@ async def process_audio_chunk(audio_data: bytes):
                 device_index = None
                 
                 # Don't play if paused
-            if not is_playing:
-                return
+                if not is_playing:
+                    return
 
-            # Switch to appropriate talking video based on which audio we're playing
+                # Switch to appropriate talking video based on which audio we're playing
             # Initialize PyAudio
             p = pyaudio.PyAudio()
             
