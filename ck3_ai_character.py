@@ -35,8 +35,8 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 
 def update_status(message):
     """Update status in UI"""
-    root.after(0, lambda: text_widget.insert(tk.END, f"\n{message}\n"))
-    root.after(0, text_widget.see, tk.END)
+    # Since this is a deprecated file, just print to console
+    print(message)
 
 def take_screenshot():
     """Capture a screenshot, resize it, and return it as base64 string."""
