@@ -11,6 +11,7 @@ import tempfile
 import cv2
 import numpy as np
 from scipy import signal
+import base64
 from pydub import AudioSegment
 from video_window import DraggableVideoWindow
 from device_manager import DeviceManager
@@ -219,28 +220,45 @@ engine.setProperty('volume', 1.0)  # Volume between 0 and 1.0
 
 async def process_audio_chunk(audio_data: bytes):
     """Process and play audio data using PyAudio directly."""
-    temp_path = None
-    p = None
-    stream = None
-    
     try:
-        # Save audio data to temporary file with .mp3 extension
-        with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
-            temp_path = temp_file.name
-            temp_file.write(audio_data)
-            temp_file.flush()
-            
-        # Get selected output device name
-        selected = output_var.get() if output_var else None
-        device_index = None
+        # Decode the response as JSON to get the array of audio files
+        import json
+        response_data = json.loads(audio_data)
+        audio_files = response_data.get('audio_files', [])
         
-        # Don't play if paused
-        if not is_playing:
+        if not audio_files:
+            logging.error("No audio files in response")
             return
 
-        # Switch to talking video before playing
-        if current_video_window:
-            current_video_window.switch_to_talk_video()
+        # Play each audio file sequentially
+        for i, audio_file in enumerate(audio_files):
+            temp_path = None
+            p = None
+            stream = None
+            
+            try:
+                # Decode base64 audio data
+                audio_bytes = base64.b64decode(audio_file)
+                
+                # Save audio data to temporary file with .mp3 extension
+                with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+                    temp_path = temp_file.name
+                    temp_file.write(audio_bytes)
+                    temp_file.flush()
+                    
+                # Get selected output device name
+                selected = output_var.get() if output_var else None
+                device_index = None
+                
+                # Don't play if paused
+                if not is_playing:
+                    return
+
+                # Switch to appropriate talking video based on which audio we're playing
+                if i == 0 and current_video_window:
+                    current_video_window.switch_to_talk_video()
+                elif i == 1 and second_video_window:
+                    second_video_window.switch_to_talk_video()
         
         # Initialize PyAudio
         p = pyaudio.PyAudio()
