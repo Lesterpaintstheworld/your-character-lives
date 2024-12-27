@@ -338,33 +338,67 @@ async def process_audio_chunk(audio_data: bytes):
                 logging.error(f"Error processing audio file: {e}")
                 raise
             
-            # Open audio stream
-            stream = p.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=24000,
-                output=True,
-                output_device_index=device_index,
-                frames_per_buffer=1024
-            )
-
-            # Play audio in smaller chunks
-            chunk_size = 1024
-            offset = 0
-            
-            while offset < len(raw_data):
-                if not is_playing:  # Check if playback should continue
-                    break
-                    
-                chunk = raw_data[offset:offset + chunk_size]
-                if not chunk:
-                    break
-                    
-                stream.write(chunk)
-                offset += chunk_size
+            # Open audio stream with better error handling
+            try:
+                stream = p.open(
+                    format=pyaudio.paInt16,
+                    channels=1,
+                    rate=24000,
+                    output=True,
+                    output_device_index=device_index,
+                    frames_per_buffer=1024,
+                    start=False  # Don't start yet
+                )
                 
-                # Small delay to prevent audio glitches
-                await asyncio.sleep(0.001)
+                # Verify stream was created successfully
+                if not stream:
+                    raise RuntimeError("Failed to create audio stream")
+                
+                # Start stream explicitly
+                stream.start_stream()
+                
+                # Verify stream is active
+                if not stream.is_active():
+                    raise RuntimeError("Stream not active after starting")
+                
+                # Play audio in smaller chunks with progress tracking
+                chunk_size = 1024
+                total_chunks = len(raw_data) // chunk_size
+                offset = 0
+                
+                logging.info(f"Starting playback: {total_chunks} chunks to play")
+                
+                for i in range(total_chunks + 1):
+                    if not is_playing:  # Check if playback should continue
+                        logging.info("Playback interrupted")
+                        break
+                        
+                    chunk = raw_data[offset:offset + chunk_size]
+                    if not chunk:
+                        break
+                        
+                    try:
+                        stream.write(chunk)
+                        offset += chunk_size
+                        
+                        # Log progress periodically
+                        if i % 100 == 0:  # Every 100 chunks
+                            progress = (i / total_chunks) * 100
+                            logging.debug(f"Playback progress: {progress:.1f}%")
+                            
+                    except Exception as e:
+                        logging.error(f"Error writing chunk {i}: {e}")
+                        # Try to recover and continue with next chunk
+                        continue
+                    
+                    # Small delay to prevent audio glitches
+                    await asyncio.sleep(0.001)
+                    
+                logging.info("Playback completed successfully")
+
+            except Exception as e:
+                logging.error(f"Error during audio playback: {e}")
+                raise
 
         finally:
             # Clean up audio resources
@@ -1101,6 +1135,41 @@ def create_device_selectors():
     refresh_devices(mic_combo, output_combo)
     
     return mic_var, output_var, mic_combo, output_combo, vu_meter
+
+def validate_output_device(device_index):
+    """Validate if a device index is currently valid and working"""
+    try:
+        p = pyaudio.PyAudio()
+        try:
+            # Check if index exists
+            device_info = p.get_device_info_by_index(device_index)
+            
+            # Verify it's an output device
+            if device_info['maxOutputChannels'] == 0:
+                return False
+                
+            # Try to open a test stream
+            test_stream = p.open(
+                format=pyaudio.paInt16,
+                channels=1,
+                rate=16000,
+                output=True,
+                output_device_index=device_index,
+                frames_per_buffer=1024,
+                start=False
+            )
+            test_stream.close()
+            return True
+            
+        except Exception as e:
+            logging.debug(f"Device validation failed for index {device_index}: {e}")
+            return False
+            
+        finally:
+            p.terminate()
+            
+    except Exception:
+        return False
 
 def get_available_outputs():
     """Get list of available and working output devices"""
