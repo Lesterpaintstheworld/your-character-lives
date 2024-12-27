@@ -314,22 +314,43 @@ class DraggableVideoWindow:
             return
             
         try:
-            # Get frame from buffer
+            # Get frame from buffer with protection
             if self.frame_buffer:
                 frame = self.frame_buffer.pop(0)
                 
-                # Replenish buffer
-                ret, new_frame = self.cap.read()
-                if not ret:
-                    self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                # Validate frame before processing
+                if frame is None or frame.size == 0:
+                    self.logger.warning("Invalid frame detected, skipping")
+                    return
+                    
+                # Replenish buffer with protection
+                try:
+                    if self.cap is None or not self.cap.isOpened():
+                        self.logger.error("Video capture is not open")
+                        self.reopen_video()
+                        return
+                        
                     ret, new_frame = self.cap.read()
-                
-                if ret:
-                    self.frame_buffer.append(new_frame)
-                
+                    if not ret:
+                        self.logger.info("Reached end of video, resetting position")
+                        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        ret, new_frame = self.cap.read()
+                    
+                    if ret and new_frame is not None:
+                        self.frame_buffer.append(new_frame)
+                    
+                except Exception as e:
+                    self.logger.error(f"Error replenishing buffer: {e}")
+                    self.reopen_video()
+                    
                 if frame is not None:
                     self.last_valid_frame = frame.copy()
-                    self.display_frame(frame)
+                    try:
+                        self.display_frame(frame)
+                    except Exception as e:
+                        self.logger.error(f"Error displaying frame: {e}")
+                        if self.last_valid_frame is not None:
+                            self.display_frame(self.last_valid_frame)
                     
         except Exception as e:
             self.logger.error(f"Error updating video frame: {e}")
@@ -338,9 +359,12 @@ class DraggableVideoWindow:
             if hasattr(self, 'window') and self.window.winfo_exists():
                 # Get FPS with protection against zero
                 try:
-                    fps = self.cap.get(cv2.CAP_PROP_FPS)
-                    if fps <= 0 or not fps:
-                        fps = 30  # Default to 30fps if invalid
+                    if self.cap is None or not self.cap.isOpened():
+                        fps = 30  # Default fallback
+                    else:
+                        fps = self.cap.get(cv2.CAP_PROP_FPS)
+                        if fps <= 0 or not fps:
+                            fps = 30  # Default to 30fps if invalid
                     delay = max(1, int(1000 / fps))  # Ensure delay is at least 1ms
                 except:
                     delay = 33  # ~30fps as fallback
@@ -418,36 +442,51 @@ class DraggableVideoWindow:
                 self.transition_requested = True
                 self.fade_counter = self.fade_frames
                 
-                # Release current video capture
+                # Release current video capture with protection
                 if self.cap is not None:
-                    self.cap.release()
-                
-                # Open new video capture
-                self.cap = cv2.VideoCapture(self.idle_video_path)
-                if not self.cap.isOpened():
-                    raise ValueError(f"Failed to open idle video: {self.idle_video_path}")
-                
-                # Set video properties
-                self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
-                if sys.platform == 'win32':
-                    self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
-                
-                # Reset position to start of video
-                self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
-                
-                # Update current path
-                self.current_video_path = self.idle_video_path
-                
-                # Preload frames for smooth transition
-                self.preload_frames()
-                
-                self.logger.info("Successfully switched to idle video")
-                
+                    try:
+                        self.cap.release()
+                    except Exception as e:
+                        self.logger.warning(f"Error releasing capture: {e}")
+                        
+                # Open new video capture with retry
+                max_retries = 3
+                for attempt in range(max_retries):
+                    try:
+                        self.cap = cv2.VideoCapture(self.idle_video_path)
+                        if not self.cap.isOpened():
+                            raise ValueError(f"Failed to open idle video: {self.idle_video_path}")
+                        
+                        # Set video properties
+                        self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+                        if sys.platform == 'win32':
+                            self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                        
+                        # Reset position to start
+                        self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                        
+                        # Update current path
+                        self.current_video_path = self.idle_video_path
+                        
+                        # Preload frames
+                        self.preload_frames()
+                        
+                        self.logger.info("Successfully switched to idle video")
+                        break
+                        
+                    except Exception as e:
+                        if attempt < max_retries - 1:
+                            self.logger.warning(f"Attempt {attempt + 1} failed, retrying: {e}")
+                            time.sleep(0.5)
+                        else:
+                            self.logger.error(f"Failed to switch to idle video after {max_retries} attempts: {e}")
+                            raise
+                        
         except Exception as e:
             self.logger.error(f"Failed to switch to idle video: {e}")
             # Try to recover by reopening current video
             try:
-                self.cap = cv2.VideoCapture(self.current_video_path)
+                self.reopen_video()
             except Exception as recover_error:
                 self.logger.error(f"Recovery failed: {recover_error}")
 
@@ -455,3 +494,29 @@ class DraggableVideoWindow:
         """Release resources"""
         if hasattr(self, 'cap') and self.cap is not None:
             self.cap.release()
+    def reopen_video(self):
+        """Reopen video capture if it fails"""
+        try:
+            if self.cap is not None:
+                self.cap.release()
+                
+            self.cap = cv2.VideoCapture(self.current_video_path)
+            if not self.cap.isOpened():
+                raise ValueError(f"Failed to open video: {self.current_video_path}")
+                
+            # Set video properties
+            self.cap.set(cv2.CAP_PROP_BUFFERSIZE, 3)
+            if sys.platform == 'win32':
+                self.cap.set(cv2.CAP_PROP_FOURCC, cv2.VideoWriter_fourcc(*'MJPG'))
+                
+            # Reset position to start
+            self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+            
+            # Preload frames
+            self.preload_frames()
+            
+            self.logger.info(f"Successfully reopened video: {self.current_video_path}")
+            
+        except Exception as e:
+            self.logger.error(f"Failed to reopen video: {e}")
+            raise
