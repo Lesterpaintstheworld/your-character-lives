@@ -1360,6 +1360,8 @@ if __name__ == "__main__":
                 videos_dir = os.path.join(script_dir, "videos")
                 idle_path = os.path.join(videos_dir, "loop.mp4")
                 talk_path = os.path.join(videos_dir, "talk.mp4")
+                idle_path2 = os.path.join(videos_dir, "loop2.mp4")
+                talk_path2 = os.path.join(videos_dir, "talk2.mp4")
 
                 if not os.path.exists(videos_dir):
                     os.makedirs(videos_dir)
