@@ -229,15 +229,24 @@ async def process_audio_chunk(audio_data: bytes):
         logging.debug(f"Response type: {type(response)}")
         logging.debug(f"Response content: {response}")
         
-        # Extract audio data from data_0 and data_1 keys
+        # Initialize list to store audio data
         audio_files = []
-        for key in ['data_0', 'data_1']:
-            if key in response:
-                audio_files.append(response[key])
+        
+        # Handle both list and dictionary responses
+        if isinstance(response, dict):
+            # If dictionary, look for data_0 and data_1 keys
+            for key in ['data_0', 'data_1']:
+                if key in response:
+                    audio_files.append(response[key])
+        elif isinstance(response, list):
+            # If list, use all elements as audio data
+            audio_files = response
+        else:
+            logging.error(f"Unexpected response type: {type(response)}")
+            return
         
         if not audio_files:
-            logging.error("No audio data found in data_0 or data_1 keys")
-            logging.debug(f"Available keys: {list(response.keys())}")
+            logging.error("No audio data found in response")
             return
 
         # Process each audio file
