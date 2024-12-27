@@ -298,12 +298,26 @@ async def process_audio_chunk(audio_data: bytes):
                 for i in range(p.get_device_count()):
                     info = p.get_device_info_by_index(i)
                     if device_name.lower() in info['name'].lower():
-                        device_index = i
-                        break
+                        if validate_output_device(i):
+                            device_index = i
+                            break
             
+            # Fall back to default device if selected device not found or not working
             if device_index is None:
                 info = p.get_default_output_device_info()
-                device_index = info['index']
+                if validate_output_device(info['index']):
+                    device_index = info['index']
+                else:
+                    # Last resort: try any working output device
+                    for i in range(p.get_device_count()):
+                        if validate_output_device(i):
+                            device_index = i
+                            break
+            
+            if device_index is None:
+                raise RuntimeError("No working output device found")
+                
+            logging.info(f"Using output device index: {device_index}")
 
             # Load and convert audio with error checking
             try:
