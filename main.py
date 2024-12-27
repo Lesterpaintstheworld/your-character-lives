@@ -247,10 +247,10 @@ async def process_audio_chunk(audio_data: bytes):
                 
                 try:
                     # Save audio data to temporary file with .mp3 extension
-            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
-                temp_path = temp_file.name
-                temp_file.write(audio_bytes)
-                temp_file.flush()
+                    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+                        temp_path = temp_file.name
+                        temp_file.write(audio_bytes)
+                        temp_file.flush()
                 
             # Get selected output device name
             selected = output_var.get() if output_var else None
