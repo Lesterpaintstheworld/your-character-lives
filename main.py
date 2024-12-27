@@ -225,6 +225,10 @@ async def process_audio_chunk(audio_data: bytes):
         # Decode the response as JSON first
         response = json.loads(audio_data)
         
+        # Log the response for debugging
+        logging.debug(f"Response type: {type(response)}")
+        logging.debug(f"Response content: {response}")
+        
         # Initialize audio_files list
         audio_files = []
         
@@ -246,21 +250,17 @@ async def process_audio_chunk(audio_data: bytes):
             return
 
         # Process each audio file
-        for i, audio_base64 in enumerate(audio_files):
+        for i, audio_data in enumerate(audio_files):
             temp_path = None
             p = None
             stream = None
             
             try:
-                # Decode the base64 audio data
-                audio_bytes = base64.b64decode(audio_base64)
-                
-                try:
-                    # Save audio data to temporary file with .mp3 extension
-                    with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
-                        temp_path = temp_file.name
-                        temp_file.write(audio_bytes)
-                        temp_file.flush()
+                # Write audio data directly to temporary file
+                with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
+                    temp_path = temp_file.name
+                    temp_file.write(audio_data if isinstance(audio_data, bytes) else audio_data.encode())
+                    temp_file.flush()
                 except Exception as e:
                     logging.error(f"Error saving temporary audio file: {e}")
                     raise
