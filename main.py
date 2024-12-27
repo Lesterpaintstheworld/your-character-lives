@@ -268,8 +268,8 @@ async def process_audio_chunk(audio_data: bytes):
                 p = pyaudio.PyAudio()
                 
                 try:
-                # First try to find selected device
-                if selected:
+                    # First try to find selected device
+                    if selected:
                     device_name = re.match(r'^([^(]+)', selected).group(1).strip()
                     logging.info(f"Looking for selected device: {device_name}")
                     
