@@ -251,9 +251,12 @@ async def process_audio_chunk(audio_data: bytes):
                         temp_path = temp_file.name
                         temp_file.write(audio_bytes)
                         temp_file.flush()
+                except Exception as e:
+                    logging.error(f"Error saving temporary audio file: {e}")
+                    raise
                 
-            # Get selected output device name
-            selected = output_var.get() if output_var else None
+                # Get selected output device name
+                selected = output_var.get() if output_var else None
             device_index = None
             
             # Don't play if paused
