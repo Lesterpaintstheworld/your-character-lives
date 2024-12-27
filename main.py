@@ -1129,10 +1129,7 @@ def toggle_auto_recording():
                             
                     # Process audio response
                     await process_audio_chunk(binary_data)
-                    except Exception as e:
-                        logging.error(f"Error processing response: {e}")
-                        raise
-                    
+
                 except Exception as e:
                     logging.error(f"Error in auto recording loop: {e}")
                     update_status(f"❌ Auto recording error: {str(e)}")
