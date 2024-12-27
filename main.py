@@ -238,8 +238,8 @@ async def process_audio_chunk(audio_data: bytes):
         temp_path = None
         p = None
         stream = None
-            
-            try:
+        
+        try:
                 # Decode base64 audio data
                 audio_bytes = base64.b64decode(audio_file)
                 
