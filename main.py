@@ -461,14 +461,16 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
             except Exception as e:
                 logging.warning(f"Failed to remove temp file: {e}")
                 
-        # Switch back to idle video after playback
+        # Switch back to idle video after playback with verification
         logging.info("Switching back to idle video...")
         if is_daemon:
             if second_video_window:
                 second_video_window.switch_to_idle_video()
+                logging.info(f"Daemon video path after idle switch: {second_video_window.current_video_path}")
         else:
             if current_video_window:
                 current_video_window.switch_to_idle_video()
+                logging.info(f"Emily video path after idle switch: {current_video_window.current_video_path}")
 
 def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) -> bool:
     """Safely remove a file with retries and proper cleanup."""
