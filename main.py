@@ -1136,13 +1136,17 @@ def create_device_selectors():
     style.configure('Modern.TFrame', 
         background=ThemeColors.BG_DARK)
 
-    # Main device frame
-    device_frame = ttk.Frame(root, style='Modern.TFrame')
-    device_frame.pack(fill='x', padx=10, pady=5)
+    # Create a SINGLE main frame to contain all controls
+    main_frame = ttk.Frame(root, style='Modern.TFrame')
+    main_frame.pack(fill='x', padx=10, pady=5)
 
-    # Play/Pause button with modern styling
+    # Controls row (play/pause, auto recording)
+    controls_frame = ttk.Frame(main_frame, style='Modern.TFrame')
+    controls_frame.pack(fill='x', pady=(0, 5))
+
+    # Play/Pause button
     global play_pause_btn
-    play_pause_btn = tk.Button(device_frame, text="⏸️", width=3,
+    play_pause_btn = tk.Button(controls_frame, text="⏸️", width=3,
         command=toggle_play_pause,
         bg=ThemeColors.ACCENT_PRIMARY,
         fg=ThemeColors.TEXT_BRIGHT,
@@ -1153,77 +1157,135 @@ def create_device_selectors():
         padx=10,
         pady=5)
     play_pause_btn.pack(side='left', padx=5)
-    
-    # Create auto recording frame
-    auto_frame = tk.Frame(device_frame)
+
+    # Auto recording controls
+    auto_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
     auto_frame.pack(side='left', padx=5)
 
-    # Add auto recording button
     global auto_btn
-    auto_btn = tk.Button(auto_frame, text="🔄 Auto OFF", width=8, command=toggle_auto_recording)
+    auto_btn = tk.Button(auto_frame, text="🔄 Auto OFF",
+        command=toggle_auto_recording,
+        bg=ThemeColors.ACCENT_SECONDARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
     auto_btn.pack(side='left')
 
-    # Add interval spinbox
-    tk.Label(auto_frame, text="Interval:").pack(side='left', padx=(5,0))
+    # Interval controls
+    tk.Label(auto_frame, text="Interval:",
+        bg=ThemeColors.BG_DARK,
+        fg=ThemeColors.TEXT_SECONDARY).pack(side='left', padx=(5,0))
+    
     global interval_spinbox
-    interval_spinbox = tk.Spinbox(auto_frame, from_=5, to=3600, width=5, increment=5)
+    interval_spinbox = tk.Spinbox(auto_frame, from_=5, to=3600, width=5,
+        bg=ThemeColors.BG_LIGHT,
+        fg=ThemeColors.TEXT_PRIMARY,
+        buttonbackground=ThemeColors.ACCENT_SECONDARY,
+        relief='flat',
+        highlightthickness=1,
+        highlightbackground=ThemeColors.BORDER,
+        highlightcolor=ThemeColors.ACCENT_SECONDARY)
     interval_spinbox.delete(0, tk.END)
-    interval_spinbox.insert(0, "30")  # default value
+    interval_spinbox.insert(0, "30")
     interval_spinbox.pack(side='left', padx=(0,5))
-    tk.Label(auto_frame, text="sec").pack(side='left')
     
-    # Input device selector
-    input_frame = tk.Frame(device_frame)
-    input_frame.pack(fill='x', pady=(0, 2))
-    tk.Label(input_frame, text="Input Device:").pack(side='left')
+    tk.Label(auto_frame, text="sec",
+        bg=ThemeColors.BG_DARK,
+        fg=ThemeColors.TEXT_SECONDARY).pack(side='left')
+
+    # Device selection frame
+    devices_frame = ttk.Frame(main_frame, style='Modern.TFrame')
+    devices_frame.pack(fill='x', pady=5)
+
+    # Input device
+    input_frame = ttk.Frame(devices_frame, style='Modern.TFrame')
+    input_frame.pack(fill='x', pady=2)
+    tk.Label(input_frame, text="Input Device:",
+        bg=ThemeColors.BG_DARK,
+        fg=ThemeColors.TEXT_PRIMARY).pack(side='left')
     
+    global mic_var
     mic_var = tk.StringVar()
-    mic_combo = ttk.Combobox(input_frame, textvariable=mic_var, state='readonly')
+    mic_combo = ttk.Combobox(input_frame, textvariable=mic_var, state='readonly', style='Modern.TCombobox')
     mic_combo.pack(side='left', fill='x', expand=True, padx=(5, 0))
+
+    # Output device
+    output_frame = ttk.Frame(devices_frame, style='Modern.TFrame')
+    output_frame.pack(fill='x', pady=2)
+    tk.Label(output_frame, text="Output Device:",
+        bg=ThemeColors.BG_DARK,
+        fg=ThemeColors.TEXT_PRIMARY).pack(side='left')
     
-    # Output device selector
-    output_frame = tk.Frame(device_frame)
-    output_frame.pack(fill='x', pady=(2, 0))
-    tk.Label(output_frame, text="Output Device:").pack(side='left')
-    
+    global output_var
     output_var = tk.StringVar()
-    output_combo = ttk.Combobox(output_frame, textvariable=output_var, state='readonly')
+    output_combo = ttk.Combobox(output_frame, textvariable=output_var, state='readonly', style='Modern.TCombobox')
     output_combo.pack(side='left', fill='x', expand=True, padx=(5, 0))
-    
-    # Refresh button (shared for both devices)
-    refresh_btn = tk.Button(device_frame, text="🔄", command=lambda: refresh_devices(mic_combo, output_combo))
+
+    # Refresh button
+    refresh_btn = tk.Button(devices_frame, text="🔄",
+        command=lambda: refresh_devices(mic_combo, output_combo),
+        bg=ThemeColors.ACCENT_SECONDARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0)
     refresh_btn.pack(side='right', padx=(5, 0))
-    
-    # Add VU meter
-    vu_frame = tk.Frame(root)
-    vu_frame.pack(fill='x', padx=5, pady=2)
-    tk.Label(vu_frame, text="Input Level:").pack(side='left')
+
+    # VU meter
+    vu_frame = ttk.Frame(main_frame, style='Modern.TFrame')
+    vu_frame.pack(fill='x', pady=5)
+    tk.Label(vu_frame, text="Input Level:",
+        bg=ThemeColors.BG_DARK,
+        fg=ThemeColors.TEXT_PRIMARY).pack(side='left')
     vu_meter = VUMeter(vu_frame, width=200, height=20)
     vu_meter.pack(side='left', fill='x', expand=True, padx=(5, 0))
 
-    # Add endpoint configuration frame (in a separate frame after VU meter)
-    endpoints_frame = tk.Frame(root)
-    endpoints_frame.pack(fill='x', padx=5, pady=2)
-    
+    # Endpoints frame
+    endpoints_frame = ttk.Frame(main_frame, style='Modern.TFrame')
+    endpoints_frame.pack(fill='x', pady=5)
+
     # Emily endpoint
-    emily_frame = tk.Frame(endpoints_frame)
+    emily_frame = ttk.Frame(endpoints_frame, style='Modern.TFrame')
     emily_frame.pack(fill='x', pady=2)
-    tk.Label(emily_frame, text="Emily Endpoint:").pack(side='left')
+    tk.Label(emily_frame, text="Emily Endpoint:",
+        bg=ThemeColors.BG_DARK,
+        fg=ThemeColors.TEXT_PRIMARY).pack(side='left')
     emily_endpoint_var = tk.StringVar(value=NetworkConstants.DEFAULT_ENDPOINT_EMILY)
-    emily_endpoint_entry = tk.Entry(emily_frame, textvariable=emily_endpoint_var, width=40)
-    emily_endpoint_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
-    
+    emily_entry = tk.Entry(emily_frame, textvariable=emily_endpoint_var,
+        bg=ThemeColors.BG_LIGHT,
+        fg=ThemeColors.TEXT_PRIMARY,
+        insertbackground=ThemeColors.TEXT_PRIMARY,
+        relief='flat',
+        highlightthickness=1,
+        highlightbackground=ThemeColors.BORDER,
+        highlightcolor=ThemeColors.ACCENT_SECONDARY)
+    emily_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
+
     # Daemon endpoint
-    daemon_frame = tk.Frame(endpoints_frame)
+    daemon_frame = ttk.Frame(endpoints_frame, style='Modern.TFrame')
     daemon_frame.pack(fill='x', pady=2)
-    tk.Label(daemon_frame, text="Daemon Endpoint:").pack(side='left')
+    tk.Label(daemon_frame, text="Daemon Endpoint:",
+        bg=ThemeColors.BG_DARK,
+        fg=ThemeColors.TEXT_PRIMARY).pack(side='left')
     daemon_endpoint_var = tk.StringVar(value=NetworkConstants.DEFAULT_ENDPOINT_DAEMON)
-    daemon_endpoint_entry = tk.Entry(daemon_frame, textvariable=daemon_endpoint_var, width=40)
-    daemon_endpoint_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
-    
+    daemon_entry = tk.Entry(daemon_frame, textvariable=daemon_endpoint_var,
+        bg=ThemeColors.BG_LIGHT,
+        fg=ThemeColors.TEXT_PRIMARY,
+        insertbackground=ThemeColors.TEXT_PRIMARY,
+        relief='flat',
+        highlightthickness=1,
+        highlightbackground=ThemeColors.BORDER,
+        highlightcolor=ThemeColors.ACCENT_SECONDARY)
+    daemon_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
+
     # Initial population of device lists
     refresh_devices(mic_combo, output_combo)
-    
+
     return mic_var, output_var, mic_combo, output_combo, vu_meter, emily_endpoint_var, daemon_endpoint_var
 
 def validate_output_device(device_index):
