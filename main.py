@@ -166,8 +166,8 @@ def collect_text_files_content():
             logging.debug(f"Found files: {files}")
             
             for file in files:
-                # Case-insensitive extension check
-                if file.lower().endswith(('.md', '.txt')):
+                # Case-insensitive extension check for text and code files
+                if file.lower().endswith(('.md', '.txt', '.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.ts', '.html', '.css', '.sql', '.r', '.m', '.scala', '.pl', '.sh', '.bat')):
                     full_path = os.path.join(root, file)
                     try:
                         rel_path = os.path.relpath(full_path, base_dir)
