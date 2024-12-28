@@ -23,6 +23,8 @@ def main():
         '--log-level=DEBUG',
         '--noupx',  # Avoid UPX compression which triggers some antiviruses
         '--disable-windowed-traceback',
+        
+        # Exclude problematic/unnecessary packages
         '--exclude-module', 'PyQt6',
         '--exclude-module', 'matplotlib_inline',
         '--exclude-module', 'IPython',
@@ -30,13 +32,27 @@ def main():
         '--exclude-module', 'nbconvert', 
         '--exclude-module', 'nbformat',
         '--exclude-module', 'notebook',
+        '--exclude-module', 'torch',
+        '--exclude-module', 'torchaudio',
+        '--exclude-module', 'timm',
+        '--exclude-module', 'nltk',
     ]
 
-    # Add hidden imports
+    # Add hidden imports for core functionality only
     hidden_imports = [
-        'queue', 'pyaudio', 'pygame', 'PIL', 'requests', 'wave',
-        'numpy', 'tkinter', 'asyncio', 'io', 'threading', 
-        'logging', 'argparse'
+        'queue', 
+        'pyaudio', 
+        'pygame', 
+        'PIL', 
+        'requests', 
+        'wave',
+        'numpy', 
+        'tkinter', 
+        'asyncio', 
+        'io', 
+        'threading', 
+        'logging', 
+        'argparse'
     ]
     options.extend([f'--hidden-import={imp}' for imp in hidden_imports])
 
