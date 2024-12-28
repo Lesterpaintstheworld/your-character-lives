@@ -93,6 +93,7 @@ auto_recording_task = None
 output_var = None  # Will store output device selection
 emily_endpoint_var = None  # Will store Emily endpoint
 daemon_endpoint_var = None  # Will store Daemon endpoint
+ui_elements_created = False  # Track UI element creation
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -1122,6 +1123,16 @@ def toggle_auto_recording():
 
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
+    global ui_elements_created
+    
+    # Check if UI elements have already been created
+    if ui_elements_created:
+        logging.warning("UI elements already created - skipping creation")
+        return None, None, None, None, None, None, None
+        
+    logging.info("Creating UI elements for first time")
+    ui_elements_created = True
+    
     # Configure root window style
     root.configure(bg=ThemeColors.BG_DARK)
     
@@ -1681,8 +1692,10 @@ if __name__ == "__main__":
         text_widget.insert(tk.END, "Initializing CK3 AI Assistant...\n")
         root.update()
             
-        # Get all variables from device selectors including endpoints
-        mic_var, output_var, mic_combo, output_combo, vu_meter, emily_endpoint_var, daemon_endpoint_var = create_device_selectors()
+        # Create UI elements ONCE
+        result = create_device_selectors()
+        if result[0] is not None:  # Only assign if creation was successful
+            mic_var, output_var, mic_combo, output_combo, vu_meter, emily_endpoint_var, daemon_endpoint_var = result
 
         # Initialize video window in a separate thread
         def create_test_video():
