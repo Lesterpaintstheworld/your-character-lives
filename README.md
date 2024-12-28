@@ -141,6 +141,18 @@ Each character:
 - Provides unique perspectives and responses
 - Features individual interaction styles
 
+## Character Interaction
+
+The system alternates between two AI characters:
+1. **Emily**: First character to respond
+2. **Daemon**: Responds 30 seconds after Emily
+
+Each character:
+- Has their own distinct video avatar
+- Processes game context independently
+- Provides unique perspectives and responses
+- Features individual interaction styles
+
 ## Support
 
 For help:
