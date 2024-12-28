@@ -31,20 +31,6 @@ python main.py
 ```
 
 
-## Game Integration Installation (Optional)
-
-If you want to also use the CK3 game integration features:
-
-1. **Install CK3 Mod**
-- Copy the `mod` folder contents to:
-  - Windows: `Documents/Paradox Interactive/Crusader Kings III/mod/`
-  - Linux: `~/.local/share/Paradox Interactive/Crusader Kings III/mod/`
-- Activate the mod in the CK3 launcher
-
-2. **Start with Game Integration**
-```bash
-python main.py --with-game
-```
 
 ## System Requirements
 

@@ -13,7 +13,7 @@ PyInstaller.__main__.run([
     'main.py',
     '--onefile',
     '--noconsole',
-    '--name', 'CK3_AI_Assistant',
+    '--name', 'AI_Assistant',
     '--log-level=DEBUG',
     '--exclude-module', 'PyQt6',
     '--exclude-module', 'matplotlib_inline',

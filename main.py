@@ -1333,7 +1333,7 @@ def update_mic_status(combo):
 
 # Create main window
 root = tk.Tk()
-root.title("CK3 AI Character Response")
+root.title("AI Assistant")
 
 # Create text widget first
 text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)

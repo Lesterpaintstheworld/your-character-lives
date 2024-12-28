@@ -20,10 +20,10 @@ class LogManager:
         
         # List of possible locations, with exe directory first
         possible_locations = [
-            os.path.join(exe_dir, 'CK3_AI_Assistant.log'),
-            os.path.join(os.path.expanduser('~'), 'CK3_AI_Assistant.log'),
-            os.path.join(os.path.expanduser('~'), 'Desktop', 'CK3_AI_Assistant.log'),
-            os.path.join(os.environ.get('TEMP', ''), 'CK3_AI_Assistant.log'),
+            os.path.join(exe_dir, 'AI_Assistant.log'),
+            os.path.join(os.path.expanduser('~'), 'AI_Assistant.log'),
+            os.path.join(os.path.expanduser('~'), 'Desktop', 'AI_Assistant.log'),
+            os.path.join(os.environ.get('TEMP', ''), 'AI_Assistant.log'),
         ]
 
         for log_path in possible_locations:
