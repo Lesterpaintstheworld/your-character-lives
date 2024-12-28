@@ -28,75 +28,142 @@ Areas of expertise:
 - Financial Analysis & Crypto
 
 
-## Composants principaux
-1. Système de capture d'écran et d'analyse d'image
-2. Système de mise en cache des données de jeu
-3. Système de requête pour récupérer des informations spécifiques du jeu
-4. Système de journalisation des événements
-5. Système d'analyse de marché
-6. Système de gestion de portefeuille
-7. Outils d'analyse technique
-8. Commande console personnalisée pour les mises à jour manuelles
-9. Sérialisation des données pour la transmission externe
-10. Système de repli pour gérer les données incomplètes ou corrompues
-11. Interface utilisateur pour les interactions vocales et textuelles
-12. Intégration avec Xata pour le stockage des données
+## Core Components
+1. Multi-Modal Input Processing
+   - Voice recognition and analysis
+   - Image/video processing
+   - Text and document analysis
+   - Real-time data streams
 
-## Flux de travail
-1. Capturer périodiquement l'écran du jeu
-2. Analyser l'image pour extraire les informations pertinentes
-3. Analyser en parallèle les marchés crypto
-4. Générer des recommandations d'investissement
-5. Exécuter les stratégies de trading définies
-6. Mettre à jour le cache local des données
-7. Envoyer les données mises à jour à l'API
-8. L'IA traite les données et génère des réponses
-9. Afficher les réponses et lire l'audio via l'interface utilisateur
-10. Capturer les entrées vocales/textuelles de l'utilisateur
-11. Répéter le processus pour maintenir une interaction continue
+2. Dual AI Processing System
+   - Emily: Creative interpretation and strategy
+   - Daemon: Technical analysis and implementation
+   
+3. Domain-Specific Modules
+   - Gaming & Interactive Experience Engine
+   - Music & Audio Production System
+   - Content Creation & Writing Tools
+   - Web Development Framework
+   - Financial Analysis Platform
 
-## Détails techniques
-- Utilisation de Python pour le script principal
-- Intégration avec des APIs de trading crypto
-- Bibliothèques :
-  - ccxt pour l'interaction avec les exchanges
-  - pandas pour l'analyse de données
-  - ta-lib pour l'analyse technique
-  - requests pour les appels REST
-  - python-dotenv pour la gestion des variables d'environnement
-  - PyAudio pour la capture audio
-  - ccxt pour l'interaction avec les exchanges
-  - pandas pour l'analyse de données
-  - ta-lib pour l'analyse technique
-- API endpoint : à définir lors de la configuration
-- Intégration avec Xata pour le stockage cloud
-- Utilisation de l'API de modding CK3 pour les événements et triggers personnalisés
+4. Integration Systems
+   - Real-time voice interaction
+   - Visual avatar system
+   - Data synchronization
+   - Cross-domain context management
 
-## Fonctionnalités
-- Parseur de fichier de sauvegarde CK3 robuste
-- Système de surveillance périodique des fichiers de sauvegarde
-- Système de différenciation pour détecter les changements entre les versions de sauvegarde
-- Système de mise en cache des données de jeu pour un accès rapide
-- Système de requête pour récupérer des informations spécifiques du jeu
-- Système de journalisation des événements importants
-- Commande console personnalisée pour les mises à jour manuelles de l'état du jeu
-- Sérialisation des données pour la transmission à n8n
-- Système de repli pour gérer les données incomplètes ou corrompues
-- Intégration avec n8n pour l'orchestration des flux de travail
-- Interface utilisateur pour les interactions vocales et textuelles
-- Intégration avec Xata pour le stockage des données de conversation et de personnage
-- Capture audio du microphone de l'utilisateur
-- Synthèse vocale pour les réponses de l'IA
-- Gestion des erreurs et reconnexion en cas de problème
-- Configuration via fichier .env pour la sécurité des clés API
-- Utilisation de prompts système et de personnage pour définir le comportement de l'IA
+5. Output Generation
+   - Voice synthesis
+   - Visual feedback
+   - Technical documentation
+   - Strategic recommendations
 
-## Fonctionnalités implémentées
-- Structure de base du mod CK3
-- Intégration avec n8n pour l'orchestration des flux de travail
-- Utilisation de prompts système et de personnage
-- Capture audio du microphone et envoi à n8n
-- Lecture de la réponse audio générée
+## Workflow
+1. Input Processing
+   - Capture multi-modal inputs (voice, visual, text)
+   - Pre-process and normalize data
+   - Route to appropriate domain module
+
+2. Context Analysis
+   - Emily: Creative interpretation and pattern recognition
+   - Daemon: Technical validation and feasibility analysis
+   - Cross-domain context integration
+
+3. Response Generation
+   - Emily: Strategic direction and creative solutions
+   - Daemon: Technical implementation and optimization
+   - Coordinated dual-perspective output
+
+4. Delivery
+   - Synchronized audio-visual response
+   - Technical documentation generation
+   - Implementation guidelines
+   - Follow-up monitoring
+
+## Technical Details
+- Python-based core system
+- Real-time audio processing with PyAudio
+- Video rendering with OpenCV
+- UI with Tkinter
+- Threading for parallel processing
+
+Key Libraries:
+- PyAudio for voice capture/playback
+- OpenCV for video processing
+- Tkinter for UI
+- Numpy for data processing
+- Requests for API communication
+- Threading for concurrent operations
+
+APIs and Services:
+- OpenAI Whisper for speech recognition
+- OpenAI TTS for voice synthesis
+- Custom endpoints for domain-specific processing
+- Cloud storage for session persistence
+
+## Features
+
+### Core Features
+- Dual AI personality system (Emily & Daemon)
+- Real-time voice interaction
+- Visual avatar system
+- Multi-domain expertise
+- Context-aware responses
+
+### Domain-Specific Features
+
+#### Gaming & Interactive
+- Game mechanics analysis
+- Player behavior insights
+- Interactive experience optimization
+- Community engagement strategies
+
+#### Music & Audio
+- Sound design consultation
+- Music production guidance
+- Audio optimization
+- Platform-specific recommendations
+
+#### Content Creation
+- Writing style analysis
+- Content strategy development
+- SEO optimization
+- Multi-format adaptation
+
+#### Web Development
+- Technical architecture review
+- UI/UX recommendations
+- Performance optimization
+- Security assessment
+
+#### Financial Analysis
+- Market trend analysis
+- Risk assessment
+- Strategy optimization
+- Technical analysis
+
+## Interaction Model
+
+### Emily's Role
+- Creative direction and strategy
+- Pattern recognition across domains
+- User engagement optimization
+- High-level problem solving
+- Quality standards maintenance
+
+### Daemon's Role
+- Technical implementation
+- Data analysis and validation
+- Performance optimization
+- Security and stability
+- System integration
+
+### Collaborative Features
+- Sequential response system
+- Complementary expertise
+- Cross-domain synthesis
+- Balanced perspective delivery
+- Unified output generation
 
 ## Fonctionnalités futures
 - Amélioration de la précision du parseur de fichier de sauvegarde
