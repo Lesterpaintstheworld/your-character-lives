@@ -39,16 +39,21 @@ def update_status(message):
     print(message)
 
 def take_screenshot():
-    """Capture a screenshot, resize it, and return it as base64 string."""
-    screenshot = pyautogui.screenshot()
-    
-    # Resize the image to reduce file size (adjust dimensions as needed)
-    max_size = (1024, 576)  # Reduced size for faster processing
-    screenshot.thumbnail(max_size, Image.LANCZOS)
-    
-    img_byte_arr = io.BytesIO()
-    screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)  # Use JPEG for smaller file size
-    return base64.b64encode(img_byte_arr.getvalue()).decode('utf-8')
+    """Capture a screenshot, resize it, and return it as binary data."""
+    try:
+        screenshot = pyautogui.screenshot()
+        
+        # Resize the image to reduce file size
+        max_size = (1024, 576)  # Reduced size for faster processing
+        screenshot.thumbnail(max_size, Image.LANCZOS)
+        
+        # Convert to bytes
+        img_byte_arr = io.BytesIO()
+        screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
+        return img_byte_arr.getvalue()  # Return binary data directly
+    except Exception as e:
+        logging.error(f"Screenshot error: {e}")
+        return None
 
 async def process_audio_chunk(audio_data: bytes):
     """Process and play audio data with improved error handling and fallback."""

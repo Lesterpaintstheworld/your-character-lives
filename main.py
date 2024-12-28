@@ -1526,39 +1526,55 @@ async def api_client(interval):
         # First character (Emily)
         update_status("Starting Emily's recording cycle...")
         
-        # Take pre-recording screenshot for Emily
-        logging.info("Taking pre-recording screenshot for Emily...")
+        # Take screenshots and ensure they're not None
         pre_screenshot_emily = take_screenshot()
-        
+        if pre_screenshot_emily is None:
+            raise ValueError("Failed to capture pre-recording screenshot")
+            
         # Record audio for Emily
-        logging.info("Starting 15-second recording for Emily...")
         audio_data = record_audio(15)
-        
-        # Take post-recording screenshot for Emily
-        logging.info("Taking post-recording screenshot for Emily...")
+        if audio_data is None:
+            raise ValueError("Failed to record audio")
+            
         post_screenshot_emily = take_screenshot()
+        if post_screenshot_emily is None:
+            raise ValueError("Failed to capture post-recording screenshot")
         
+        # Collect text content
         text_content = collect_text_files_content()
 
-        data = {'text': text_content}
+        # Prepare multipart form data
         files = {
             'pre_screenshot': ('pre_screenshot.jpg', pre_screenshot_emily, 'image/jpeg'),
             'post_screenshot': ('post_screenshot.jpg', post_screenshot_emily, 'image/jpeg'),
             'audio': ('audio.wav', audio_data, 'audio/wav')
         }
 
-        # Use endpoint variables instead of constants
+        # Add text content to form data
+        data = {'text': text_content}
+
+        # Get endpoints from UI
         emily_endpoint = emily_endpoint_var.get()
         daemon_endpoint = daemon_endpoint_var.get()
 
-        # Send request for Emily
-        logging.info("Sending data to Emily endpoint...")
+        # Log request details
+        logging.info(f"Sending request to Emily endpoint: {emily_endpoint}")
+        logging.info(f"Files being sent: {[k for k in files.keys()]}")
+        logging.info(f"Screenshot sizes - Pre: {len(pre_screenshot_emily)}, Post: {len(post_screenshot_emily)}")
+
+        # Send request with explicit content types
         response = requests.post(
             emily_endpoint,
             data=data,
             files=files,
-            timeout=NetworkConstants.REQUEST_TIMEOUT
+            timeout=NetworkConstants.REQUEST_TIMEOUT,
+            headers={'Accept': 'application/octet-stream'}
         )
+
+        # Log response details
+        logging.info(f"Response status: {response.status_code}")
+        logging.info(f"Response headers: {response.headers}")
+        logging.info(f"Response content type: {response.headers.get('content-type')}")
         
         # Process Emily's response and wait for completion
         if response.status_code == 200:
