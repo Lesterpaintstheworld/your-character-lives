@@ -12,8 +12,8 @@ class NetworkConstants:
     RECONNECT_DELAY = 5
     MAX_RETRIES = 3
     DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
-    N8N_ENDPOINT_EMILY = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint-emily"
-    N8N_ENDPOINT_DAEMON = "https://nlr.app.n8n.cloud/webhook/ycl-enpoint-daemon"
+    N8N_ENDPOINT_EMILY = "https://nlr.app.n8n.cloud/webhook/song-writing-emily"
+    N8N_ENDPOINT_DAEMON = "https://nlr.app.n8n.cloud/webhook/song-writing-daemon"
 
 class UIConstants:
     WINDOW_WIDTH = 80
