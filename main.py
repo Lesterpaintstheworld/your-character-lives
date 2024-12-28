@@ -1552,12 +1552,15 @@ if __name__ == "__main__":
     # Initialize logging first
     logging.info("Starting CK3 AI Assistant...")
     
-    # Initialize UI
+    # Initialize UI and get endpoint variables
     try:
         logging.info("Initializing UI...")
         root.protocol("WM_DELETE_WINDOW", on_closing)
         text_widget.insert(tk.END, "Initializing CK3 AI Assistant...\n")
         root.update()
+            
+        # Get all variables from device selectors including endpoints
+        mic_var, output_var, mic_combo, output_combo, vu_meter, emily_endpoint_var, daemon_endpoint_var = create_device_selectors()
 
         # Initialize video window in a separate thread
         def create_test_video():
