@@ -54,6 +54,11 @@
 - Channels: Mono
 - Buffer Size: 1024 samples
 - Device hot-plugging support
+- Automatic device detection and testing
+- Real-time VU meter monitoring
+- Multiple device selection support
+- Fallback device handling
+- Audio format conversion
 
 ### Video System
 - Format: MP4 (H.264)
@@ -61,6 +66,12 @@
 - FPS: 30
 - Alpha channel support
 - Hardware acceleration when available
+- Borderless window support
+- Draggable/resizable windows
+- Transparency control
+- Smooth video transitions
+- Multiple avatar support
+- Resource cleanup on exit
 
 ### Network
 - REST API endpoints
@@ -69,10 +80,13 @@
 - Request interval: 5-3600 seconds
 
 ### Performance
-- CPU: < 10% average usage
-- Memory: < 500MB working set
-- Disk: < 1GB total space
-- Network: < 1MB/s bandwidth
+- CPU: < 15% average usage
+- Memory: < 750MB working set
+- Disk: < 2GB total space
+- Network: < 2MB/s bandwidth
+- Frame rate: 30 FPS minimum
+- Audio latency: < 100ms
+- Response time: < 2s average
 
 ## Security Considerations
 

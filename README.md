@@ -105,17 +105,23 @@ Available options:
 ## Project Structure
 
 ```
-ai-assistant/
+ck3-ai-assistant/
 ├── main.py              # Main application entry
-├── requirements.txt     # Python dependencies
-├── config/             # Configuration files
-│   ├── domains/        # Domain-specific settings
-│   └── profiles/       # AI personality profiles
-├── modules/            # Domain-specific modules
-├── resources/          # Media and assets
-│   ├── avatars/        # Visual avatar files
-│   └── audio/         # Audio resources
-└── documentation/      # Detailed documentation
+├── audio_manager.py     # Audio recording/playback
+├── device_manager.py    # Hardware device management  
+├── video_window.py      # Video avatar system
+├── thread_manager.py    # Thread management
+├── log_manager.py       # Logging utilities
+├── constants.py         # Global constants
+├── build_exe.py        # Executable builder
+├── requirements.txt     # Dependencies
+├── videos/             # Video assets
+└── documentation/      # Documentation
+    ├── api_reference.md     # API documentation
+    ├── development.md       # Developer guide
+    ├── technical_specs.md   # Technical details
+    ├── user_guide.md        # User manual
+    └── specifications.md    # Project specs
 ```
 
 ## Troubleshooting
@@ -165,33 +171,20 @@ ai-assistant/
   - Real-time data analysis
   - Secure cloud synchronization
 
-## Character Interaction
 
-The system features two complementary AI personalities:
+## Documentation
 
-### Emily (Creative Intelligence)
-- First to respond in each interaction cycle
-- Focuses on pattern recognition and creative solutions
-- Provides strategic direction and insights
-- Uses red circle avatar animation
-
-### Daemon (Technical Analysis)
-- Responds after Emily's interaction
-- Focuses on technical implementation and optimization
-- Provides practical solutions and validation
-- Uses green circle avatar animation
-
-Each character:
-- Maintains distinct personality and expertise
-- Processes context independently
-- Provides unique perspective on problems
-- Features custom voice and animation
+- [API Reference](documentation/api_reference.md) - Detailed API documentation
+- [Development Guide](documentation/development.md) - Setup and contribution guidelines
+- [Technical Specifications](documentation/technical_specs.md) - System architecture and requirements
+- [User Guide](documentation/user_guide.md) - Installation and usage instructions
+- [Project Specifications](documentation/specifications.md) - Project overview and features
 
 ## Support
 
 For help:
 - Open an issue on GitHub
-- Check detailed documentation in `documentation/`
+- Check the documentation linked above
 - Join our Discord (coming soon)
 
 ## License
