@@ -46,8 +46,7 @@ def main():
     # Add final options
     options.extend([
         '--clean',
-        '--runtime-tmpdir=.',
-        '--key=random_key_123'  # Add encryption key to help avoid detection
+        '--runtime-tmpdir=.'
     ])
 
     # Run PyInstaller
