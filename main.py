@@ -1155,7 +1155,7 @@ def create_device_selectors():
     vu_meter = VUMeter(vu_frame, width=200, height=20)
     vu_meter.pack(side='left', fill='x', expand=True, padx=(5, 0))
 
-    # Add endpoint configuration frame
+    # Add endpoint configuration frame (only once)
     endpoint_frame = tk.Frame(device_frame)
     endpoint_frame.pack(fill='x', pady=(2, 0))
     
