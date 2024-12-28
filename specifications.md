@@ -165,25 +165,25 @@ APIs and Services:
 - Balanced perspective delivery
 - Unified output generation
 
-## Fonctionnalités futures
-- Amélioration de la précision du parseur de fichier de sauvegarde
-- Optimisation du système de mise en cache des données de jeu
-- Personnalisation avancée des voix des personnages IA
-- Intégration plus profonde avec les mécaniques de jeu CK3
-- Optimisation de la détection des changements d'état de jeu importants
-- Implémentation d'un système de prise de décision IA plus avancé
-- Gestion avancée de l'historique des conversations et des relations entre personnages
-- Support pour la continuation des conversations à travers plusieurs sessions de jeu
-- Développement d'une API pour permettre l'extension du mod par des tiers
+## Future Features
+- Improved save file parser accuracy
+- Optimized game data caching system
+- Advanced AI character voice customization
+- Deeper integration with CK3 game mechanics
+- Enhanced game state change detection
+- Advanced AI decision-making system
+- Advanced conversation history and character relationship management
+- Support for conversation continuity across game sessions
+- API development for mod extensibility
 
-## Considérations de performance
-- Optimisation de la fréquence de lecture et de parsing des fichiers de sauvegarde
-- Gestion efficace des appels REST vers n8n
-- Optimisation du système de mise en cache des données de jeu
-- Gestion asynchrone des tâches pour une meilleure réactivité
-- Troncature automatique des conversations longues dans la base de données Xata
-- Gestion des limites de taux des API externes (n8n, Xata, etc.)
-- Optimisation de l'utilisation de la mémoire pour minimiser l'impact sur les performances du jeu
+## Performance Considerations
+- Optimized save file reading and parsing frequency
+- Efficient REST calls to n8n
+- Optimized game data caching system
+- Asynchronous task management for better responsiveness
+- Automatic truncation of long conversations in Xata database
+- External API rate limit management (n8n, Xata, etc.)
+- Memory usage optimization to minimize game performance impact
 
 ## Sécurité et gestion des risques
 - Stockage sécurisé des clés API et wallets
@@ -201,22 +201,22 @@ APIs and Services:
 - Documentation claire des stratégies utilisées
 - Avertissements sur les risques liés aux cryptomonnaies
 
-## Utilisation
-1. Installer le mod CK3 AI Character via le Steam Workshop ou manuellement
-2. Configurer n8n avec les flux de travail nécessaires
-3. Configurer la base de données Xata
-4. Configurer les variables d'environnement (clés API pour n8n, Xata, etc.)
-5. Lancer Crusader Kings III avec le mod activé
-6. Le mod surveillera automatiquement l'état du jeu et interagira avec l'IA via n8n
-7. Utiliser l'interface du mod pour les interactions vocales et textuelles avec les personnages IA
+## Usage
+1. Install CK3 AI Character mod via Steam Workshop or manually
+2. Configure n8n with required workflows
+3. Configure Xata database
+4. Set up environment variables (API keys for n8n, Xata, etc.)
+5. Launch Crusader Kings III with mod enabled
+6. Mod will automatically monitor game state and interact via n8n
+7. Use mod interface for voice and text interactions with AI characters
 
-## Notes importantes
-- Assurez-vous que les fichiers de prompts (system.md et character.md) sont présents dans le dossier du mod
-- Le mod nécessite une connexion internet active pour fonctionner avec n8n et Xata
-- Veillez à respecter les conditions d'utilisation des différentes API et services utilisés
-- Implémentez des garde-fous dans vos instructions et inspectez la sortie du modèle pour une utilisation robuste
-- Gérez correctement les erreurs potentielles lors des interactions avec n8n et Xata
-- Assurez-vous que votre système répond aux exigences minimales pour exécuter CK3 avec le mod
+## Important Notes
+- Ensure prompt files (system.md and character.md) are present in mod folder
+- Mod requires active internet connection for n8n and Xata
+- Follow terms of service for all APIs and services
+- Implement safeguards in instructions and inspect model output
+- Handle potential errors in n8n and Xata interactions
+- Ensure system meets minimum requirements for CK3 with mod
 ## Gestion de Portefeuille
 
 ### Stratégies d'Investissement
