@@ -167,27 +167,25 @@ ai-assistant/
 
 ## Character Interaction
 
-The system alternates between two AI characters:
-1. **Emily**: First character to respond
-2. **Daemon**: Responds 30 seconds after Emily
+The system features two complementary AI personalities:
+
+### Emily (Creative Intelligence)
+- First to respond in each interaction cycle
+- Focuses on pattern recognition and creative solutions
+- Provides strategic direction and insights
+- Uses red circle avatar animation
+
+### Daemon (Technical Analysis)
+- Responds after Emily's interaction
+- Focuses on technical implementation and optimization
+- Provides practical solutions and validation
+- Uses green circle avatar animation
 
 Each character:
-- Has their own distinct video avatar
-- Processes game context independently
-- Provides unique perspectives and responses
-- Features individual interaction styles
-
-## Character Interaction
-
-The system alternates between two AI characters:
-1. **Emily**: First character to respond
-2. **Daemon**: Responds 30 seconds after Emily
-
-Each character:
-- Has their own distinct video avatar
-- Processes game context independently
-- Provides unique perspectives and responses
-- Features individual interaction styles
+- Maintains distinct personality and expertise
+- Processes context independently
+- Provides unique perspective on problems
+- Features custom voice and animation
 
 ## Support
 
