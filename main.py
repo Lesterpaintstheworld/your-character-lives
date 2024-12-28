@@ -91,6 +91,8 @@ auto_recording_interval = 50  # seconds
 interval_spinbox = None  # Will be set when UI is created
 auto_recording_task = None
 output_var = None  # Will store output device selection
+emily_endpoint_var = None  # Will store Emily endpoint
+daemon_endpoint_var = None  # Will store Daemon endpoint
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
