@@ -55,6 +55,42 @@ python main.py --with-game
 - 500MB free disk space
 - Graphics card supporting OpenCV
 
+## Audio Device Management
+
+- Automatic detection of input/output devices
+- Real-time VU meter for audio monitoring
+- Support for device hot-swapping
+- Configurable audio settings:
+  - Sample rate (16kHz-48kHz)
+  - Buffer size
+  - Channels (mono/stereo)
+
+## Video Avatar System
+
+- Borderless draggable video windows
+- Smooth transitions between idle/talking states
+- Independent control of multiple avatars
+- Configurable window transparency
+- Resizable with maintained aspect ratio
+
+## Performance Optimization
+
+- Efficient frame buffering
+- Automatic resource cleanup
+- Memory usage optimization
+- Thread-safe operations
+- Configurable quality settings
+
+## Error Recovery
+
+- Automatic device reconnection
+- Graceful failure handling
+- Detailed error logging
+- Fallback mechanisms for:
+  - Audio devices
+  - Video playback
+  - Network connectivity
+
 ## Configuration Options
 
 ```bash
