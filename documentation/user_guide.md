@@ -1,12 +1,14 @@
-# CK3 AI Assistant User Guide
+# Multi-Domain AI Assistant User Guide
 
 ## Quick Start
 
-### Installation
+### Installation Options
+
+#### Option 1: Windows Executable
 1. Download the latest release from GitHub
 2. Double-click AI_Assistant.exe to run
 
-### Alternative: Running from Source
+#### Option 2: Running from Source
 1. Install Python dependencies:
 ```bash
 pip install -r requirements.txt

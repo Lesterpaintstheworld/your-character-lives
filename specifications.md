@@ -1,4 +1,4 @@
-# Spécifications pour le projet CK3 AI Character avec OpenAI Real-Time API
+# Multi-Domain AI Assistant Specifications
 
 ## Identity and Role
 
@@ -185,21 +185,20 @@ APIs and Services:
 - External API rate limit management (n8n, Xata, etc.)
 - Memory usage optimization to minimize game performance impact
 
-## Sécurité et gestion des risques
-- Stockage sécurisé des clés API et wallets
-- Limites de trading configurables par token
-- Système de stop-loss automatique multi-niveaux
-- Diversification obligatoire du portefeuille
-- Journalisation détaillée des transactions sur Solana
-- Surveillance continue des performances de $UBC
-- Protection contre les smart contracts malveillants
+## Security and Risk Management
+- Secure storage of API keys and credentials
+- Configurable rate limiting and quotas
+- Multi-level error handling system
+- Comprehensive logging and monitoring
+- Protection against malicious inputs
+- Regular security audits and updates
 
-## Éthique et responsabilité
-- Transparence totale des décisions d'investissement
-- Respect des réglementations en vigueur
-- Gestion responsable des risques
-- Documentation claire des stratégies utilisées
-- Avertissements sur les risques liés aux cryptomonnaies
+## Ethics and Responsibility
+- Transparency in AI decision-making
+- Compliance with relevant regulations
+- Responsible data handling practices
+- Clear documentation of AI capabilities
+- Appropriate user warnings and disclaimers
 
 ## Usage
 1. Install CK3 AI Character mod via Steam Workshop or manually

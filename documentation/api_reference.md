@@ -1,4 +1,4 @@
-# CK3 AI Assistant API Reference
+# Multi-Domain AI Assistant API Reference
 
 ## Audio Manager API
 
