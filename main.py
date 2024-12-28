@@ -97,6 +97,7 @@ import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
 from PIL import Image
+from constants import ThemeColors
 import pyautogui
 import requests
 import pyaudio
