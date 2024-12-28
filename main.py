@@ -1155,19 +1155,21 @@ def create_device_selectors():
     vu_meter = VUMeter(vu_frame, width=200, height=20)
     vu_meter.pack(side='left', fill='x', expand=True, padx=(5, 0))
 
-    # Add endpoint configuration frame (only once)
-    endpoint_frame = tk.Frame(device_frame)
-    endpoint_frame.pack(fill='x', pady=(2, 0))
+    # Add endpoint configuration frame (in a separate frame after VU meter)
+    endpoints_frame = tk.Frame(root)
+    endpoints_frame.pack(fill='x', padx=5, pady=2)
     
     # Emily endpoint
-    tk.Label(endpoint_frame, text="Emily Endpoint:").pack(side='left')
+    emily_frame = tk.Frame(endpoints_frame)
+    emily_frame.pack(fill='x', pady=2)
+    tk.Label(emily_frame, text="Emily Endpoint:").pack(side='left')
     emily_endpoint_var = tk.StringVar(value=NetworkConstants.DEFAULT_ENDPOINT_EMILY)
-    emily_endpoint_entry = tk.Entry(endpoint_frame, textvariable=emily_endpoint_var, width=40)
+    emily_endpoint_entry = tk.Entry(emily_frame, textvariable=emily_endpoint_var, width=40)
     emily_endpoint_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
     
     # Daemon endpoint
-    daemon_frame = tk.Frame(device_frame)
-    daemon_frame.pack(fill='x', pady=(2, 0))
+    daemon_frame = tk.Frame(endpoints_frame)
+    daemon_frame.pack(fill='x', pady=2)
     tk.Label(daemon_frame, text="Daemon Endpoint:").pack(side='left')
     daemon_endpoint_var = tk.StringVar(value=NetworkConstants.DEFAULT_ENDPOINT_DAEMON)
     daemon_endpoint_entry = tk.Entry(daemon_frame, textvariable=daemon_endpoint_var, width=40)
