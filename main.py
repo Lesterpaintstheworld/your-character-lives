@@ -919,20 +919,25 @@ from tkinter import scrolledtext
 
 class VUMeter(Canvas):
     def __init__(self, master, width=200, height=20, bg=ThemeColors.BG_LIGHT,
-                 highlight=ThemeColors.TEXT, lowlight=ThemeColors.ACCENT, **kwargs):
+                 low_color=ThemeColors.VU_LOW, 
+                 mid_color=ThemeColors.VU_MID,
+                 high_color=ThemeColors.VU_HIGH, **kwargs):
         super().__init__(master, width=width, height=height, bg=bg,
-                        highlightthickness=0, **kwargs)
+                        highlightthickness=1,
+                        highlightbackground=ThemeColors.BORDER,
+                        **kwargs)
         self.width = width
         self.height = height
-        self.segments = 20
+        self.segments = 30  # More segments for smoother appearance
         self.segment_width = (width - 4) / self.segments
-        self.highlight = highlight
-        self.lowlight = lowlight
+        self.low_color = low_color
+        self.mid_color = mid_color
+        self.high_color = high_color
         self.create_segments()
         self.level = 0
 
     def create_segments(self):
-        """Create the meter segments with modern styling"""
+        """Create segments with smooth color transition"""
         self.segments_ids = []
         for i in range(self.segments):
             x1 = 2 + i * self.segment_width
@@ -940,13 +945,15 @@ class VUMeter(Canvas):
             x2 = x1 + self.segment_width - 1
             y2 = self.height - 2
             
-            # Color gradient from lowlight to highlight
-            if i < self.segments * 0.6:
-                color = self.lowlight
-            elif i < self.segments * 0.8:
-                color = self.blend_colors(self.lowlight, self.highlight, 0.5)
-            else:
-                color = self.highlight
+            # Smooth color gradient
+            if i < self.segments * 0.4:  # First 40% - green
+                ratio = i / (self.segments * 0.4)
+                color = self.blend_colors(self.low_color, self.mid_color, ratio)
+            elif i < self.segments * 0.8:  # Next 40% - blue to orange
+                ratio = (i - self.segments * 0.4) / (self.segments * 0.4)
+                color = self.blend_colors(self.mid_color, self.high_color, ratio)
+            else:  # Last 20% - red
+                color = self.high_color
                 
             segment = self.create_rectangle(
                 x1, y1, x2, y2,
@@ -1123,8 +1130,8 @@ def create_device_selectors():
     style.configure('Modern.TCombobox',
         background=ThemeColors.BG_LIGHT,
         fieldbackground=ThemeColors.BG_LIGHT,
-        foreground=ThemeColors.TEXT_LIGHT,
-        arrowcolor=ThemeColors.TEXT_LIGHT)
+        foreground=ThemeColors.TEXT_PRIMARY,
+        arrowcolor=ThemeColors.TEXT_PRIMARY)
     
     style.configure('Modern.TFrame', 
         background=ThemeColors.BG_DARK)
@@ -1137,11 +1144,14 @@ def create_device_selectors():
     global play_pause_btn
     play_pause_btn = tk.Button(device_frame, text="⏸️", width=3,
         command=toggle_play_pause,
-        bg=ThemeColors.ACCENT,
-        fg=ThemeColors.TEXT_LIGHT,
+        bg=ThemeColors.ACCENT_PRIMARY,
+        fg=ThemeColors.TEXT_BRIGHT,
         relief='flat',
-        activebackground=ThemeColors.HIGHLIGHT,
-        activeforeground=ThemeColors.TEXT_LIGHT)
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
     play_pause_btn.pack(side='left', padx=5)
     
     # Create auto recording frame
@@ -1396,9 +1406,15 @@ root.title("AI Assistant")
 # Create text widget first
 text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20,
     bg=ThemeColors.BG_LIGHT,
-    fg=ThemeColors.TEXT_LIGHT,
-    insertbackground=ThemeColors.TEXT_LIGHT,
-    relief='flat')
+    fg=ThemeColors.TEXT_PRIMARY,
+    insertbackground=ThemeColors.TEXT_PRIMARY,
+    relief='flat',
+    padx=10,
+    pady=5,
+    font=('Segoe UI', 10),
+    highlightthickness=1,
+    highlightbackground=ThemeColors.BORDER,
+    highlightcolor=ThemeColors.ACCENT_SECONDARY)
 text_widget.pack(expand=True, fill='both', padx=10, pady=5)
 
 # Create main controls frame
