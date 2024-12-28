@@ -4,6 +4,19 @@ An intelligent assistant system featuring two complementary AI personalities - E
 
 ## Quick Start
 
+### Important Note About Working Directory
+The AI Assistant needs to be run from the folder containing your relevant text documents. For example:
+
+```bash
+# Navigate to your documents folder
+cd C:\Users\YourUser\KinOS_missions\synthetic-souls
+
+# Run the AI Assistant from there
+python "C:\Users\YourUser\your-character-lives\main.py"
+```
+
+This ensures the assistant can access and process all relevant text files in your working directory.
+
 ### Option 1: Using the Executable (Windows)
 1. Download the latest release from GitHub
 2. Double-click AI_Assistant.exe to run
