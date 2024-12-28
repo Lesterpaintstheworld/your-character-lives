@@ -1,12 +1,12 @@
-# CK3 AI Character
+# Multi-Domain AI Assistant
 
-An AI assistant that enhances Crusader Kings III gameplay through intelligent character interactions and dynamic responses featuring two distinct AI personalities.
+An intelligent assistant system featuring two complementary AI personalities - Emily (Creative Intelligence) and Daemon (Technical Implementation) - working together to provide comprehensive solutions across gaming, music production, content creation, web development, and financial analysis.
 
 ## Quick Start
 
 ### Option 1: Using the Executable (Windows)
 1. Download the latest release from GitHub
-2. Double-click CK3_AI_Assistant.exe to run
+2. Double-click AI_Assistant.exe to run
 
 ### Option 2: Running from Source
 1. **Install Build Tools**
@@ -51,7 +51,9 @@ python main.py --with-game
 - Python 3.10 or higher
 - Active internet connection
 - Working microphone and speakers/headphones
-- For game features: Crusader Kings III
+- Minimum 4GB RAM
+- 500MB free disk space
+- Graphics card supporting OpenCV
 
 ## Configuration Options
 
@@ -60,52 +62,72 @@ python main.py --help
 ```
 
 Available options:
-- `--interval`: Screenshot interval in seconds (default: 30)
-- `--with-game`: Enable CK3 game integration
+- `--domain`: Set primary domain focus
+- `--interval`: Response interval in seconds (default: 30)
+- `--mode`: Set interaction mode (voice/text/both)
 
 ## Project Structure
 
 ```
-ck3-ai-character/
-├── main.py              # Main script
+ai-assistant/
+├── main.py              # Main application entry
 ├── requirements.txt     # Python dependencies
-├── prompts/            # System and character prompts
-│   ├── system.md       # System instructions
-│   └── character.md    # Character definitions
+├── config/             # Configuration files
+│   ├── domains/        # Domain-specific settings
+│   └── profiles/       # AI personality profiles
+├── modules/            # Domain-specific modules
+├── resources/          # Media and assets
+│   ├── avatars/        # Visual avatar files
+│   └── audio/         # Audio resources
 └── documentation/      # Detailed documentation
 ```
 
 ## Troubleshooting
 
-1. **Connection Issues**
-- Verify your internet connection
-- Check endpoint URLs in configuration
-- Ensure both n8n webhooks are accessible
+1. **Voice Interaction Issues**
+- Verify microphone settings
+- Check audio device selection
+- Test both AI personalities separately
 
-2. **Audio Issues**
-- Check microphone and speaker settings
-- Verify correct audio device selection
-- Test both characters' audio output
+2. **Visual Avatar Issues**
+- Verify graphics drivers
+- Check OpenCV installation
+- Ensure avatar files are present
 
-3. **Video Issues**
-- Ensure video files are present in correct location
-- Check for proper video codec installation
-- Verify both character windows are functioning
+3. **Domain Processing Issues**
+- Verify domain module installation
+- Check API connectivity
+- Ensure sufficient system resources
 
-4. **Game Integration Issues**
-- Verify mod installation
-- Check CK3 launcher mod activation
-- Ensure correct file permissions
+4. **Performance Issues**
+- Close unnecessary applications
+- Check system requirements
+- Monitor resource usage
 
 ## Features
 
-- Two distinct AI characters (Emily and Daemon) with unique personalities
-- Sequential interaction system with 30-second intervals between characters
-- Real-time video avatars for both characters
-- Voice interaction through microphone input
-- Dynamic response generation based on game context
-- Draggable and resizable character windows
-- Automatic recording mode with configurable intervals
+- Dual AI Personality System
+  - Emily: Creative strategy and pattern recognition
+  - Daemon: Technical analysis and implementation
+
+- Multi-Domain Expertise
+  - Gaming & Interactive Experiences
+  - Music & Audio Production
+  - Content Creation & Writing
+  - Web Development
+  - Financial Analysis
+
+- Real-Time Interaction
+  - Voice recognition and synthesis
+  - Visual avatar system
+  - Context-aware responses
+  - Multi-modal input processing
+
+- Technical Capabilities
+  - Sequential processing pipeline
+  - Cross-domain context integration
+  - Real-time data analysis
+  - Secure cloud synchronization
 
 ## Character Interaction
 
