@@ -1594,6 +1594,7 @@ async def api_client(interval):
         update_status("Starting Emily's recording cycle...")
         
         # Take screenshots and ensure they're not None
+        logging.info("Taking pre-recording screenshot for Emily...")
         pre_screenshot_emily = take_screenshot()
         if pre_screenshot_emily is None:
             raise ValueError("Failed to capture pre-recording screenshot")
@@ -1748,9 +1749,38 @@ def setup_logging():
     logging.root.addHandler(handler)
     logging.root.setLevel(logging.INFO)
 
+def init_screenshot():
+    """Initialize screenshot capabilities"""
+    logging.info("=== Initializing Screenshot System ===")
+    try:
+        # Configure PyAutoGUI
+        pyautogui.FAILSAFE = False
+        
+        # Test basic screenshot capability
+        test_shot = pyautogui.screenshot()
+        logging.info(f"Test screenshot successful: {test_shot.size}")
+        
+        # Test PIL fallback
+        from PIL import ImageGrab
+        test_grab = ImageGrab.grab()
+        logging.info(f"Test ImageGrab successful: {test_grab.size}")
+        
+        return True
+    except Exception as e:
+        logging.error(f"Screenshot initialization failed: {e}", exc_info=True)
+        return False
+
 if __name__ == "__main__":
     # Initialize logging first
     setup_logging()
+    
+    # Initialize screenshot system
+    if not init_screenshot():
+        messagebox.showwarning(
+            "Screenshot Warning",
+            "Screenshot system initialization failed.\n"
+            "The application may not be able to capture screenshots."
+        )
     
     def init_screenshot():
         """Initialize screenshot capabilities"""
