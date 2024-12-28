@@ -205,17 +205,84 @@ def collect_text_files_content():
         return f"Error collecting text files: {str(e)}"
 
 def take_screenshot():
-    """Capture a screenshot, resize it, and return it as binary data."""
-    screenshot = pyautogui.screenshot()
+    """Capture a screenshot with enhanced error handling and logging"""
+    logging.info("=== Starting Screenshot Capture ===")
     
-    # Resize the image to reduce file size
-    max_size = (1024, 576)  # Reduced size for faster processing
-    screenshot.thumbnail(max_size, Image.LANCZOS)
-    
-    # Save as binary data
-    img_byte_arr = io.BytesIO()
-    screenshot.save(img_byte_arr, format='JPEG', quality=85, optimize=True)
-    return img_byte_arr.getvalue()  # Return binary data directly
+    try:
+        # Log screen information
+        screens = pyautogui.size()
+        logging.info(f"Screen resolution: {screens}")
+        
+        # Try primary screenshot method
+        logging.info("Attempting primary screenshot method (pyautogui)")
+        try:
+            screenshot = pyautogui.screenshot()
+            logging.info(f"Primary screenshot captured: {screenshot.size}")
+        except Exception as e:
+            logging.error(f"Primary screenshot method failed: {e}")
+            
+            # Fallback to PIL direct capture
+            logging.info("Attempting fallback screenshot method (PIL)")
+            from PIL import ImageGrab
+            screenshot = ImageGrab.grab()
+            logging.info(f"Fallback screenshot captured: {screenshot.size}")
+        
+        # Verify screenshot
+        if screenshot is None:
+            raise ValueError("Screenshot capture returned None")
+            
+        if screenshot.size == (0, 0):
+            raise ValueError("Screenshot has zero dimensions")
+            
+        # Resize with logging
+        max_size = (1024, 576)
+        original_size = screenshot.size
+        logging.info(f"Original size: {original_size}")
+        
+        screenshot.thumbnail(max_size, Image.LANCZOS)
+        logging.info(f"Resized to: {screenshot.size}")
+        
+        # Convert to bytes with quality logging
+        img_byte_arr = io.BytesIO()
+        screenshot.save(img_byte_arr, format='JPEG', 
+                       quality=85, optimize=True)
+        
+        byte_data = img_byte_arr.getvalue()
+        logging.info(f"Converted to bytes: {len(byte_data)} bytes")
+        
+        # Verify byte data
+        if len(byte_data) == 0:
+            raise ValueError("Screenshot conversion produced empty bytes")
+            
+        # Test byte data validity
+        try:
+            test_image = Image.open(io.BytesIO(byte_data))
+            test_image.verify()
+            logging.info("Screenshot data verified successfully")
+        except Exception as e:
+            logging.error(f"Screenshot data verification failed: {e}")
+            raise
+            
+        return byte_data
+        
+    except Exception as e:
+        logging.error(f"Screenshot capture failed: {e}", exc_info=True)
+        
+        # Try absolute minimum fallback
+        try:
+            logging.info("Attempting minimal fallback screenshot")
+            from PIL import ImageGrab
+            minimal_screenshot = ImageGrab.grab()
+            minimal_byte_arr = io.BytesIO()
+            minimal_screenshot.save(minimal_byte_arr, format='JPEG', 
+                                 quality=50, optimize=True)
+            return minimal_byte_arr.getvalue()
+        except Exception as fallback_e:
+            logging.error(f"Minimal fallback screenshot failed: {fallback_e}")
+            return None
+
+    finally:
+        logging.info("=== Screenshot Capture Complete ===")
 
 import queue
 
@@ -1685,9 +1752,38 @@ if __name__ == "__main__":
     # Initialize logging first
     setup_logging()
     
+    def init_screenshot():
+        """Initialize screenshot capabilities"""
+        logging.info("=== Initializing Screenshot System ===")
+        try:
+            # Configure PyAutoGUI
+            pyautogui.FAILSAFE = False
+            
+            # Test basic screenshot capability
+            test_shot = pyautogui.screenshot()
+            logging.info(f"Test screenshot successful: {test_shot.size}")
+            
+            # Test PIL fallback
+            from PIL import ImageGrab
+            test_grab = ImageGrab.grab()
+            logging.info(f"Test ImageGrab successful: {test_grab.size}")
+            
+            return True
+        except Exception as e:
+            logging.error(f"Screenshot initialization failed: {e}", exc_info=True)
+            return False
+
     # Initialize managers
     device_manager = DeviceManager()
     audio_manager = AudioManager(config)
+    
+    # Initialize screenshot system
+    if not init_screenshot():
+        messagebox.showwarning(
+            "Screenshot Warning",
+            "Screenshot system initialization failed.\n"
+            "The application may not be able to capture screenshots."
+        )
     
     parser = argparse.ArgumentParser(
         description="CK3 AI Character with OpenAI Real-Time API",
