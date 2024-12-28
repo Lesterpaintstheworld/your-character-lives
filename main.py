@@ -1152,11 +1152,29 @@ def create_device_selectors():
     tk.Label(vu_frame, text="Input Level:").pack(side='left')
     vu_meter = VUMeter(vu_frame, width=200, height=20)
     vu_meter.pack(side='left', fill='x', expand=True, padx=(5, 0))
+
+    # Add endpoint configuration frame
+    endpoint_frame = tk.Frame(device_frame)
+    endpoint_frame.pack(fill='x', pady=(2, 0))
+    
+    # Emily endpoint
+    tk.Label(endpoint_frame, text="Emily Endpoint:").pack(side='left')
+    emily_endpoint_var = tk.StringVar(value=NetworkConstants.DEFAULT_ENDPOINT_EMILY)
+    emily_endpoint_entry = tk.Entry(endpoint_frame, textvariable=emily_endpoint_var, width=40)
+    emily_endpoint_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
+    
+    # Daemon endpoint
+    daemon_frame = tk.Frame(device_frame)
+    daemon_frame.pack(fill='x', pady=(2, 0))
+    tk.Label(daemon_frame, text="Daemon Endpoint:").pack(side='left')
+    daemon_endpoint_var = tk.StringVar(value=NetworkConstants.DEFAULT_ENDPOINT_DAEMON)
+    daemon_endpoint_entry = tk.Entry(daemon_frame, textvariable=daemon_endpoint_var, width=40)
+    daemon_endpoint_entry.pack(side='left', fill='x', expand=True, padx=(5, 0))
     
     # Initial population of device lists
     refresh_devices(mic_combo, output_combo)
     
-    return mic_var, output_var, mic_combo, output_combo, vu_meter
+    return mic_var, output_var, mic_combo, output_combo, vu_meter, emily_endpoint_var, daemon_endpoint_var
 
 def validate_output_device(device_index):
     """Validate if a device index is currently valid and working"""
@@ -1396,10 +1414,14 @@ async def api_client(interval):
             'audio': ('audio.wav', audio_data, 'audio/wav')
         }
 
+        # Use endpoint variables instead of constants
+        emily_endpoint = emily_endpoint_var.get()
+        daemon_endpoint = daemon_endpoint_var.get()
+
         # Send request for Emily
         logging.info("Sending data to Emily endpoint...")
         response = requests.post(
-            NetworkConstants.N8N_ENDPOINT_EMILY,
+            emily_endpoint,
             data=data,
             files=files,
             timeout=NetworkConstants.REQUEST_TIMEOUT
@@ -1445,7 +1467,7 @@ async def api_client(interval):
         # Send request for Daemon
         logging.info("Sending data to Daemon endpoint...")
         response = requests.post(
-            NetworkConstants.N8N_ENDPOINT_DAEMON,
+            daemon_endpoint,
             data=data,
             files=files,
             timeout=NetworkConstants.REQUEST_TIMEOUT
