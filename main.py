@@ -205,7 +205,7 @@ def collect_text_files_content():
         return f"Error collecting text files: {str(e)}"
 
 def take_screenshot():
-    """Capture a screenshot with enhanced error handling and logging"""
+    """Capture a screenshot with comprehensive logging"""
     logging.info("=== Starting Screenshot Capture ===")
     
     try:
