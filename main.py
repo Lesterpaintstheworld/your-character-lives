@@ -1362,7 +1362,7 @@ controls_frame = tk.Frame(root)
 controls_frame.pack(fill='x', padx=5, pady=5)
 
 # Add microphone selector and VU meter
-mic_var, output_var, mic_combo, output_combo, vu_meter = create_device_selectors()
+mic_var, output_var, mic_combo, output_combo, vu_meter, emily_endpoint_var, daemon_endpoint_var = create_device_selectors()
 mic_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(mic_combo))
 output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_combo))
 
