@@ -917,18 +917,21 @@ import tkinter as tk
 from tkinter import scrolledtext
 
 class VUMeter(Canvas):
-    def __init__(self, master, width=200, height=20, **kwargs):
-        super().__init__(master, width=width, height=height, **kwargs)
-        self.configure(bg='black')
+    def __init__(self, master, width=200, height=20, bg=ThemeColors.BG_LIGHT,
+                 highlight=ThemeColors.TEXT, lowlight=ThemeColors.ACCENT, **kwargs):
+        super().__init__(master, width=width, height=height, bg=bg,
+                        highlightthickness=0, **kwargs)
         self.width = width
         self.height = height
         self.segments = 20
         self.segment_width = (width - 4) / self.segments
+        self.highlight = highlight
+        self.lowlight = lowlight
         self.create_segments()
         self.level = 0
 
     def create_segments(self):
-        """Create the meter segments"""
+        """Create the meter segments with modern styling"""
         self.segments_ids = []
         for i in range(self.segments):
             x1 = 2 + i * self.segment_width
@@ -936,19 +939,30 @@ class VUMeter(Canvas):
             x2 = x1 + self.segment_width - 1
             y2 = self.height - 2
             
-            # Color gradient from green to yellow to red
-            if i < self.segments * 0.6:  # First 60% green
-                color = '#00ff00'
-            elif i < self.segments * 0.8:  # Next 20% yellow
-                color = '#ffff00'
-            else:  # Last 20% red
-                color = '#ff0000'
+            # Color gradient from lowlight to highlight
+            if i < self.segments * 0.6:
+                color = self.lowlight
+            elif i < self.segments * 0.8:
+                color = self.blend_colors(self.lowlight, self.highlight, 0.5)
+            else:
+                color = self.highlight
                 
             segment = self.create_rectangle(
                 x1, y1, x2, y2,
-                fill='dark gray', outline='black'
+                fill=ThemeColors.BG_DARK,
+                outline='',
+                width=0
             )
             self.segments_ids.append((segment, color))
+
+    def blend_colors(self, color1, color2, ratio):
+        """Blend two hex colors"""
+        r1, g1, b1 = int(color1[1:3], 16), int(color1[3:5], 16), int(color1[5:7], 16)
+        r2, g2, b2 = int(color2[1:3], 16), int(color2[3:5], 16), int(color2[5:7], 16)
+        r = int(r1 * (1 - ratio) + r2 * ratio)
+        g = int(g1 * (1 - ratio) + g2 * ratio)
+        b = int(b1 * (1 - ratio) + b2 * ratio)
+        return f'#{r:02x}{g:02x}{b:02x}'
 
     def set_level(self, level):
         """Update the meter level (0.0 to 1.0)"""
@@ -1099,13 +1113,34 @@ def toggle_auto_recording():
         update_status("⏹️ Automatic recording stopped")
 
 def create_device_selectors():
-    """Create input and output device selection frame with VU meter"""
-    device_frame = tk.Frame(root)
-    device_frame.pack(fill='x', padx=5, pady=5)
+    """Create modern-styled input and output device selection frame"""
+    # Configure root window style
+    root.configure(bg=ThemeColors.BG_DARK)
     
-    # Add play/pause button
+    # Configure ttk styles
+    style = ttk.Style()
+    style.configure('Modern.TCombobox',
+        background=ThemeColors.BG_LIGHT,
+        fieldbackground=ThemeColors.BG_LIGHT,
+        foreground=ThemeColors.TEXT_LIGHT,
+        arrowcolor=ThemeColors.TEXT_LIGHT)
+    
+    style.configure('Modern.TFrame', 
+        background=ThemeColors.BG_DARK)
+
+    # Main device frame
+    device_frame = ttk.Frame(root, style='Modern.TFrame')
+    device_frame.pack(fill='x', padx=10, pady=5)
+
+    # Play/Pause button with modern styling
     global play_pause_btn
-    play_pause_btn = tk.Button(device_frame, text="⏸️", width=3, command=toggle_play_pause)
+    play_pause_btn = tk.Button(device_frame, text="⏸️", width=3,
+        command=toggle_play_pause,
+        bg=ThemeColors.ACCENT,
+        fg=ThemeColors.TEXT_LIGHT,
+        relief='flat',
+        activebackground=ThemeColors.HIGHLIGHT,
+        activeforeground=ThemeColors.TEXT_LIGHT)
     play_pause_btn.pack(side='left', padx=5)
     
     # Create auto recording frame
@@ -1358,8 +1393,12 @@ root = tk.Tk()
 root.title("AI Assistant")
 
 # Create text widget first
-text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20)
-text_widget.pack(expand=True, fill='both', padx=5, pady=5)
+text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20,
+    bg=ThemeColors.BG_LIGHT,
+    fg=ThemeColors.TEXT_LIGHT,
+    insertbackground=ThemeColors.TEXT_LIGHT,
+    relief='flat')
+text_widget.pack(expand=True, fill='both', padx=10, pady=5)
 
 # Create main controls frame
 controls_frame = tk.Frame(root)

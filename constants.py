@@ -1,5 +1,14 @@
 """Constants used throughout the application"""
 
+class ThemeColors:
+    BG_DARK = "#1a1a2e"  # Dark blue background
+    BG_LIGHT = "#16213e"  # Slightly lighter blue for contrast
+    ACCENT = "#0f3460"    # Medium blue for buttons/controls
+    HIGHLIGHT = "#533483" # Purple highlight
+    TEXT = "#e94560"      # Accent text color
+    TEXT_LIGHT = "#ffffff"# Light text
+    TEXT_GRAY = "#a2a2a2" # Secondary text
+
 class AudioConstants:
     CHUNK_SIZE = 1024
     FORMAT = 16  # bits
