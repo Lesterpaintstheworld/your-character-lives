@@ -3,12 +3,24 @@ import os
 import sys
 
 def collect_video_files():
-    video_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'videos')
+    """Collect video files with proper path handling for both source and frozen contexts"""
+    if getattr(sys, 'frozen', False):
+        # Running from executable
+        base_path = sys._MEIPASS
+    else:
+        # Running from source
+        base_path = os.path.dirname(os.path.abspath(__file__))
+        
+    video_dir = os.path.join(base_path, 'videos')
     video_files = []
+    
     if os.path.exists(video_dir):
         for file in os.listdir(video_dir):
             if file.endswith('.mp4'):
-                video_files.append((os.path.join(video_dir, file), 'videos'))
+                # Use proper path joining for both source and frozen contexts
+                src = os.path.join(video_dir, file)
+                video_files.append((src, 'videos'))
+                
     return video_files
 
 def main():
@@ -57,6 +69,11 @@ def main():
     options.extend([f'--hidden-import={imp}' for imp in hidden_imports])
 
     # Add video files
+    # Add videos directory to the executable
+    options.extend([
+        '--add-data', f'videos{os.pathsep}videos',  # This copies the entire videos folder
+    ])
+    # Add individual video files if found
     options.extend([f'--add-data={src};{dst}' for src, dst in video_files])
 
     # Add final options

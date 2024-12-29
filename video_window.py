@@ -27,18 +27,27 @@ class DraggableVideoWindow:
         self.logger.info(f"Initializing DraggableVideoWindow #{self.window_number}")
         self.is_switching = False  # Flag for video switching state
         
+        # Get proper video directory path
+        if getattr(sys, 'frozen', False):
+            # Running from executable
+            base_path = sys._MEIPASS
+        else:
+            # Running from source
+            base_path = os.path.dirname(os.path.abspath(__file__))
+        videos_dir = os.path.join(base_path, "videos")
+        
         # Initialize drag and resize data
         self.drag_data = {'x': 0, 'y': 0}
         self.resize_data = {'x': 0, 'y': 0}
         self.is_transparent = False
         
-        self.idle_video_path = idle_video_path
-        # Set talk video path based on window number
-        base_name = os.path.splitext(idle_video_path)[0]
+        # Use proper path construction
+        self.idle_video_path = os.path.join(videos_dir, os.path.basename(idle_video_path))
+        base_name = os.path.splitext(os.path.basename(idle_video_path))[0]
         if base_name.endswith('2'):
-            self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk2.mp4")
+            self.talk_video_path = os.path.join(videos_dir, "talk2.mp4")
         else:
-            self.talk_video_path = os.path.join(os.path.dirname(idle_video_path), "talk.mp4")
+            self.talk_video_path = os.path.join(videos_dir, "talk.mp4")
             
         self.logger.info(f"Idle video path: {self.idle_video_path}")
         self.logger.info(f"Talk video path: {self.talk_video_path}")
