@@ -1926,6 +1926,9 @@ if __name__ == "__main__":
             if not os.path.exists(videos_dir):
                 os.makedirs(videos_dir)
         
+            logging.info(f"Video directory path: {videos_dir}")
+            logging.info(f"Video files present: {os.listdir(videos_dir) if os.path.exists(videos_dir) else 'directory not found'}")
+        
             return videos_dir
 
         def init_video_window():

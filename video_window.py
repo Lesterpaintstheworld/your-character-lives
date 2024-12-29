@@ -68,6 +68,14 @@ class DraggableVideoWindow:
             self.logger.error(f"Talk video not found: {self.talk_video_path}")
             raise FileNotFoundError(f"Talk video not found: {self.talk_video_path}")
 
+        # Verify video files exist
+        if not os.path.exists(self.idle_video_path):
+            self.logger.error(f"Idle video not found: {self.idle_video_path}")
+            raise FileNotFoundError(f"Idle video not found: {self.idle_video_path}")
+        if not os.path.exists(self.talk_video_path):
+            self.logger.error(f"Talk video not found: {self.talk_video_path}")
+            raise FileNotFoundError(f"Talk video not found: {self.talk_video_path}")
+
         # Initialize video capture with error checking
         try:
             self.cap = cv2.VideoCapture(self.current_video_path)
