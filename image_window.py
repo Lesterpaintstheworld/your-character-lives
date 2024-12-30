@@ -1,6 +1,7 @@
 import tkinter as tk
 from PIL import Image, ImageTk
 import logging
+import os
 
 class ImageWindow:
     def __init__(self, image_path):
@@ -17,6 +18,13 @@ class ImageWindow:
         # Create label to display image
         self.label = tk.Label(self.window, image=self.photo)
         self.label.pack()
+
+        # Add file monitoring
+        self.image_path = image_path
+        self.last_modified = os.path.getmtime(image_path)
+        
+        # Start checking for file changes every 10 seconds
+        self.check_file_changes = self.window.after(10000, self.check_for_updates)
         
         # Initialize drag variables
         self.x = 0
@@ -62,4 +70,6 @@ class ImageWindow:
         self.window.geometry(f'+{x}+{y}')
         
     def close(self, event):
+        # Cancel the update checker before destroying
+        self.window.after_cancel(self.check_file_changes)
         self.window.destroy()
