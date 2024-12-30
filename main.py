@@ -28,17 +28,7 @@ second_video_window = None
 video_logger = logging.getLogger('video')
 video_logger.setLevel(logging.DEBUG)
 
-from image_window import ImageWindow
 
-def check_and_display_diagram():
-    """Check for diagram.png and display it if found"""
-    diagram_path = os.path.join(os.getcwd(), 'diagram.png')
-    if os.path.exists(diagram_path):
-        try:
-            ImageWindow(diagram_path)
-            logging.info("Displayed diagram.png")
-        except Exception as e:
-            logging.error(f"Error displaying diagram.png: {e}")
 
 def init_video():
     """Initialize video subsystem with detailed logging"""
@@ -2267,13 +2257,9 @@ if __name__ == "__main__":
                 "Video subsystem initialization failed. The application will continue without video support."
             )
         
-        # Check for and display diagram if present
-        if check_and_display_diagram():
-            logging.info("Diagram displayed")
-        else:
-            # Initialize video window directly (it will schedule itself on main thread)
-            video_logger.info("Initializing video window")
-            init_video_window()
+        # Initialize video window directly (it will schedule itself on main thread)
+        video_logger.info("Initializing video window")
+        init_video_window()
         
         # Test audio but don't exit if it fails
         audio_ok = initialize_audio()

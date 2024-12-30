@@ -418,12 +418,4 @@ def start_visualization():
     except Exception as e:
         logging.error(f"Initial visualization failed: {e}")
     
-    # Check for and display diagram
-    if os.path.exists('diagram.png'):
-        try:
-            ImageWindow('diagram.png')
-            logging.info("Displaying repository visualization")
-        except Exception as e:
-            logging.error(f"Error displaying visualization: {e}")
-    
     return visualizer
