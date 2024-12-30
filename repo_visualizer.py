@@ -164,17 +164,39 @@ class RepoVisualizer:
                 try:
                     # Get the installation directory (where the script is located)
                     if getattr(sys, 'frozen', False):
-                        # If running as exe
                         install_dir = os.path.dirname(sys.executable)
                     else:
-                        # If running as script
                         install_dir = os.path.dirname(os.path.abspath(__file__))
                     
                     # Path to repo-visualizer in install directory
                     repo_dir = os.path.join(install_dir, "repo-visualizer")
-                    logging.info(f"Looking for repo-visualizer at: {repo_dir}")
-
-                    if not os.path.exists(repo_dir):
+                
+                    # Add detailed logging
+                    logging.info(f"=== Directory Check ===")
+                    logging.info(f"Install directory: {install_dir}")
+                    logging.info(f"Repo-visualizer path: {repo_dir}")
+                
+                    # Check if directory exists and log contents
+                    if os.path.exists(repo_dir):
+                        logging.info(f"Directory exists!")
+                        try:
+                            contents = os.listdir(repo_dir)
+                            logging.info(f"Contents: {contents}")
+                        
+                            # Check for package.json to verify it's a valid npm package
+                            if 'package.json' in contents:
+                                logging.info("Found package.json - valid npm package")
+                            else:
+                                logging.warning("No package.json found - may not be a valid npm package")
+                            
+                            # Check directory permissions
+                            logging.info(f"Directory readable: {os.access(repo_dir, os.R_OK)}")
+                            logging.info(f"Directory writable: {os.access(repo_dir, os.W_OK)}")
+                            logging.info(f"Directory executable: {os.access(repo_dir, os.X_OK)}")
+                        
+                        except Exception as e:
+                            logging.error(f"Error checking directory contents: {e}")
+                    else:
                         error_msg = f"repo-visualizer directory not found at: {repo_dir}"
                         logging.error(error_msg)
                         if hasattr(self, 'status_callback'):
@@ -198,10 +220,17 @@ class RepoVisualizer:
                 
                 stdout, stderr = await self.current_process.communicate()
                 
+                # Log command output
+                if stdout:
+                    logging.info(f"Command stdout: {stdout.decode()}")
+                if stderr:
+                    logging.error(f"Command stderr: {stderr.decode()}")
+                    
                 if self.current_process.returncode == 0:
                     logging.info("Generated visualization successfully")
                 else:
-                    logging.error(f"Visualization failed: {stderr.decode()}")
+                    logging.error(f"Visualization failed with return code {self.current_process.returncode}")
+                    logging.error(f"Error output: {stderr.decode()}")
                     return False
             except Exception as e:
                 logging.error(f"Error generating visualization: {e}")
