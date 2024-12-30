@@ -1361,13 +1361,13 @@ async def auto_record_loop():
                 logging.info(f"Response headers: {response.headers}")
                 logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
 
-                except Exception as e:
-                    logging.error(f"Error in auto recording loop: {e}")
-                    update_status(f"❌ Auto recording error: {str(e)}")
-                    await asyncio.sleep(5)  # Wait before retrying
+            except Exception as e:
+                logging.error(f"Error in auto recording loop: {e}")
+                update_status(f"❌ Auto recording error: {str(e)}")
+                await asyncio.sleep(5)  # Wait before retrying
                     
-                if not auto_recording or not is_playing:
-                    break
+            if not auto_recording or not is_playing:
+                break
                     
     except Exception as e:
         logging.error(f"Auto recording loop crashed: {e}")
