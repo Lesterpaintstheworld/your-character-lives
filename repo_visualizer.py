@@ -302,6 +302,15 @@ class RepoVisualizer:
                 logging.info(f"Working directory: {working_dir}")
                 logging.info(f"NODE_PATH: {env.get('NODE_PATH')}")
 
+                # Get install directory path
+                if getattr(sys, 'frozen', False):
+                    install_dir = os.path.dirname(sys.executable)
+                else:
+                    install_dir = os.path.dirname(os.path.abspath(__file__))
+                
+                repo_dir = os.path.join(install_dir, "repo-visualizer")
+                os.makedirs(repo_dir, exist_ok=True)
+                
                 # First verify repo-visualizer is installed
                 check_process = await asyncio.create_subprocess_exec(
                     npx_path, '--no-install', 'repo-visualizer', '--version',
@@ -313,19 +322,27 @@ class RepoVisualizer:
                 check_stdout, check_stderr = await check_process.communicate()
                 
                 if check_process.returncode != 0:
-                    logging.error("repo-visualizer not found, attempting to install...")
-                    # Install repo-visualizer globally
+                    logging.error("repo-visualizer not found, attempting install in install directory...")
+                    # Install repo-visualizer in the install directory
                     install_process = await asyncio.create_subprocess_exec(
-                        npm_path, 'install', '-g', 'repo-visualizer',
+                        npm_path, 'install', 'repo-visualizer',
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE,
-                        env=env
+                        env=env,
+                        cwd=repo_dir  # Install in repo-visualizer directory
                     )
                     install_stdout, install_stderr = await install_process.communicate()
                     if install_process.returncode != 0:
                         logging.error(f"Failed to install repo-visualizer: {install_stderr.decode()}")
                         return False
-                    logging.info("Successfully installed repo-visualizer")
+                    logging.info("Successfully installed repo-visualizer in install directory")
+
+                    # Update NODE_PATH to include repo-visualizer directory
+                    if 'NODE_PATH' in env:
+                        env['NODE_PATH'] = f"{repo_dir}{os.pathsep}{env['NODE_PATH']}"
+                    else:
+                        env['NODE_PATH'] = repo_dir
+                    logging.info(f"Updated NODE_PATH after install: {env['NODE_PATH']}")
 
                 # Run the visualization command
                 self.current_process = await asyncio.create_subprocess_exec(
