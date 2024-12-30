@@ -88,35 +88,47 @@ class DiagramWindow:
     def load_diagram(self):
         try:
             if os.path.exists('diagram.svg'):
-                # Set default font mapping for svglib
-                from svglib.svglib import register_font
-                import platform
-                
-                # Choose appropriate system font based on OS
-                if platform.system() == 'Windows':
-                    register_font('Arial', 'Helvetica')
-                    register_font('Arial', 'sans-serif')
-                elif platform.system() == 'Darwin':  # macOS
-                    register_font('Helvetica', 'sans-serif')
-                else:  # Linux
-                    register_font('DejaVu Sans', 'sans-serif')
+                try:
+                    # First try svglib method
+                    from svglib.svglib import svg2rlg, register_font
+                    from reportlab.graphics import renderPM
+                    import platform
+                    
+                    # Choose appropriate system font based on OS
+                    if platform.system() == 'Windows':
+                        register_font('Arial', 'Helvetica')
+                        register_font('Arial', 'sans-serif')
+                    elif platform.system() == 'Darwin':  # macOS
+                        register_font('Helvetica', 'sans-serif')
+                    else:  # Linux
+                        register_font('DejaVu Sans', 'sans-serif')
 
-                # Convert SVG to PNG using svglib for better rendering
-                drawing = svg2rlg('diagram.svg')
-                
-                # Scale drawing to fit window while maintaining aspect ratio
-                scale_x = self.width / drawing.width
-                scale_y = self.height / drawing.height
-                scale = min(scale_x, scale_y)
-                
-                drawing.width = drawing.width * scale
-                drawing.height = drawing.height * scale
-                drawing.scale(scale, scale)
-                
-                # Create BytesIO object to store PNG data
-                png_data = io.BytesIO()
-                renderPM.drawToFile(drawing, png_data, fmt='PNG', bg=self.bg_color)
-                png_data.seek(0)
+                    # Convert SVG to PNG using svglib
+                    drawing = svg2rlg('diagram.svg')
+                    
+                    # Scale drawing to fit window while maintaining aspect ratio
+                    scale_x = self.width / drawing.width
+                    scale_y = self.height / drawing.height
+                    scale = min(scale_x, scale_y)
+                    
+                    drawing.width = drawing.width * scale
+                    drawing.height = drawing.height * scale
+                    drawing.scale(scale, scale)
+                    
+                    # Create BytesIO object to store PNG data
+                    png_data = io.BytesIO()
+                    renderPM.drawToFile(drawing, png_data, fmt='PNG', bg=self.bg_color)
+                    png_data.seek(0)
+                    
+                except (ImportError, Exception) as e:
+                    # Fallback to cairosvg if svglib/renderPM fails
+                    logging.info(f"Falling back to cairosvg for SVG conversion: {e}")
+                    from cairosvg import svg2png
+                    
+                    png_data = io.BytesIO()
+                    with open('diagram.svg', 'rb') as svg_file:
+                        svg2png(file_obj=svg_file, write_to=png_data)
+                    png_data.seek(0)
                 
                 # Convert to PIL Image
                 new_image = Image.open(png_data)
