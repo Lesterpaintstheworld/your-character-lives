@@ -37,44 +37,81 @@ class RepoVisualizer:
                     self.status_callback("❌ Node.js not found - please install Node.js")
                 return False
 
-            # Check if repo-visualizer is installed
-            process = await asyncio.create_subprocess_exec(
-                'repo-visualizer', '--version',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            await process.communicate()
-            
-            # Check if repo-visualizer needs to be built
-            repo_visualizer_path = os.path.join(os.getcwd(), 'node_modules', 'repo-visualizer')
-            dist_path = os.path.join(repo_visualizer_path, 'dist')
-            
-            if not os.path.exists(dist_path):
+            # Check if repo-visualizer is installed globally
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    'repo-visualizer', '--version',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                await process.communicate()
+            except FileNotFoundError:
+                # repo-visualizer not found, attempt to install it
                 if hasattr(self, 'status_callback'):
-                    self.status_callback("🔨 Building repo-visualizer...")
-                logging.info("repo-visualizer needs to be built. Attempting build...")
+                    self.status_callback("📦 Installing repo-visualizer...")
+                logging.info("repo-visualizer not found. Installing...")
+                
                 try:
-                    # Install dependencies
-                    process = await asyncio.create_subprocess_exec(
-                        'npm', 'install',
-                        cwd=repo_visualizer_path,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
-                    )
-                    await process.communicate()
+                    # Create node_modules directory if it doesn't exist
+                    if not os.path.exists('node_modules'):
+                        os.makedirs('node_modules')
                     
-                    # Run build
-                    process = await asyncio.create_subprocess_exec(
-                        'npm', 'run', 'build',
-                        cwd=repo_visualizer_path,
+                    # Clone repo-visualizer from GitHub
+                    clone_process = await asyncio.create_subprocess_exec(
+                        'git', 'clone', 'https://github.com/githubocto/repo-visualizer.git',
+                        'node_modules/repo-visualizer',
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
                     )
-                    await process.communicate()
-                except Exception as e:
-                    logging.error(f"Failed to build repo-visualizer: {e}")
+                    stdout, stderr = await clone_process.communicate()
+                    
+                    if clone_process.returncode != 0:
+                        raise Exception(f"Failed to clone repo-visualizer: {stderr.decode()}")
+                    
+                    # Install dependencies
+                    install_process = await asyncio.create_subprocess_exec(
+                        'npm', 'install',
+                        cwd=os.path.join('node_modules', 'repo-visualizer'),
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await install_process.communicate()
+                    
+                    if install_process.returncode != 0:
+                        raise Exception(f"Failed to install dependencies: {stderr.decode()}")
+                    
+                    # Build repo-visualizer
+                    build_process = await asyncio.create_subprocess_exec(
+                        'npm', 'run', 'build',
+                        cwd=os.path.join('node_modules', 'repo-visualizer'),
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await build_process.communicate()
+                    
+                    if build_process.returncode != 0:
+                        raise Exception(f"Failed to build repo-visualizer: {stderr.decode()}")
+                    
+                    # Install globally
+                    global_install_process = await asyncio.create_subprocess_exec(
+                        'npm', 'install', '-g',
+                        cwd=os.path.join('node_modules', 'repo-visualizer'),
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await global_install_process.communicate()
+                    
+                    if global_install_process.returncode != 0:
+                        raise Exception(f"Failed to install globally: {stderr.decode()}")
+                    
+                    logging.info("Successfully installed repo-visualizer")
                     if hasattr(self, 'status_callback'):
-                        self.status_callback("❌ Failed to build repo-visualizer")
+                        self.status_callback("✅ repo-visualizer installed successfully")
+                        
+                except Exception as e:
+                    logging.error(f"Failed to install repo-visualizer: {e}")
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback(f"❌ Failed to install repo-visualizer: {str(e)}")
                     return False
 
             # Generate visualization
@@ -154,8 +191,15 @@ class RepoVisualizer:
             except:
                 pass
         try:
-            if os.path.exists('diagram.svg'):
-                os.remove('diagram.svg')
+            # Cleanup temporary files
+            for file in ['diagram.svg', 'diagram.png']:
+                if os.path.exists(file):
+                    os.remove(file)
+            
+            # Optionally cleanup repo-visualizer installation
+            if os.path.exists(os.path.join('node_modules', 'repo-visualizer')):
+                import shutil
+                shutil.rmtree(os.path.join('node_modules', 'repo-visualizer'))
         except:
             pass
 
