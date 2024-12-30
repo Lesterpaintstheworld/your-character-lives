@@ -89,46 +89,55 @@ class DiagramWindow:
         try:
             if os.path.exists('diagram.svg'):
                 try:
-                    # First try svglib method
-                    from svglib.svglib import svg2rlg, register_font
-                    from reportlab.graphics import renderPM
+                    # Try cairosvg first since we're having issues with svglib
+                    from cairosvg import svg2png
+                    logging.info("Using cairosvg for SVG conversion")
+                    
+                    # Set up font configuration for cairosvg
+                    import os
                     import platform
                     
-                    # Choose appropriate system font based on OS
+                    # Define system font paths based on OS
                     if platform.system() == 'Windows':
-                        register_font('Arial', 'Helvetica')
-                        register_font('Arial', 'sans-serif')
+                        font_paths = [
+                            os.path.join(os.environ['WINDIR'], 'Fonts'),
+                            os.path.join(os.environ['LOCALAPPDATA'], 'Microsoft', 'Windows', 'Fonts')
+                        ]
+                        default_font = 'Arial'
                     elif platform.system() == 'Darwin':  # macOS
-                        register_font('Helvetica', 'sans-serif')
+                        font_paths = [
+                            '/System/Library/Fonts',
+                            '/Library/Fonts',
+                            os.path.expanduser('~/Library/Fonts')
+                        ]
+                        default_font = 'Helvetica'
                     else:  # Linux
-                        register_font('DejaVu Sans', 'sans-serif')
+                        font_paths = [
+                            '/usr/share/fonts',
+                            '/usr/local/share/fonts',
+                            os.path.expanduser('~/.fonts')
+                        ]
+                        default_font = 'DejaVu Sans'
 
-                    # Convert SVG to PNG using svglib
-                    drawing = svg2rlg('diagram.svg')
-                    
-                    # Scale drawing to fit window while maintaining aspect ratio
-                    scale_x = self.width / drawing.width
-                    scale_y = self.height / drawing.height
-                    scale = min(scale_x, scale_y)
-                    
-                    drawing.width = drawing.width * scale
-                    drawing.height = drawing.height * scale
-                    drawing.scale(scale, scale)
-                    
-                    # Create BytesIO object to store PNG data
+                    # Create BytesIO object for PNG data
                     png_data = io.BytesIO()
-                    renderPM.drawToFile(drawing, png_data, fmt='PNG', bg=self.bg_color)
-                    png_data.seek(0)
                     
-                except (ImportError, Exception) as e:
-                    # Fallback to cairosvg if svglib/renderPM fails
-                    logging.info(f"Falling back to cairosvg for SVG conversion: {e}")
-                    from cairosvg import svg2png
-                    
-                    png_data = io.BytesIO()
+                    # Convert SVG to PNG with font configuration
                     with open('diagram.svg', 'rb') as svg_file:
-                        svg2png(file_obj=svg_file, write_to=png_data)
+                        svg2png(
+                            file_obj=svg_file,
+                            write_to=png_data,
+                            font_family=default_font,  # Use system default font
+                            scale=2.0  # Increase quality
+                        )
                     png_data.seek(0)
+                    
+                except ImportError as e:
+                    logging.error(f"Failed to import cairosvg: {e}")
+                    raise
+                except Exception as e:
+                    logging.error(f"Error during SVG conversion: {e}")
+                    raise
                 
                 # Convert to PIL Image
                 new_image = Image.open(png_data)
