@@ -275,7 +275,7 @@ class RepoVisualizer:
                 '--force-node-api-uncaught-exceptions-policy=true',
                 repo_viz_path,
                 '--output', 'diagram.svg',
-                '--exclude', '.git,.aider,__pycache__,build,dist'
+                '--exclude', '.git,.aider,__pycache__,build,dist,*.log'
             ]
             logging.info(f"Executing command: {' '.join(cmd)}")
 
