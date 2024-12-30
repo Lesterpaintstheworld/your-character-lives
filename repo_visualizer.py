@@ -107,10 +107,6 @@ class RepoVisualizer:
             logging.error(f"Error running where/which: {e}")
 
         logging.info("=== End npm diagnostics ===")
-        # Initialize instance variables
-        self.interval = interval  # Store constructor parameter
-        self.running = True
-        self.current_process = None
         
         # Start visualization loop in a separate thread
         self.visualization_thread = Thread(
