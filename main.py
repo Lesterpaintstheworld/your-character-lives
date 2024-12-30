@@ -25,6 +25,83 @@ second_video_window = None
 video_logger = logging.getLogger('video')
 video_logger.setLevel(logging.DEBUG)
 
+class ImageWindow:
+    def __init__(self, image_path):
+        self.window = tk.Toplevel()
+        self.window.overrideredirect(True)  # Remove window decorations
+        self.window.configure(bg='white')
+        
+        # Load and display image
+        self.image = Image.open(image_path)
+        self.photo = ImageTk.PhotoImage(self.image)
+        self.label = tk.Label(self.window, image=self.photo, bg='white')
+        self.label.pack(padx=2, pady=2)
+        
+        # Bind events
+        self.label.bind('<Button-1>', self.start_drag)
+        self.label.bind('<B1-Motion>', self.drag)
+        self.window.bind('<Double-Button-1>', self.close)
+        self.window.bind('<Configure>', self.on_resize)
+        
+        # Add resize grip
+        self.grip = ttk.Sizegrip(self.window)
+        self.grip.place(relx=1.0, rely=1.0, anchor='se')
+        
+        # Initialize drag variables
+        self.x = 0
+        self.y = 0
+        
+        # Center window on screen
+        screen_width = self.window.winfo_screenwidth()
+        screen_height = self.window.winfo_screenheight()
+        x = (screen_width - self.image.width) // 2
+        y = (screen_height - self.image.height) // 2
+        self.window.geometry(f'+{x}+{y}')
+        
+    def start_drag(self, event):
+        self.x = event.x
+        self.y = event.y
+        
+    def drag(self, event):
+        deltax = event.x - self.x
+        deltay = event.y - self.y
+        x = self.window.winfo_x() + deltax
+        y = self.window.winfo_y() + deltay
+        self.window.geometry(f'+{x}+{y}')
+        
+    def close(self, event):
+        self.window.destroy()
+        
+    def on_resize(self, event):
+        # Only resize if the window size has actually changed
+        if hasattr(self, 'last_width') and hasattr(self, 'last_height'):
+            if event.width == self.last_width and event.height == self.last_height:
+                return
+                
+        self.last_width = event.width
+        self.last_height = event.height
+        
+        # Resize image maintaining aspect ratio
+        ratio = min(event.width / self.image.width, 
+                   event.height / self.image.height)
+        new_width = int(self.image.width * ratio)
+        new_height = int(self.image.height * ratio)
+        
+        # Resize image
+        resized = self.image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        self.photo = ImageTk.PhotoImage(resized)
+        self.label.configure(image=self.photo)
+
+def check_and_display_diagram():
+    """Check for diagram.png and display it if found"""
+    diagram_path = os.path.join(os.getcwd(), 'diagram.png')
+    if os.path.exists(diagram_path):
+        try:
+            ImageWindow(diagram_path)
+            logging.info("Displayed diagram.png")
+        except Exception as e:
+            logging.error(f"Error displaying diagram.png: {e}")
+
 def init_video():
     """Initialize video subsystem with detailed logging"""
     video_logger.info("Starting video initialization")
@@ -2209,6 +2286,9 @@ if __name__ == "__main__":
                 "Video Warning",
                 "Video subsystem initialization failed. The application will continue without video support."
             )
+        
+        # Check for and display diagram if present
+        check_and_display_diagram()
         else:
             # Initialize video window directly (it will schedule itself on main thread)
             video_logger.info("Initializing video window")
