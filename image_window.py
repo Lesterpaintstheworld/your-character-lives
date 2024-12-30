@@ -34,26 +34,22 @@ class ImageWindow:
         self.window.image = self.photo
 
     def update_image(self, image_path):
-        """Update the displayed image"""
+        """Thread-safe image update"""
         try:
-            # Load and resize new image
-            self.image = Image.open(image_path)
-            self.image = self.image.resize((800, 800), Image.Resampling.LANCZOS)
-            self.photo = ImageTk.PhotoImage(self.image)
+            def do_update():
+                try:
+                    self.load_image(image_path)
+                    self.label.configure(image=self.photo)
+                    self.window.image = self.photo  # Keep reference
+                    self.last_modified = os.path.getmtime(image_path)
+                    logging.info("Image updated successfully")
+                except Exception as e:
+                    logging.error(f"Error in image update: {e}")
             
-            # Update label
-            self.label.configure(image=self.photo)
-            
-            # Update stored path and modification time
-            self.image_path = image_path
-            self.last_modified = os.path.getmtime(image_path)
-            
-            # Keep reference
-            self.window.image = self.photo
-            
-            logging.info("Image updated successfully")
+            # Schedule update on main thread
+            self.window.after(0, do_update)
         except Exception as e:
-            logging.error(f"Error updating image: {e}")
+            logging.error(f"Failed to schedule image update: {e}")
 
     def _setup_dragging(self):
         """Setup window drag functionality"""

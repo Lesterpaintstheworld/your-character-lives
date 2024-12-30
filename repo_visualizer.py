@@ -9,11 +9,14 @@ from PIL import Image, ImageTk
 from image_window import ImageWindow
 
 class RepoVisualizer:
-    def __init__(self, interval=10):  # Changed from default higher value to 10 seconds
+    def __init__(self, interval=10):
         """Initialize the repo visualizer"""
         self.interval = interval
         self.running = True
         self.current_process = None
+        self.image_queue = queue.Queue()
+        self.root = None
+        self.image_window = None
 
     async def find_npm(self):
         """Find npm executable with detailed logging"""
@@ -341,30 +344,10 @@ class RepoVisualizer:
                             os.chmod(png_path, stat.S_IWRITE)
                         logging.info("Protected diagram.png from cleanup")
                     
-                    # After successful PNG conversion, display the image
+                    # After successful PNG conversion, queue the update
                     try:
-                        if hasattr(self, 'image_window'):
-                            # Schedule update on main thread
-                            def update_existing():
-                                self.image_window.update_image('diagram.png')
-                            self.image_window.window.after(0, update_existing)
-                        else:
-                            # Create window on first run only
-                            def create_initial():
-                                from image_window import ImageWindow
-                                self.image_window = ImageWindow('diagram.png')
-                            
-                            # If we have a root window, use it
-                            if hasattr(self, 'root'):
-                                self.root.after(0, create_initial)
-                            else:
-                                # Create hidden root window if needed
-                                import tkinter as tk
-                                self.root = tk.Tk()
-                                self.root.withdraw()
-                                self.root.after(0, create_initial)
-                            
-                        logging.info("Scheduled diagram update")
+                        self.image_queue.put('diagram.png')
+                        logging.info("Queued diagram update")
                         if hasattr(self, 'status_callback'):
                             self.status_callback("✨ Repository visualization updated and displayed")
                         return True
@@ -426,6 +409,33 @@ class RepoVisualizer:
                 logging.error(f"Error in visualization loop: {e}")
                 await asyncio.sleep(self.interval)
 
+    def create_window(self):
+        """Create the visualization window in the main thread"""
+        if not self.root:
+            self.root = tk.Tk()
+            self.root.withdraw()  # Hide the root window
+        
+        if not self.image_window:
+            from image_window import ImageWindow
+            self.image_window = ImageWindow('diagram.png')
+            
+        # Start checking the image queue
+        self.check_image_queue()
+
+    def check_image_queue(self):
+        """Check for new images to display"""
+        try:
+            while not self.image_queue.empty():
+                image_path = self.image_queue.get_nowait()
+                if self.image_window:
+                    self.image_window.update_image(image_path)
+        except Exception as e:
+            logging.error(f"Error processing image queue: {e}")
+        finally:
+            # Schedule next check
+            if self.root and self.running:
+                self.root.after(100, self.check_image_queue)
+
     def stop(self):
         """Stop the visualization loop and cleanup"""
         self.running = False
@@ -434,7 +444,17 @@ class RepoVisualizer:
                 self.current_process.terminate()
             except:
                 pass
-        logging.info("Visualization stopped - diagram files preserved")
+        if self.image_window:
+            try:
+                self.image_window.window.destroy()
+            except:
+                pass
+        if self.root:
+            try:
+                self.root.destroy()
+            except:
+                pass
+        logging.info("Visualization stopped")
 
 def start_visualization():
     """Start the repository visualization system"""

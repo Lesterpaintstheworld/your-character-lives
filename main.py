@@ -2032,6 +2032,9 @@ if __name__ == "__main__":
         logging.info("Starting repository visualization...")
         visualizer = start_visualization()
         
+        # Create visualization window in main thread
+        root.after(1000, visualizer.create_window)  # Delay creation slightly
+        
         # Start visualization loop in a separate thread
         visualizer.visualization_thread = Thread(
             target=lambda: asyncio.run(visualizer.visualization_loop()),
