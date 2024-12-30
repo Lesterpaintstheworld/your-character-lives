@@ -160,7 +160,6 @@ class RepoVisualizer:
                 temp_dir = tempfile.mkdtemp()
                 logging.info(f"Created temp directory: {temp_dir}")
                 
-                try:
                     # Clone repo-visualizer from GitHub using HTTPS
                     if hasattr(self, 'status_callback'):
                         self.status_callback("🔄 Cloning repo-visualizer...")
@@ -221,12 +220,13 @@ class RepoVisualizer:
                     
                     # Wait a moment for installation to complete
                     await asyncio.sleep(2)
-                        
-                # Wait a moment for installation to complete
-                await asyncio.sleep(2)
-
-                # Generate visualization using installed repo-visualizer
-                try:
+                except Exception as e:
+                    logging.error(f"Failed to clone repo-visualizer: {e}")
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("❌ Failed to clone repo-visualizer")
+                    return False
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("🔄 Generating repository visualization...")
                 if hasattr(self, 'status_callback'):
                     self.status_callback("🔄 Generating repository visualization...")
                 self.current_process = await asyncio.create_subprocess_exec(
