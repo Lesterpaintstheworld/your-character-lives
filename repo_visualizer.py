@@ -5,6 +5,7 @@ import logging
 from threading import Thread
 import tkinter as tk
 from PIL import Image, ImageTk
+from main import ImageWindow
 
 class RepoVisualizer:
     def __init__(self, interval=10):
