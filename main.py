@@ -514,7 +514,11 @@ def safe_remove_file(filepath: str, max_retries: int = 3, delay: float = 0.5) ->
     return False
 
 def update_status(message):
-    """Update status in UI"""
+    """Update status in UI with more detail for errors"""
+    if "❌" in message:
+        logging.error(message)
+        # Make errors more visible in UI
+        message = f"\n{message}\n"
     root.after(0, lambda: text_widget.insert(tk.END, f"\n{message}\n"))
     root.after(0, text_widget.see, tk.END)
 
@@ -1287,48 +1291,75 @@ def toggle_auto_recording():
 async def auto_record_loop():
     """Run the automatic recording loop"""
     try:
-            while auto_recording and is_playing:
-                try:
-                    # Record audio for the entire interval
-                    audio_data = record_audio(auto_recording_interval)
+        while auto_recording and is_playing:
+            try:
+                # Record audio for the entire interval
+                audio_data = record_audio(auto_recording_interval)
+                
+                # Take screenshot
+                screenshot_data = take_screenshot()
+                
+                # Collect text content as string
+                logging.info("Collecting text content...")
+                text_content = collect_text_files_content()
+                logging.info(f"Text content collected: {len(text_content)} bytes")
+
+                # Get endpoints from UI
+                emily_endpoint = emily_endpoint_var.get()
+                daemon_endpoint = daemon_endpoint_var.get()
+
+                # Log request details
+                logging.info(f"Sending request to Emily endpoint: {emily_endpoint}")
+                
+                # Prepare multipart form data
+                data = {
+                    'text': text_content  # Send text directly in request body
+                }
+
+                files = {
+                    'pre_screenshot': ('pre_screenshot.jpg', screenshot_data, 'image/jpeg'),
+                    'post_screenshot': ('post_screenshot.jpg', screenshot_data, 'image/jpeg'),
+                    'audio': ('audio.wav', audio_data, 'audio/wav')
+                }
+
+                # Send request to Emily first
+                logging.info("Sending data to Emily...")
+                response = requests.post(
+                    emily_endpoint,
+                    data=data,
+                    files=files,
+                    timeout=NetworkConstants.REQUEST_TIMEOUT
+                )
+
+                if response.status_code == 200:
+                    # Process Emily's response
+                    await process_audio_chunk(response.content, is_daemon=False)
                     
-                    # Take screenshot
-                    screenshot_data = take_screenshot()
+                    # Wait a bit before Daemon's turn
+                    await asyncio.sleep(1)
                     
-                    # Collect text content as string
-                    logging.info("Collecting text content...")
-                    text_content = collect_text_files_content()
-                    logging.info(f"Text content collected: {len(text_content)} bytes")
-
-                    # Prepare multipart form data with text in body
-                    data = {
-                        'text': text_content  # Send text directly in request body
-                    }
-
-                    files = {
-                        'data': ('screenshot.jpg', screenshot_data, 'image/jpeg'),
-                        'audio': ('audio.wav', audio_data, 'audio/wav')
-                    }
-
-                    # Send request with text in body and files in multipart/form-data
-                    logging.info("Sending data to n8n...")
+                    # Now send to Daemon
+                    logging.info("Sending data to Daemon...")
                     response = requests.post(
-                        API_ENDPOINT,
-                        data=data,  # Text content in request body
-                        files=files,  # Binary files in multipart/form-data
-                        timeout=REQUEST_TIMEOUT
+                        daemon_endpoint,
+                        data=data,
+                        files=files,
+                        timeout=NetworkConstants.REQUEST_TIMEOUT
                     )
-
-                    # Process response
+                    
                     if response.status_code == 200:
-                        # Get raw binary content
-                        binary_data = response.content
-                        
-                        # Process audio response
-                        await process_audio_chunk(binary_data)
+                        await process_audio_chunk(response.content, is_daemon=True)
                     else:
-                        logging.error(f"Error response from server: {response.status_code}")
-                        update_status(f"❌ Server error: {response.status_code}")
+                        logging.error(f"Daemon request failed: {response.status_code}")
+                        update_status(f"❌ Daemon error: {response.status_code}")
+                else:
+                    logging.error(f"Emily request failed: {response.status_code}")
+                    update_status(f"❌ Emily error: {response.status_code}")
+
+                # Log response details
+                logging.info(f"Response status: {response.status_code}")
+                logging.info(f"Response headers: {response.headers}")
+                logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
 
                 except Exception as e:
                     logging.error(f"Error in auto recording loop: {e}")
