@@ -300,6 +300,12 @@ class RepoVisualizer:
             if os.path.exists(svg_path):
                 logging.info(f"SVG file found at: {svg_path}")
                 logging.info(f"SVG file size: {os.path.getsize(svg_path)} bytes")
+                    
+                # Protect SVG file from cleanup
+                if os.name == 'nt':
+                    import stat
+                    os.chmod(svg_path, stat.S_IWRITE)
+                logging.info("Protected diagram.svg from cleanup")
                 
                 # Convert SVG to PNG using cairosvg
                 try:
@@ -312,6 +318,13 @@ class RepoVisualizer:
                             output_height=1024
                         )
                     logging.info("Generated PNG successfully")
+                    
+                    # Protect PNG file from cleanup
+                    png_path = os.path.join(working_dir, 'diagram.png')
+                    if os.name == 'nt':
+                        import stat
+                        os.chmod(png_path, stat.S_IWRITE)
+                    logging.info("Protected diagram.png from cleanup")
                     
                     if hasattr(self, 'status_callback'):
                         self.status_callback("✨ Repository visualization updated")
@@ -376,13 +389,7 @@ class RepoVisualizer:
                 self.current_process.terminate()
             except:
                 pass
-        try:
-            # Only cleanup temporary files
-            for file in ['diagram.svg', 'diagram.png']:
-                if os.path.exists(file):
-                    os.remove(file)
-        except:
-            pass
+        logging.info("Visualization stopped - diagram files preserved")
 
 def start_visualization():
     """Start the repository visualization system"""
