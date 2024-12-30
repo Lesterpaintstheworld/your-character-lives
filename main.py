@@ -5,7 +5,6 @@ import sys
 import os
 from threading import Thread
 from repo_visualizer import start_visualization
-from diagram_window import DiagramWindow
 import time
 import io
 import wave
