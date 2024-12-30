@@ -275,7 +275,19 @@ class RepoVisualizer:
                 '--force-node-api-uncaught-exceptions-policy=true',
                 repo_viz_path,
                 '--output', 'diagram.svg',
-                '--exclude', '.git,.aider,__pycache__,build,dist,*.log'
+                '--exclude', (
+                    '.git,.aider,__pycache__,build,dist,'
+                    '*.log,*.pyc,*.pyo,*.pyd,*.so,*.dll,*.dylib,'  # Compiled/binary files
+                    '*.egg-info,*.egg,*.whl,'  # Python package files
+                    '*.coverage,htmlcov/,'  # Test coverage files
+                    'node_modules,.env,.venv,venv,env,'  # Environment and dependency dirs
+                    '.DS_Store,Thumbs.db,'  # System files
+                    '*.bak,*.swp,*.swo,*~,'  # Backup and temp files
+                    '*.png,*.jpg,*.jpeg,*.gif,*.ico,'  # Image files
+                    '*.mp3,*.wav,*.mp4,*.avi,*.mov,'  # Media files
+                    '*.zip,*.tar,*.gz,*.rar,'  # Archive files
+                    '*.sqlite,*.db'  # Database files
+                )
             ]
             logging.info(f"Executing command: {' '.join(cmd)}")
 
