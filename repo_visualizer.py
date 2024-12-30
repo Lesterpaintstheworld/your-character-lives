@@ -416,10 +416,6 @@ def start_visualization():
     try:
         asyncio.run(visualizer.generate_visualization())
         logging.info("Initial visualization generated")
-        
-        # Create diagram window
-        diagram_window = DiagramWindow()
-        
     except Exception as e:
         logging.error(f"Initial visualization failed: {e}")
     
