@@ -295,43 +295,39 @@ class RepoVisualizer:
             if stderr:
                 logging.info(f"Command stderr:\n{stderr.decode()}")
                 
-            if self.current_process.returncode == 0:
-                logging.info("Command completed successfully")
+            # Check if SVG was created successfully, regardless of return code
+            svg_path = os.path.join(working_dir, 'diagram.svg')
+            if os.path.exists(svg_path):
+                logging.info(f"SVG file found at: {svg_path}")
+                logging.info(f"SVG file size: {os.path.getsize(svg_path)} bytes")
                 
-                # Check file immediately after creation
-                svg_path = os.path.join(working_dir, 'diagram.svg')
-                if os.path.exists(svg_path):
-                    logging.info(f"SVG file found at: {svg_path}")
-                    logging.info(f"SVG file size: {os.path.getsize(svg_path)} bytes")
+                # Convert SVG to PNG using cairosvg
+                try:
+                    from cairosvg import svg2png
+                    with open(svg_path, 'rb') as svg_file:
+                        svg2png(
+                            file_obj=svg_file,
+                            write_to='diagram.png',
+                            output_width=1024,
+                            output_height=1024
+                        )
+                    logging.info("Generated PNG successfully")
                     
-                    # Convert SVG to PNG using cairosvg
-                    try:
-                        from cairosvg import svg2png
-                        with open(svg_path, 'rb') as svg_file:
-                            svg2png(
-                                file_obj=svg_file,
-                                write_to='diagram.png',
-                                output_width=1024,
-                                output_height=1024
-                            )
-                        logging.info("Generated PNG successfully")
-                        
-                        if hasattr(self, 'status_callback'):
-                            self.status_callback("✨ Repository visualization updated")
-                        return True
-                        
-                    except Exception as e:
-                        logging.error(f"Failed to convert SVG to PNG: {e}")
-                        if hasattr(self, 'status_callback'):
-                            self.status_callback("❌ Failed to convert visualization")
-                        return False
-                else:
-                    logging.error("SVG file not found after command completion")
-                    return False
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("✨ Repository visualization updated")
+                    return True
+                    
+                except Exception as e:
+                    logging.warning(f"Failed to convert SVG to PNG: {e}")
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("⚠️ SVG created but PNG conversion failed")
+                    # Return True since SVG was created successfully
+                    return True
                     
             else:
-                logging.error(f"Command failed with return code {self.current_process.returncode}")
-                logging.error(f"Error output: {stderr.decode()}")
+                logging.error("SVG file not found - visualization failed")
+                if hasattr(self, 'status_callback'):
+                    self.status_callback("❌ Failed to generate visualization")
                 return False
 
         except Exception as e:
