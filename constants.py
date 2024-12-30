@@ -35,7 +35,7 @@ class NetworkConstants:
     REQUEST_TIMEOUT = 120
     RECONNECT_DELAY = 5
     MAX_RETRIES = 3
-    DEFAULT_SCREENSHOT_INTERVAL = 30  # Changed to 30 seconds
+    DEFAULT_SCREENSHOT_INTERVAL = 15  # Changed to 15 seconds
     DEFAULT_ENDPOINT_EMILY = "https://nlr.app.n8n.cloud/webhook/kinos-emily"
     DEFAULT_ENDPOINT_DAEMON = "https://nlr.app.n8n.cloud/webhook/kinos-daemon"
     EDITOR_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/kinos-claude"

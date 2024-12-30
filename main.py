@@ -1265,9 +1265,9 @@ def toggle_auto_recording():
     try:
         auto_recording_interval = max(5, int(interval_spinbox.get()))  # Minimum 5 seconds
     except ValueError:
-        auto_recording_interval = 30  # Changed default to 30 seconds
+        auto_recording_interval = 15  # Changed default to 15 seconds
         interval_spinbox.delete(0, tk.END)
-        interval_spinbox.insert(0, "30")  # Changed default to 30 seconds
+        interval_spinbox.insert(0, "15")  # Changed default to 15 seconds
     
     auto_recording = not auto_recording
     auto_btn.config(text="🔄 Auto ON" if auto_recording else "🔄 Auto OFF")
@@ -1473,7 +1473,7 @@ def create_device_selectors():
         highlightbackground=ThemeColors.BORDER,
         highlightcolor=ThemeColors.ACCENT_SECONDARY)
     interval_spinbox.delete(0, tk.END)
-    interval_spinbox.insert(0, "30")
+    interval_spinbox.insert(0, "15")  # Changed default to 15 seconds
     interval_spinbox.pack(side='left', padx=(0,5))
     
     tk.Label(auto_frame, text="sec",
