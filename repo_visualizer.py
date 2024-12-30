@@ -262,10 +262,6 @@ class RepoVisualizer:
             if hasattr(self, 'status_callback'):
                 self.status_callback("❌ Failed to generate visualization")
             return False
-                except Exception as e:
-                    logging.error(f"Failed to clone repo-visualizer: {e}")
-                    if hasattr(self, 'status_callback'):
-                        self.status_callback("❌ Failed to clone repo-visualizer")
                     return False
                 if hasattr(self, 'status_callback'):
                     self.status_callback("🔄 Generating repository visualization...")
@@ -292,10 +288,6 @@ class RepoVisualizer:
                     logging.error(f"Visualization failed with return code {self.current_process.returncode}")
                     logging.error(f"Error output: {stderr.decode()}")
                     return False
-            except Exception as e:
-                logging.error(f"Error generating visualization: {e}")
-                return False
-                
             # Convert SVG to PNG using cairosvg
             try:
                 from cairosvg import svg2png
@@ -316,19 +308,6 @@ class RepoVisualizer:
                     self.status_callback("❌ Failed to convert visualization")
                 return False
 
-        except FileNotFoundError:
-            msg = "repo-visualizer not found. Install with: npm install -g repo-visualizer"
-            logging.error(msg)
-            if hasattr(self, 'status_callback'):
-                self.status_callback(f"❌ {msg}")
-            return False
-        except Exception as e:
-            logging.error(f"Failed to generate visualization: {e}")
-            if hasattr(self, 'status_callback'):
-                self.status_callback("❌ Failed to generate visualization")
-            return False
-        finally:
-            pass
 
     async def visualization_loop(self):
         """Run continuous visualization generation"""
