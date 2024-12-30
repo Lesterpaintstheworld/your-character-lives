@@ -1177,13 +1177,32 @@ async def editor_loop():
                         break
                         
                     if stdout_line:
-                        line = f"[aider stdout] {stdout_line.decode().strip()}"
-                        logging.info(line)
-                        update_status(line)
+                        raw_line = stdout_line.decode().strip()
+                        
+                        # Format different types of aider output
+                        if raw_line.startswith("Applied edit to"):
+                            formatted_line = f"✅ {raw_line}"
+                        elif raw_line.startswith("Commit"):
+                            formatted_line = f"\n🔒 {raw_line}\n"
+                        elif raw_line.startswith("pip install"):
+                            formatted_line = f"\n📦 {raw_line}\n"
+                        elif raw_line.startswith("mkdir"):
+                            formatted_line = f"\n📁 {raw_line}\n"
+                        elif raw_line.startswith("python"):
+                            formatted_line = f"\n🐍 {raw_line}\n"
+                        else:
+                            formatted_line = f"   {raw_line}"
+                        
+                        # Log original line but show formatted in UI
+                        logging.info(f"[aider stdout] {raw_line}")
+                        update_status(formatted_line)
+                        
                     if stderr_line:
-                        line = f"[aider stderr] {stderr_line.decode().strip()}"
-                        logging.error(line)
-                        update_status(line)
+                        raw_line = stderr_line.decode().strip()
+                        # Format error messages
+                        formatted_line = f"❌ {raw_line}"
+                        logging.error(f"[aider stderr] {raw_line}")
+                        update_status(formatted_line)
                 
                 await process.wait()
                 
