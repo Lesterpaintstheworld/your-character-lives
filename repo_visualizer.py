@@ -107,7 +107,8 @@ class RepoVisualizer:
             logging.error(f"Error running where/which: {e}")
 
         logging.info("=== End npm diagnostics ===")
-        self.interval = interval
+        # Initialize instance variables
+        self.interval = interval  # Store constructor parameter
         self.running = True
         self.current_process = None
         
@@ -145,9 +146,9 @@ class RepoVisualizer:
                 await process.communicate()
             except FileNotFoundError:
                 # Find npm first
-                npm_path = await find_npm()
+                npm_path = await self.find_npm()
                 if not npm_path:
-                    await diagnose_npm()  # Run diagnostics
+                    await self.diagnose_npm()  # Run diagnostics
                     error_msg = (
                         "npm not found in system! Please ensure Node.js is installed and in your PATH.\n"
                         "Download from: https://nodejs.org/\n"
