@@ -1137,7 +1137,7 @@ async def editor_loop():
                 # Run aider with the output
                 logging.info("Starting aider session...")
                 process = await asyncio.create_subprocess_exec(
-                    'python', 'aider', '--yes-always', 
+                    'aider', '--yes-always',  # Changed from 'python aider' to just 'aider'
                     '--message', output,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
