@@ -8,32 +8,63 @@ class ImageWindow:
         # Create root window without decorations
         self.window = tk.Tk()
         self.window.overrideredirect(True)
-        self.window.attributes('-alpha', 0.9)  # Slight transparency
+        self.window.attributes('-alpha', 0.9)
         
-        # Load and resize image to 800x800
+        # Load initial image
         self.load_image(image_path)
         
         # Create label to display image
         self.label = tk.Label(self.window, image=self.photo)
         self.label.pack()
-
-        # Add file monitoring
+        
+        # Store path and setup monitoring
         self.image_path = image_path
         self.last_modified = os.path.getmtime(image_path)
         
-        # Start checking for file changes every 10 seconds
+        # Start update checker
         self.check_file_changes = self.window.after(10000, self.check_for_updates)
         
-        # Initialize drag variables
+        # Setup window dragging
+        self._setup_dragging()
+        
+        # Center window
+        self._center_window()
+        
+        # Keep reference to prevent garbage collection
+        self.window.image = self.photo
+
+    def update_image(self, image_path):
+        """Update the displayed image"""
+        try:
+            # Load and resize new image
+            self.image = Image.open(image_path)
+            self.image = self.image.resize((800, 800), Image.Resampling.LANCZOS)
+            self.photo = ImageTk.PhotoImage(self.image)
+            
+            # Update label
+            self.label.configure(image=self.photo)
+            
+            # Update stored path and modification time
+            self.image_path = image_path
+            self.last_modified = os.path.getmtime(image_path)
+            
+            # Keep reference
+            self.window.image = self.photo
+            
+            logging.info("Image updated successfully")
+        except Exception as e:
+            logging.error(f"Error updating image: {e}")
+
+    def _setup_dragging(self):
+        """Setup window drag functionality"""
         self.x = 0
         self.y = 0
-        
-        # Bind events
         self.label.bind('<Button-1>', self.start_drag)
         self.label.bind('<B1-Motion>', self.drag)
         self.window.bind('<Double-Button-1>', self.close)
-        
-        # Center window on screen
+
+    def _center_window(self):
+        """Center window on screen"""
         screen_width = self.window.winfo_screenwidth()
         screen_height = self.window.winfo_screenheight()
         x = (screen_width - 800) // 2

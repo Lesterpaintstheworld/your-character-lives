@@ -343,21 +343,28 @@ class RepoVisualizer:
                     
                     # After successful PNG conversion, display the image
                     try:
-                        from image_window import ImageWindow
-                        # Use root.after to schedule window creation on main thread
-                        import tkinter as tk
-                        if not hasattr(self, 'root'):
-                            self.root = tk.Tk()
-                            self.root.withdraw()  # Hide the root window
-                        
-                        def create_window():
-                            if hasattr(self, 'image_window'):
-                                self.image_window.window.destroy()
-                            self.image_window = ImageWindow('diagram.png')
-                            self.image_window.window.mainloop()
+                        if hasattr(self, 'image_window'):
+                            # Schedule update on main thread
+                            def update_existing():
+                                self.image_window.update_image('diagram.png')
+                            self.image_window.window.after(0, update_existing)
+                        else:
+                            # Create window on first run only
+                            def create_initial():
+                                from image_window import ImageWindow
+                                self.image_window = ImageWindow('diagram.png')
                             
-                        self.root.after(0, create_window)
-                        logging.info("Scheduled diagram display in main thread")
+                            # If we have a root window, use it
+                            if hasattr(self, 'root'):
+                                self.root.after(0, create_initial)
+                            else:
+                                # Create hidden root window if needed
+                                import tkinter as tk
+                                self.root = tk.Tk()
+                                self.root.withdraw()
+                                self.root.after(0, create_initial)
+                            
+                        logging.info("Scheduled diagram update")
                         if hasattr(self, 'status_callback'):
                             self.status_callback("✨ Repository visualization updated and displayed")
                         return True
