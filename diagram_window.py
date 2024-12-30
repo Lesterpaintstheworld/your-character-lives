@@ -74,18 +74,22 @@ class DiagramWindow:
                 )
                 
                 # Convert to PIL Image
-                image = Image.open(io.BytesIO(png_data))
+                new_image = Image.open(io.BytesIO(png_data))
+                new_photo = ImageTk.PhotoImage(new_image)
                 
-                # Convert to PhotoImage
-                self.photo = ImageTk.PhotoImage(image)
-                
-                # Update canvas
-                self.canvas.delete("all")
-                self.canvas.create_image(
-                    self.width//2, 
-                    self.height//2, 
-                    image=self.photo
-                )
+                # If there's an existing image, fade to the new one
+                if hasattr(self, 'photo'):
+                    self._fade_transition(new_photo)
+                else:
+                    # First load - just display directly
+                    self.photo = new_photo
+                    self.canvas.delete("all")
+                    self.canvas.create_image(
+                        self.width//2, 
+                        self.height//2, 
+                        image=self.photo,
+                        tags="diagram"
+                    )
                 
                 logging.info("Diagram loaded successfully")
                 
@@ -96,3 +100,68 @@ class DiagramWindow:
         """Check for diagram updates every 10 seconds"""
         self.load_diagram()
         self.window.after(10000, self.check_diagram)  # Changed from 1000 to 10000 milliseconds
+        
+    def _fade_transition(self, new_photo, steps=10, duration=500):
+        """
+        Perform a smooth fade transition between diagrams
+        
+        Args:
+            new_photo: The new PhotoImage to transition to
+            steps: Number of opacity steps (default 10)
+            duration: Total duration of transition in milliseconds (default 500)
+        """
+        try:
+            # Store the new photo as an instance variable to prevent garbage collection
+            self.new_photo = new_photo
+            
+            # Create overlay rectangle if it doesn't exist
+            if not hasattr(self, 'overlay'):
+                self.overlay = self.canvas.create_rectangle(
+                    0, 0, self.width, self.height,
+                    fill='white', stipple='gray50',
+                    state='hidden'
+                )
+            
+            # Calculate delay between steps
+            step_delay = duration // steps
+            
+            def fade_step(step=0):
+                if step <= steps:
+                    # Calculate opacity (0 to 1)
+                    opacity = step / steps
+                    
+                    if step == 0:
+                        # Start of transition - show old image with overlay
+                        self.canvas.itemconfig(self.overlay, state='normal')
+                    elif step == steps:
+                        # End of transition - update to new image and hide overlay
+                        self.photo = self.new_photo
+                        self.canvas.delete("diagram")
+                        self.canvas.create_image(
+                            self.width//2, 
+                            self.height//2, 
+                            image=self.photo,
+                            tags="diagram"
+                        )
+                        self.canvas.itemconfig(self.overlay, state='hidden')
+                    else:
+                        # During transition - update overlay opacity
+                        stipple = f'gray{int(opacity * 100)}'
+                        self.canvas.itemconfig(self.overlay, stipple=stipple)
+                    
+                    # Schedule next step
+                    self.window.after(step_delay, lambda: fade_step(step + 1))
+            
+            # Start the transition
+            fade_step()
+            
+        except Exception as e:
+            logging.error(f"Error during transition: {e}")
+            # Fallback to immediate update if transition fails
+            self.photo = new_photo
+            self.canvas.delete("all")
+            self.canvas.create_image(
+                self.width//2, 
+                self.height//2, 
+                image=self.photo
+            )
