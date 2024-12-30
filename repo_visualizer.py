@@ -227,11 +227,11 @@ class RepoVisualizer:
                 finally:
                     # Wait a moment before cleanup
                     await asyncio.sleep(1)
-                    # Cleanup temp directory
+                    # Keep repo-visualizer installed, only cleanup temp dir
                     try:
-                        import shutil
-                        shutil.rmtree(temp_dir, ignore_errors=True)
-                        logging.info("Cleaned up temporary installation files")
+                        if os.path.exists(temp_dir):
+                            os.remove(temp_dir)
+                            logging.info("Cleaned up temporary directory")
                     except Exception as e:
                         logging.warning(f"Failed to cleanup temp directory: {e}")
 
@@ -263,7 +263,7 @@ class RepoVisualizer:
                         output_height=1024
                     )
                 logging.info("Generated new repository visualization")
-                # Cleanup SVG file
+                # Only cleanup SVG file, keep PNG for display
                 try:
                     if os.path.exists('diagram.svg'):
                         os.remove('diagram.svg')
@@ -312,15 +312,10 @@ class RepoVisualizer:
             except:
                 pass
         try:
-            # Cleanup temporary files
+            # Only cleanup temporary files
             for file in ['diagram.svg', 'diagram.png']:
                 if os.path.exists(file):
                     os.remove(file)
-            
-            # Optionally cleanup repo-visualizer installation
-            if os.path.exists(os.path.join('node_modules', 'repo-visualizer')):
-                import shutil
-                shutil.rmtree(os.path.join('node_modules', 'repo-visualizer'))
         except:
             pass
 
