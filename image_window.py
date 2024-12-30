@@ -57,19 +57,3 @@ class ImageWindow:
         # Cancel the update checker before destroying
         self.window.after_cancel(self.check_file_changes)
         self.window.destroy()
-        
-    def start_drag(self, event):
-        self.x = event.x
-        self.y = event.y
-        
-    def drag(self, event):
-        deltax = event.x - self.x
-        deltay = event.y - self.y
-        x = self.window.winfo_x() + deltax
-        y = self.window.winfo_y() + deltay
-        self.window.geometry(f'+{x}+{y}')
-        
-    def close(self, event):
-        # Cancel the update checker before destroying
-        self.window.after_cancel(self.check_file_changes)
-        self.window.destroy()
