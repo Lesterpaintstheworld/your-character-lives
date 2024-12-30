@@ -156,12 +156,13 @@ class RepoVisualizer:
 
                 logging.info(f"Using npm at: {npm_path}")
 
-                # Get the installation directory (where the script is located)
-                if getattr(sys, 'frozen', False):
-                    install_dir = os.path.dirname(sys.executable)
-                else:
-                    install_dir = os.path.dirname(os.path.abspath(__file__))
-                    
+                try:
+                    # Get the installation directory (where the script is located)
+                    if getattr(sys, 'frozen', False):
+                        install_dir = os.path.dirname(sys.executable)
+                    else:
+                        install_dir = os.path.dirname(os.path.abspath(__file__))
+                        
                     # Path to repo-visualizer in install directory
                     repo_dir = os.path.join(install_dir, "repo-visualizer")
                 
