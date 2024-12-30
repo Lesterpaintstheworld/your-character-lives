@@ -1107,10 +1107,19 @@ async def editor_loop():
     try:
         while is_playing and editor_active:
             try:
-                # Collect text content from files
+                # Collect text content and file paths
                 logging.info("Collecting text content...")
                 text_content = collect_text_files_content()
                 logging.info(f"Text content collected: {len(text_content)} bytes")
+
+                # Get list of text file paths
+                base_dir = os.getcwd()
+                file_paths = []
+                for root, _, files in os.walk(base_dir):
+                    for file in files:
+                        if file.lower().endswith(('.md', '.txt', '.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.ts', '.html', '.css', '.sql', '.r', '.m', '.scala', '.pl', '.sh', '.bat')):
+                            rel_path = os.path.relpath(os.path.join(root, file), base_dir)
+                            file_paths.append(rel_path)
 
                 # Prepare request data
                 data = {
@@ -1122,7 +1131,7 @@ async def editor_loop():
                     None,
                     lambda: requests.post(
                         NetworkConstants.EDITOR_ENDPOINT,
-                        data=data,  # Send text content in request body
+                        data=data,
                         timeout=NetworkConstants.REQUEST_TIMEOUT
                     )
                 )
@@ -1134,11 +1143,16 @@ async def editor_loop():
                     logging.warning("No output received from editor endpoint")
                     continue
                     
-                # Run aider with the output
-                logging.info("Starting aider session...")
+                # Build aider command with file arguments
+                cmd = ['aider', '--yes-always']
+                for file_path in file_paths:
+                    cmd.extend(['--file', file_path])
+                cmd.extend(['--message', output])
+
+                # Run aider with the output and file paths
+                logging.info(f"Starting aider session with files: {file_paths}")
                 process = await asyncio.create_subprocess_exec(
-                    'aider', '--yes-always',  # Changed from 'python aider' to just 'aider'
-                    '--message', output,
+                    *cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
