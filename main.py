@@ -178,16 +178,33 @@ def collect_text_files_content():
                         rel_path = os.path.relpath(full_path, base_dir)
                         logging.info(f"Processing file: {rel_path}")
                         
-                        with open(full_path, 'r', encoding='utf-8') as f:
-                            file_content = f.read()
+                        # Try different encodings
+                        encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+                        file_content = None
+                        
+                        for encoding in encodings:
+                            try:
+                                with open(full_path, 'r', encoding=encoding) as f:
+                                    file_content = f.read()
+                                logging.debug(f"Successfully read file with {encoding} encoding")
+                                break
+                            except UnicodeDecodeError:
+                                continue
+                            except Exception as e:
+                                logging.error(f"Error reading file with {encoding}: {str(e)}")
+                                continue
+                        
+                        if file_content is not None:
                             content.append("\n" + "="*50)
                             content.append(f"FILE: {rel_path}")
                             content.append("="*50 + "\n")
                             content.append(file_content)
                             total_files += 1
+                        else:
+                            logging.error(f"Failed to read file {rel_path} with any encoding")
                             
                     except Exception as e:
-                        logging.error(f"Error reading file {full_path}: {str(e)}")
+                        logging.error(f"Error processing file {full_path}: {str(e)}")
                         continue
 
         logging.info(f"Total files found: {total_files}")
