@@ -409,18 +409,25 @@ class RepoVisualizer:
                 logging.error(f"Error in visualization loop: {e}")
                 await asyncio.sleep(self.interval)
 
-    def create_window(self):
-        """Create the visualization window in the main thread"""
-        if not self.root:
-            self.root = tk.Tk()
-            self.root.withdraw()  # Hide the root window
-        
-        if not self.image_window:
-            from image_window import ImageWindow
-            self.image_window = ImageWindow('diagram.png')
+    def initialize_window(self):
+        """Initialize the visualization window using existing root"""
+        try:
+            if not self.root:
+                logging.error("No root window provided")
+                return False
+                
+            if not self.image_window:
+                from image_window import ImageWindow
+                self.image_window = ImageWindow(self.root, 'diagram.png')
+                logging.info("Created visualization window")
+                
+            # Start checking the image queue
+            self.check_image_queue()
+            return True
             
-        # Start checking the image queue
-        self.check_image_queue()
+        except Exception as e:
+            logging.error(f"Failed to initialize visualization window: {e}")
+            return False
 
     def check_image_queue(self):
         """Check for new images to display"""
@@ -456,17 +463,25 @@ class RepoVisualizer:
                 pass
         logging.info("Visualization stopped")
 
-def start_visualization():
+def start_visualization(root_window):
     """Start the repository visualization system"""
-    
-    # Create visualizer with shorter initial interval
-    visualizer = RepoVisualizer(interval=10)
-    
-    # Generate initial visualization immediately
     try:
-        asyncio.run(visualizer.generate_visualization())
-        logging.info("Initial visualization generated")
+        # Create visualizer with root window
+        visualizer = RepoVisualizer(root=root_window, interval=10)
+        
+        # Schedule window initialization
+        root_window.after(1000, visualizer.initialize_window)
+        
+        # Start visualization thread
+        def run_visualization():
+            asyncio.run(visualizer.visualization_loop())
+        
+        visualization_thread = Thread(target=run_visualization, daemon=True)
+        visualization_thread.start()
+        
+        logging.info("Visualization system started")
+        return visualizer
+        
     except Exception as e:
-        logging.error(f"Initial visualization failed: {e}")
-    
-    return visualizer
+        logging.error(f"Failed to start visualization: {e}")
+        return None

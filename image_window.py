@@ -4,14 +4,17 @@ import logging
 import os
 
 class ImageWindow:
-    def __init__(self, image_path):
-        # Create root window without decorations
-        self.window = tk.Tk()
-        self.window.overrideredirect(True)
-        self.window.attributes('-alpha', 0.9)
-        
-        # Load initial image
-        self.load_image(image_path)
+    def __init__(self, root, image_path):
+        """Initialize image window using provided root"""
+        try:
+            self.root = root
+            # Create a Toplevel window instead of new Tk
+            self.window = tk.Toplevel(root)
+            self.window.overrideredirect(True)
+            self.window.attributes('-alpha', 0.9)
+            
+            # Load initial image
+            self.load_image(image_path)
         
         # Create label to display image
         self.label = tk.Label(self.window, image=self.photo)

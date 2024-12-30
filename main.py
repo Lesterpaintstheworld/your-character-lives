@@ -2027,24 +2027,16 @@ if __name__ == "__main__":
     # Initialize logging first
     setup_logging()
     
-    # Initialize visualization system first - before creating UI
+    # Initialize visualization after root window exists
     try:
         logging.info("Starting repository visualization...")
-        visualizer = start_visualization()
-        
-        # Create visualization window in main thread
-        root.after(1000, visualizer.create_window)  # Delay creation slightly
-        
-        # Start visualization loop in a separate thread
-        visualizer.visualization_thread = Thread(
-            target=lambda: asyncio.run(visualizer.visualization_loop()),
-            daemon=True
-        )
-        visualizer.visualization_thread.start()
-        logging.info("Repository visualization started")
+        visualizer = start_visualization(root)
+        if visualizer:
+            logging.info("Repository visualization started")
+        else:
+            logging.warning("Failed to start visualization - continuing without it")
     except Exception as e:
         logging.error(f"Failed to start visualization: {e}")
-        # Continue running even if visualization fails
         visualizer = None
 
     # Initialize screenshot system
