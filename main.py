@@ -1343,8 +1343,6 @@ async def auto_record_loop():
         update_status(f"❌ Auto recording crashed: {str(e)}")
     finally:
         logging.info("Auto recording loop stopped")
-        update_status("Auto recording stopped")
-    else:
         update_status("⏹️ Automatic recording stopped")
 
 def create_device_selectors():
