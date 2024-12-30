@@ -164,15 +164,32 @@ class RepoVisualizer:
     async def generate_visualization(self):
         """Generate repository visualization"""
         try:
-            # Get the installation directory
+            # Get the installation directory with detailed logging
             if getattr(sys, 'frozen', False):
                 install_dir = os.path.dirname(sys.executable)
+                logging.info(f"Running from executable, install_dir: {install_dir}")
             else:
                 install_dir = os.path.dirname(os.path.abspath(__file__))
+                logging.info(f"Running from source, install_dir: {install_dir}")
                 
-            # Path to repo-visualizer
+            # Path to repo-visualizer with detailed checks
             repo_dir = os.path.join(install_dir, "repo-visualizer")
-            logging.info(f"Using repo-visualizer at: {repo_dir}")
+            logging.info(f"Full repo-visualizer path: {repo_dir}")
+            
+            # Log directory contents and existence
+            logging.info(f"Directory exists: {os.path.exists(repo_dir)}")
+            if os.path.exists(repo_dir):
+                logging.info("Contents of directory:")
+                for item in os.listdir(repo_dir):
+                    logging.info(f"- {item}")
+            else:
+                logging.info(f"Parent directory contents:")
+                parent_dir = os.path.dirname(repo_dir)
+                if os.path.exists(parent_dir):
+                    for item in os.listdir(parent_dir):
+                        logging.info(f"- {item}")
+                else:
+                    logging.info("Parent directory does not exist")
 
             # Ensure npm dependencies are installed if node_modules is missing
             node_modules = os.path.join(repo_dir, 'node_modules')
