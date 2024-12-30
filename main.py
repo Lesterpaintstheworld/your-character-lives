@@ -2367,5 +2367,7 @@ if __name__ == "__main__":
     finally:
         if running:
             on_closing()
+        if 'visualizer' in locals():
+            visualizer.stop()
 
 print("Pour exécuter ce script, utilisez la commande : python main.py")
