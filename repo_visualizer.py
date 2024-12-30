@@ -156,17 +156,11 @@ class RepoVisualizer:
 
                 logging.info(f"Using npm at: {npm_path}")
 
-                # Create temp directory for installation
-                import tempfile
-                temp_dir = tempfile.mkdtemp()
-                logging.info(f"Created temp directory: {temp_dir}")
-                
-                try:
-                    # Get the installation directory (where the script is located)
-                    if getattr(sys, 'frozen', False):
-                        install_dir = os.path.dirname(sys.executable)
-                    else:
-                        install_dir = os.path.dirname(os.path.abspath(__file__))
+                # Get the installation directory (where the script is located)
+                if getattr(sys, 'frozen', False):
+                    install_dir = os.path.dirname(sys.executable)
+                else:
+                    install_dir = os.path.dirname(os.path.abspath(__file__))
                     
                     # Path to repo-visualizer in install directory
                     repo_dir = os.path.join(install_dir, "repo-visualizer")
@@ -247,13 +241,6 @@ class RepoVisualizer:
                         output_height=1024
                     )
                 logging.info("Generated new repository visualization")
-                # Only cleanup SVG file, keep PNG for display
-                try:
-                    if os.path.exists('diagram.svg'):
-                        os.remove('diagram.svg')
-                except Exception as e:
-                    logging.warning(f"Could not remove temporary SVG file: {e}")
-                
                 if hasattr(self, 'status_callback'):
                     self.status_callback("✨ Repository visualization updated")
                 return True
@@ -275,14 +262,7 @@ class RepoVisualizer:
                 self.status_callback("❌ Failed to generate visualization")
             return False
         finally:
-            # Cleanup temp directory only after we're completely done
-            if temp_dir and os.path.exists(temp_dir):
-                try:
-                    import shutil
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-                    logging.info("Cleaned up temporary directory")
-                except Exception as e:
-                    logging.warning(f"Failed to cleanup temp directory: {e}")
+            pass
 
     async def visualization_loop(self):
         """Run continuous visualization generation"""
