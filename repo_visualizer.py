@@ -222,23 +222,10 @@ class RepoVisualizer:
                     # Wait a moment for installation to complete
                     await asyncio.sleep(2)
                         
-                finally:
-                    # Wait a moment before cleanup
-                    await asyncio.sleep(1)
-                    
-                    # Keep repo-visualizer installed, only attempt temp dir cleanup
-                    if temp_dir and os.path.exists(temp_dir):
-                        try:
-                            import shutil
-                            shutil.rmtree(temp_dir, ignore_errors=True)
-                            logging.info("Cleaned up temporary directory")
-                        except Exception as e:
-                            # Just log the warning but don't let it stop execution
-                            logging.warning(f"Failed to cleanup temp directory: {e}")
-                            # Continue processing even if cleanup fails
-                            pass
+                # Wait a moment for installation to complete
+                await asyncio.sleep(2)
 
-            # Generate visualization using installed repo-visualizer
+        # Generate visualization using installed repo-visualizer
             try:
                 if hasattr(self, 'status_callback'):
                     self.status_callback("🔄 Generating repository visualization...")
