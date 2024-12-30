@@ -1,6 +1,7 @@
 import tkinter as tk
 from PIL import Image, ImageTk
-import cairosvg
+from svglib.svglib import svg2rlg
+from reportlab.graphics import renderPM
 import io
 import logging
 import os
@@ -87,15 +88,25 @@ class DiagramWindow:
     def load_diagram(self):
         try:
             if os.path.exists('diagram.svg'):
-                # Convert SVG to PNG using cairosvg with current window size
-                png_data = cairosvg.svg2png(
-                    url='diagram.svg',
-                    output_width=self.width,
-                    output_height=self.height
-                )
+                # Convert SVG to PNG using svglib for better rendering
+                drawing = svg2rlg('diagram.svg')
+                
+                # Scale drawing to fit window while maintaining aspect ratio
+                scale_x = self.width / drawing.width
+                scale_y = self.height / drawing.height
+                scale = min(scale_x, scale_y)
+                
+                drawing.width = drawing.width * scale
+                drawing.height = drawing.height * scale
+                drawing.scale(scale, scale)
+                
+                # Create BytesIO object to store PNG data
+                png_data = io.BytesIO()
+                renderPM.drawToFile(drawing, png_data, fmt='PNG', bg=self.bg_color)
+                png_data.seek(0)
                 
                 # Convert to PIL Image
-                new_image = Image.open(io.BytesIO(png_data))
+                new_image = Image.open(png_data)
                 new_photo = ImageTk.PhotoImage(new_image)
                 
                 # If there's an existing image, fade to the new one
