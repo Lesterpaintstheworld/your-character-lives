@@ -1142,12 +1142,22 @@ async def editor_loop():
                 if not output:
                     logging.warning("No output received from editor endpoint")
                     continue
+                
+                # Log the Claude response
+                logging.info("=== Claude Response ===")
+                logging.info(output)
+                logging.info("=====================")
                     
                 # Build aider command with file arguments
                 cmd = ['aider', '--yes-always']
                 for file_path in file_paths:
                     cmd.extend(['--file', file_path])
                 cmd.extend(['--message', output])
+
+                # Log the full aider command
+                logging.info("=== Aider Command ===")
+                logging.info(' '.join(cmd))
+                logging.info("====================")
 
                 # Run aider with the output and file paths
                 logging.info(f"Starting aider session with files: {file_paths}")
@@ -1157,10 +1167,23 @@ async def editor_loop():
                     stderr=asyncio.subprocess.PIPE
                 )
                 
-                stdout, stderr = await process.communicate()
+                # Stream stdout and stderr in real-time
+                while True:
+                    stdout_line = await process.stdout.readline()
+                    stderr_line = await process.stderr.readline()
+                    
+                    if not stdout_line and not stderr_line:
+                        break
+                        
+                    if stdout_line:
+                        logging.info(f"[aider stdout] {stdout_line.decode().strip()}")
+                    if stderr_line:
+                        logging.error(f"[aider stderr] {stderr_line.decode().strip()}")
+                
+                await process.wait()
                 
                 if process.returncode != 0:
-                    logging.error(f"Aider process failed: {stderr.decode()}")
+                    logging.error(f"Aider process failed with return code {process.returncode}")
                 else:
                     logging.info("Aider session completed successfully")
                     
