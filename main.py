@@ -1261,16 +1261,16 @@ def toggle_auto_recording():
     try:
         auto_recording_interval = max(5, int(interval_spinbox.get()))  # Minimum 5 seconds
     except ValueError:
-        auto_recording_interval = 90  # fallback to default
+        auto_recording_interval = 30  # Changed default to 30 seconds
         interval_spinbox.delete(0, tk.END)
-        interval_spinbox.insert(0, "90")
+        interval_spinbox.insert(0, "30")  # Changed default to 30 seconds
     
     auto_recording = not auto_recording
     auto_btn.config(text="🔄 Auto ON" if auto_recording else "🔄 Auto OFF")
     interval_spinbox.config(state='disabled' if auto_recording else 'normal')
     
     if auto_recording:
-        update_status(f"🔄 Starting continuous recording...")
+        update_status(f"🔄 Starting continuous recording (every {auto_recording_interval} seconds)...")
         
         # Start auto recording loop in a new thread to handle asyncio
         def run_auto_record():
