@@ -1108,9 +1108,9 @@ async def editor_loop():
         while is_playing and editor_active:
             try:
                 # Collect text content and file paths
-                logging.info("Collecting text content...")
+                update_status("Collecting text content...")
                 text_content = collect_text_files_content()
-                logging.info(f"Text content collected: {len(text_content)} bytes")
+                update_status(f"Text content collected: {len(text_content)} bytes")
 
                 # Get list of text file paths
                 base_dir = os.getcwd()
@@ -1140,34 +1140,35 @@ async def editor_loop():
                 # Extract output from JSON response
                 output = response.json().get('output')
                 if not output:
-                    logging.warning("No output received from editor endpoint")
+                    msg = "No output received from editor endpoint"
+                    logging.warning(msg)
+                    update_status(msg)
                     continue
                 
-                # Log the Claude response
-                logging.info("=== Claude Response ===")
-                logging.info(output)
-                logging.info("=====================")
+                # Log and display the Claude response
+                response_msg = "\n=== Claude Response ===\n" + output + "\n====================="
+                logging.info(response_msg)
+                update_status(response_msg)
                     
-                # Build aider command with file arguments
+                # Build and display aider command
                 cmd = ['aider', '--yes-always']
                 for file_path in file_paths:
                     cmd.extend(['--file', file_path])
                 cmd.extend(['--message', output])
 
-                # Log the full aider command
-                logging.info("=== Aider Command ===")
-                logging.info(' '.join(cmd))
-                logging.info("====================")
+                cmd_msg = "\n=== Aider Command ===\n" + ' '.join(cmd) + "\n===================="
+                logging.info(cmd_msg)
+                update_status(cmd_msg)
 
                 # Run aider with the output and file paths
-                logging.info(f"Starting aider session with files: {file_paths}")
+                update_status(f"Starting aider session with files: {file_paths}")
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE
                 )
                 
-                # Stream stdout and stderr in real-time
+                # Stream stdout and stderr in real-time to both logs and UI
                 while True:
                     stdout_line = await process.stdout.readline()
                     stderr_line = await process.stderr.readline()
@@ -1176,28 +1177,41 @@ async def editor_loop():
                         break
                         
                     if stdout_line:
-                        logging.info(f"[aider stdout] {stdout_line.decode().strip()}")
+                        line = f"[aider stdout] {stdout_line.decode().strip()}"
+                        logging.info(line)
+                        update_status(line)
                     if stderr_line:
-                        logging.error(f"[aider stderr] {stderr_line.decode().strip()}")
+                        line = f"[aider stderr] {stderr_line.decode().strip()}"
+                        logging.error(line)
+                        update_status(line)
                 
                 await process.wait()
                 
                 if process.returncode != 0:
-                    logging.error(f"Aider process failed with return code {process.returncode}")
+                    error_msg = f"Aider process failed with return code {process.returncode}"
+                    logging.error(error_msg)
+                    update_status(error_msg)
                 else:
-                    logging.info("Aider session completed successfully")
+                    success_msg = "Aider session completed successfully"
+                    logging.info(success_msg)
+                    update_status(success_msg)
                     
                 # Small delay before next iteration
                 await asyncio.sleep(1)
                 
             except Exception as e:
-                logging.error(f"Error in editor loop: {e}")
+                error_msg = f"Error in editor loop: {e}"
+                logging.error(error_msg)
+                update_status(error_msg)
                 await asyncio.sleep(5)  # Longer delay on error
                 
     except Exception as e:
-        logging.error(f"Editor loop crashed: {e}")
+        error_msg = f"Editor loop crashed: {e}"
+        logging.error(error_msg)
+        update_status(error_msg)
     finally:
         logging.info("Editor loop stopped")
+        update_status("Editor loop stopped")
 
 def toggle_editor():
     """Toggle the editor loop on/off"""
