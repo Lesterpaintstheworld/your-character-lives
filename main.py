@@ -1107,11 +1107,22 @@ async def editor_loop():
     try:
         while is_playing and editor_active:
             try:
+                # Collect text content from files
+                logging.info("Collecting text content...")
+                text_content = collect_text_files_content()
+                logging.info(f"Text content collected: {len(text_content)} bytes")
+
+                # Prepare request data
+                data = {
+                    'text': text_content  # Send text files content in request body
+                }
+
                 # Call the Claude endpoint
                 response = await asyncio.get_event_loop().run_in_executor(
                     None,
                     lambda: requests.post(
                         NetworkConstants.EDITOR_ENDPOINT,
+                        data=data,  # Send text content in request body
                         timeout=NetworkConstants.REQUEST_TIMEOUT
                     )
                 )
