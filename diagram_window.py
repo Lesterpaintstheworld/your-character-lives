@@ -15,12 +15,11 @@ class DiagramWindow:
         self.canvas = tk.Canvas(self.window, bg='#0d1117')
         self.canvas.pack(fill='both', expand=True)
         
-        # Initialize image references
+        # Initialize image references - keep only one strong reference
         self.base_image = None
-        self.photo_images = []  # Keep track of all photo images
-        self.current_image_id = None
+        self.photo = None  # Single PhotoImage reference
         
-        # Bind resize event with delay and keep reference
+        # Bind resize event with delay
         self._resize_job = None
         self.window.bind('<Configure>', self.on_resize)
         
@@ -53,10 +52,6 @@ class DiagramWindow:
         except Exception as e:
             logging.error(f"Error loading diagram: {e}")
 
-    def clear_photo_images(self):
-        """Clear old photo images"""
-        self.photo_images.clear()
-
     def update_display(self):
         """Update the displayed image with current window dimensions"""
         if not self.base_image:
@@ -86,23 +81,16 @@ class DiagramWindow:
             # Resize image
             resized = self.base_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
             
-            # Clear old photo images
-            self.clear_photo_images()
-            
-            # Create new PhotoImage and keep reference
-            new_photo = ImageTk.PhotoImage(resized)
-            self.photo_images.append(new_photo)
+            # Update PhotoImage - keep the reference
+            self.photo = ImageTk.PhotoImage(resized)
             
             # Clear canvas and create new image
             self.canvas.delete("all")
-            self.current_image_id = self.canvas.create_image(
+            self.canvas.create_image(
                 width//2, height//2,
-                image=new_photo,
+                image=self.photo,
                 anchor='center'
             )
-            
-            # Force update
-            self.canvas.update_idletasks()
             
         except Exception as e:
             logging.error(f"Error updating display: {e}")
