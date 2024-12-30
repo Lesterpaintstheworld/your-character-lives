@@ -46,17 +46,32 @@ class RepoVisualizer:
                 )
                 await process.communicate()
             except FileNotFoundError:
-                # repo-visualizer not found, install it via HTTPS clone
-                if hasattr(self, 'status_callback'):
-                    self.status_callback("📦 Installing repo-visualizer...")
-                logging.info("repo-visualizer not found. Installing via HTTPS clone...")
+                # Check for npm first
+                try:
+                    npm_check = await asyncio.create_subprocess_exec(
+                        'npm', '--version',
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    await npm_check.communicate()
+                    if npm_check.returncode != 0:
+                        raise FileNotFoundError("npm not found")
+                except FileNotFoundError:
+                    error_msg = (
+                        "npm not found! Please install Node.js from https://nodejs.org/\n"
+                        "This will install both Node.js and npm."
+                    )
+                    logging.error(error_msg)
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback(f"❌ {error_msg}")
+                    return False
+
+                # Create temp directory for installation
+                import tempfile
+                temp_dir = tempfile.mkdtemp()
+                logging.info(f"Created temp directory: {temp_dir}")
                 
                 try:
-                    # Create temp directory for installation
-                    import tempfile
-                    temp_dir = tempfile.mkdtemp()
-                    logging.info(f"Created temp directory: {temp_dir}")
-                    
                     # Clone repo-visualizer from GitHub using HTTPS
                     if hasattr(self, 'status_callback'):
                         self.status_callback("🔄 Cloning repo-visualizer...")
@@ -74,13 +89,18 @@ class RepoVisualizer:
                         
                     logging.info("Successfully cloned repo-visualizer")
                     
+                    # Change to the cloned directory
+                    repo_dir = os.path.join(temp_dir, 'repo-visualizer')
+                    if not os.path.exists(repo_dir):
+                        raise Exception("repo-visualizer directory not found after clone")
+                    
                     # Install dependencies
                     if hasattr(self, 'status_callback'):
                         self.status_callback("📦 Installing dependencies...")
                         
                     install_process = await asyncio.create_subprocess_exec(
                         'npm', 'install',
-                        cwd=temp_dir,
+                        cwd=repo_dir,  # Use the correct directory
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
                     )
@@ -97,7 +117,7 @@ class RepoVisualizer:
                         
                     global_install_process = await asyncio.create_subprocess_exec(
                         'npm', 'install', '-g',
-                        cwd=temp_dir,
+                        cwd=repo_dir,  # Use the correct directory
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
                     )
@@ -110,20 +130,14 @@ class RepoVisualizer:
                     if hasattr(self, 'status_callback'):
                         self.status_callback("✅ repo-visualizer installed successfully")
                         
+                finally:
                     # Cleanup temp directory
-                    import shutil
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-                    logging.info("Cleaned up temporary installation files")
-                    
-                except Exception as e:
-                    logging.error(f"Failed to install repo-visualizer: {e}")
-                    if hasattr(self, 'status_callback'):
-                        self.status_callback(f"❌ Failed to install repo-visualizer: {str(e)}")
-                    # Cleanup temp directory in case of failure
-                    if 'temp_dir' in locals():
+                    try:
                         import shutil
                         shutil.rmtree(temp_dir, ignore_errors=True)
-                    return False
+                        logging.info("Cleaned up temporary installation files")
+                    except Exception as e:
+                        logging.warning(f"Failed to cleanup temp directory: {e}")
 
             # Generate visualization
             if hasattr(self, 'status_callback'):
