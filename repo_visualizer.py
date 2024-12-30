@@ -321,8 +321,15 @@ class RepoVisualizer:
 
 def start_visualization():
     """Start the repository visualization system"""
-    # Create and start visualizer
+    # Create visualizer with shorter initial interval
     visualizer = RepoVisualizer(interval=10)
+    
+    # Generate initial visualization immediately
+    try:
+        asyncio.run(visualizer.generate_visualization())
+        logging.info("Initial visualization generated")
+    except Exception as e:
+        logging.error(f"Initial visualization failed: {e}")
     
     # Check for and display diagram
     if os.path.exists('diagram.png'):

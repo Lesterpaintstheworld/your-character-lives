@@ -2036,9 +2036,23 @@ if __name__ == "__main__":
     # Initialize logging first
     setup_logging()
     
-    # Initialize visualization system
-    visualizer = start_visualization()
-    
+    # Initialize visualization system first - before creating UI
+    try:
+        logging.info("Starting repository visualization...")
+        visualizer = start_visualization()
+        
+        # Start visualization loop in a separate thread
+        visualizer.visualization_thread = Thread(
+            target=lambda: asyncio.run(visualizer.visualization_loop()),
+            daemon=True
+        )
+        visualizer.visualization_thread.start()
+        logging.info("Repository visualization started")
+    except Exception as e:
+        logging.error(f"Failed to start visualization: {e}")
+        # Continue running even if visualization fails
+        visualizer = None
+
     # Initialize screenshot system
     if not init_screenshot():
         messagebox.showwarning(
