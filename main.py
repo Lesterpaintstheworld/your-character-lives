@@ -1104,43 +1104,52 @@ def stop_auto_recording():
 
 async def editor_loop():
     """Run the editor loop that processes code changes"""
-    while is_playing and editor_active:
-        try:
-            # Call the Claude endpoint
-            response = requests.post(
-                NetworkConstants.EDITOR_ENDPOINT,
-                timeout=NetworkConstants.REQUEST_TIMEOUT
-            )
-            response.raise_for_status()
-            
-            # Extract output from JSON response
-            output = response.json().get('output')
-            if not output:
-                logging.warning("No output received from editor endpoint")
-                continue
+    try:
+        while is_playing and editor_active:
+            try:
+                # Call the Claude endpoint
+                response = await asyncio.get_event_loop().run_in_executor(
+                    None,
+                    lambda: requests.post(
+                        NetworkConstants.EDITOR_ENDPOINT,
+                        timeout=NetworkConstants.REQUEST_TIMEOUT
+                    )
+                )
+                response.raise_for_status()
                 
-            # Run aider with the output
-            logging.info("Starting aider session...")
-            process = await asyncio.create_subprocess_exec(
-                'python', 'aider', '--yes-always', 
-                '--message', output,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            stdout, stderr = await process.communicate()
-            
-            if process.returncode != 0:
-                logging.error(f"Aider process failed: {stderr.decode()}")
-            else:
-                logging.info("Aider session completed successfully")
+                # Extract output from JSON response
+                output = response.json().get('output')
+                if not output:
+                    logging.warning("No output received from editor endpoint")
+                    continue
+                    
+                # Run aider with the output
+                logging.info("Starting aider session...")
+                process = await asyncio.create_subprocess_exec(
+                    'python', 'aider', '--yes-always', 
+                    '--message', output,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
                 
-            # Small delay before next iteration
-            await asyncio.sleep(1)
-            
-        except Exception as e:
-            logging.error(f"Error in editor loop: {e}")
-            await asyncio.sleep(5)  # Longer delay on error
+                stdout, stderr = await process.communicate()
+                
+                if process.returncode != 0:
+                    logging.error(f"Aider process failed: {stderr.decode()}")
+                else:
+                    logging.info("Aider session completed successfully")
+                    
+                # Small delay before next iteration
+                await asyncio.sleep(1)
+                
+            except Exception as e:
+                logging.error(f"Error in editor loop: {e}")
+                await asyncio.sleep(5)  # Longer delay on error
+                
+    except Exception as e:
+        logging.error(f"Editor loop crashed: {e}")
+    finally:
+        logging.info("Editor loop stopped")
 
 def toggle_editor():
     """Toggle the editor loop on/off"""
@@ -1150,8 +1159,12 @@ def toggle_editor():
     editor_play_pause_btn.config(text="⏸️ Editor" if editor_active else "▶️ Editor")
     
     if editor_active:
-        # Start editor loop in a new task
-        asyncio.create_task(editor_loop())
+        # Start editor loop in a new thread to handle asyncio
+        editor_thread = threading.Thread(
+            target=lambda: asyncio.run(editor_loop()),
+            daemon=True
+        )
+        editor_thread.start()
         update_status("▶️ Editor loop started")
     else:
         update_status("⏸️ Editor loop stopped")
