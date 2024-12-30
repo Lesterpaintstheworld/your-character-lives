@@ -1,4 +1,5 @@
 """Audio device management"""
+import queue
 import pyaudio
 import logging
 from typing import List, Dict, Optional
