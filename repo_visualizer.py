@@ -291,30 +291,86 @@ class RepoVisualizer:
                 else:
                     env['NODE_PATH'] = repo_dir
 
-                # Run command in working directory
-                self.current_process = await asyncio.create_subprocess_exec(
+                # Log full command details
+                cmd = [
                     npx_path,
                     'repo-visualizer',
                     '--output', 'diagram.svg',
-                    '--exclude', '.git,.aider,__pycache__,build,dist',
+                    '--exclude', '.git,.aider,__pycache__,build,dist'
+                ]
+                logging.info(f"Executing command: {' '.join(cmd)}")
+                logging.info(f"Working directory: {working_dir}")
+                logging.info(f"NODE_PATH: {env.get('NODE_PATH')}")
+
+                # First verify repo-visualizer is installed
+                check_process = await asyncio.create_subprocess_exec(
+                    npx_path, '--no-install', 'repo-visualizer', '--version',
                     stdout=asyncio.subprocess.PIPE,
                     stderr=asyncio.subprocess.PIPE,
                     env=env,
-                    cwd=working_dir  # Explicitly set working directory
+                    cwd=working_dir
+                )
+                check_stdout, check_stderr = await check_process.communicate()
+                
+                if check_process.returncode != 0:
+                    logging.error("repo-visualizer not found, attempting to install...")
+                    # Install repo-visualizer globally
+                    install_process = await asyncio.create_subprocess_exec(
+                        npm_path, 'install', '-g', 'repo-visualizer',
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        env=env
+                    )
+                    install_stdout, install_stderr = await install_process.communicate()
+                    if install_process.returncode != 0:
+                        logging.error(f"Failed to install repo-visualizer: {install_stderr.decode()}")
+                        return False
+                    logging.info("Successfully installed repo-visualizer")
+
+                # Run the visualization command
+                self.current_process = await asyncio.create_subprocess_exec(
+                    *cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env,
+                    cwd=working_dir
                 )
                 
                 stdout, stderr = await self.current_process.communicate()
                 
-                # Log command output
+                # Log ALL output regardless of return code
                 if stdout:
-                    logging.info(f"Command stdout: {stdout.decode()}")
+                    logging.info(f"Command stdout:\n{stdout.decode()}")
                 if stderr:
-                    logging.error(f"Command stderr: {stderr.decode()}")
+                    logging.info(f"Command stderr:\n{stderr.decode()}")
                     
                 if self.current_process.returncode == 0:
-                    logging.info("Generated visualization successfully")
+                    logging.info("Command completed successfully")
+                    
+                    # List directory contents to verify file creation
+                    try:
+                        files = os.listdir(working_dir)
+                        logging.info(f"Directory contents after command:\n{files}")
+                    except Exception as e:
+                        logging.error(f"Error listing directory: {e}")
+                        
+                    # Check file immediately after creation
+                    svg_path = os.path.join(working_dir, 'diagram.svg')
+                    if os.path.exists(svg_path):
+                        logging.info(f"SVG file found at: {svg_path}")
+                        logging.info(f"SVG file size: {os.path.getsize(svg_path)} bytes")
+                    else:
+                        logging.error(f"SVG file not found immediately after command")
+                        
+                    # Try with a small delay
+                    await asyncio.sleep(1)
+                    if os.path.exists(svg_path):
+                        logging.info("SVG file found after delay")
+                    else:
+                        logging.error("SVG file still not found after delay")
+                        
                 else:
-                    logging.error(f"Visualization failed with return code {self.current_process.returncode}")
+                    logging.error(f"Command failed with return code {self.current_process.returncode}")
                     logging.error(f"Error output: {stderr.decode()}")
                     return False
 
