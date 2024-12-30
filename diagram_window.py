@@ -36,8 +36,17 @@ class DiagramWindow:
         
         # Load and display the diagram
         try:
+            # Get current working directory
+            work_dir = os.getcwd()
+            svg_path = os.path.join(work_dir, 'diagram.svg')
+            
+            logging.info(f"Looking for SVG at: {svg_path}")
+            
+            if not os.path.exists(svg_path):
+                raise FileNotFoundError(f"SVG file not found at {svg_path}")
+                
             # Convert SVG to PNG
-            with open('diagram.svg', 'rb') as svg_file:
+            with open(svg_path, 'rb') as svg_file:
                 png_data = io.BytesIO()
                 svg2png(file_obj=svg_file, write_to=png_data, output_width=800, output_height=800)
                 png_data.seek(0)
