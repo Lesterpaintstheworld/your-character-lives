@@ -2,7 +2,7 @@ import os
 import io
 import logging
 import tkinter as tk
-from PIL import Image, ImageTk
+from PIL import Image, ImageTk, ImageDraw
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
 import os
@@ -89,81 +89,43 @@ class DiagramWindow:
     def load_diagram(self):
         """Load and display the SVG diagram with enhanced error handling"""
         try:
-            if not os.path.exists('diagram.svg'):
+            # Add debug logging for current directory
+            current_dir = os.getcwd()
+            logging.info(f"Current working directory: {current_dir}")
+            
+            # Check for both diagram.svg and diagram.png
+            svg_path = os.path.join(current_dir, 'diagram.svg')
+            png_path = os.path.join(current_dir, 'diagram.png')
+            
+            logging.info(f"Checking for diagram files:")
+            logging.info(f"SVG path: {svg_path} (exists: {os.path.exists(svg_path)})")
+            logging.info(f"PNG path: {png_path} (exists: {os.path.exists(png_path)})")
+
+            if not os.path.exists(svg_path):
                 logging.error("diagram.svg file not found")
-                return
-
-            # Log file details
-            file_size = os.path.getsize('diagram.svg')
-            logging.info(f"Found diagram.svg: {file_size} bytes")
-
-            try:
-                # First attempt: Try cairosvg
-                from cairosvg import svg2png
-                logging.info("Attempting conversion with cairosvg...")
+                # Create a simple error image
+                img = Image.new('RGB', (400, 300), color='darkgray')
+                draw = ImageDraw.Draw(img)
+                draw.text((10, 10), "Diagram Not Found", fill='white')
+                draw.text((10, 30), "Please check if diagram.svg exists", fill='white')
                 
-                # Create BytesIO object for PNG data
-                png_data = io.BytesIO()
-                
-                with open('diagram.svg', 'rb') as svg_file:
-                    svg_content = svg_file.read()
-                    logging.info(f"Read SVG content: {len(svg_content)} bytes")
-                    
-                    svg2png(
-                        bytestring=svg_content,
-                        write_to=png_data,
-                        scale=2.0
-                    )
-                    
-                png_data.seek(0)
-                logging.info(f"Generated PNG data: {len(png_data.getvalue())} bytes")
+                # Convert to PhotoImage and display
+                self.photo = ImageTk.PhotoImage(img)
+                self.canvas.delete("all")
+                self.canvas.create_image(
+                    self.width//2, 
+                    self.height//2, 
+                    image=self.photo,
+                    tags="diagram"
+                )
+                return False
 
-            except (ImportError, Exception) as e:
-                logging.warning(f"cairosvg conversion failed: {e}")
-                
+            # Try direct PNG loading first if it exists
+            if os.path.exists(png_path):
                 try:
-                    # Second attempt: Try svglib
-                    logging.info("Attempting conversion with svglib...")
-                    from svglib.svglib import svg2rlg
-                    from reportlab.graphics import renderPM
-                    
-                    drawing = svg2rlg('diagram.svg')
-                    if drawing:
-                        png_data = io.BytesIO()
-                        renderPM.drawToFile(drawing, png_data, fmt='PNG')
-                        png_data.seek(0)
-                        logging.info("svglib conversion successful")
-                    else:
-                        raise ValueError("svg2rlg returned None")
-
-                except Exception as e2:
-                    logging.error(f"Both conversion methods failed: {e2}")
-                    # Create a simple placeholder image
-                    logging.info("Creating placeholder image...")
-                    from PIL import Image, ImageDraw
-                    
-                    img = Image.new('RGB', (400, 300), color='darkgray')
-                    draw = ImageDraw.Draw(img)
-                    draw.text((10, 10), "Diagram Conversion Failed", fill='white')
-                    draw.text((10, 30), f"Error: {str(e2)}", fill='white')
-                    
-                    png_data = io.BytesIO()
-                    img.save(png_data, format='PNG')
-                    png_data.seek(0)
-
-            # Convert to PIL Image and display
-            try:
-                new_image = Image.open(png_data)
-                logging.info(f"Created PIL Image: {new_image.size}")
-                
-                new_photo = ImageTk.PhotoImage(new_image)
-                logging.info("Created Tkinter PhotoImage")
-                
-                # Update display
-                if hasattr(self, 'photo'):
-                    self._fade_transition(new_photo)
-                else:
-                    self.photo = new_photo
+                    logging.info("Loading existing PNG file...")
+                    img = Image.open(png_path)
+                    self.photo = ImageTk.PhotoImage(img)
                     self.canvas.delete("all")
                     self.canvas.create_image(
                         self.width//2, 
@@ -171,12 +133,55 @@ class DiagramWindow:
                         image=self.photo,
                         tags="diagram"
                     )
+                    logging.info("Successfully loaded PNG file")
+                    return True
+                except Exception as e:
+                    logging.error(f"Failed to load PNG file: {e}")
+                    # Continue to SVG conversion if PNG loading fails
+            
+            # SVG conversion with detailed logging
+            try:
+                logging.info("Starting SVG conversion...")
+                from cairosvg import svg2png
                 
-                logging.info("Diagram displayed successfully")
+                # Create BytesIO object for PNG data
+                png_data = io.BytesIO()
+                
+                with open(svg_path, 'rb') as svg_file:
+                    svg_content = svg_file.read()
+                    logging.info(f"Read SVG content: {len(svg_content)} bytes")
+                    
+                    # Try to convert with higher DPI for better quality
+                    svg2png(
+                        bytestring=svg_content,
+                        write_to=png_data,
+                        scale=2.0,
+                        dpi=300
+                    )
+                    
+                png_data.seek(0)
+                logging.info("SVG conversion successful")
+                
+                # Save the PNG for future use
+                with open(png_path, 'wb') as f:
+                    f.write(png_data.getvalue())
+                logging.info("Saved PNG file for future use")
+                
+                # Display the converted image
+                img = Image.open(png_data)
+                self.photo = ImageTk.PhotoImage(img)
+                self.canvas.delete("all")
+                self.canvas.create_image(
+                    self.width//2, 
+                    self.height//2, 
+                    image=self.photo,
+                    tags="diagram"
+                )
+                logging.info("Successfully displayed converted SVG")
                 return True
-
+                
             except Exception as e:
-                logging.error(f"Failed to display image: {e}")
+                logging.error(f"Failed to convert/display SVG: {e}")
                 return False
 
         except Exception as e:
