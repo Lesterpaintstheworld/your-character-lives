@@ -11,9 +11,7 @@ class ImageWindow:
         self.window.attributes('-alpha', 0.9)  # Slight transparency
         
         # Load and resize image to 800x800
-        self.image = Image.open(image_path)
-        self.image = self.image.resize((800, 800), Image.Resampling.LANCZOS)
-        self.photo = ImageTk.PhotoImage(self.image)
+        self.load_image(image_path)
         
         # Create label to display image
         self.label = tk.Label(self.window, image=self.photo)
@@ -53,7 +51,39 @@ class ImageWindow:
         y = self.window.winfo_y() + deltay
         self.window.geometry(f'+{x}+{y}')
         
+    def load_image(self, image_path):
+        """Thread-safe image loading"""
+        try:
+            self.image = Image.open(image_path)
+            self.image = self.image.resize((800, 800), Image.Resampling.LANCZOS)
+            self.photo = ImageTk.PhotoImage(self.image)
+        except Exception as e:
+            logging.error(f"Error loading image: {e}")
+
+    def check_for_updates(self):
+        """Thread-safe update checker"""
+        try:
+            current_modified = os.path.getmtime(self.image_path)
+            if current_modified > self.last_modified:
+                def update_image():
+                    self.load_image(self.image_path)
+                    self.label.configure(image=self.photo)
+                    self.last_modified = current_modified
+                
+                # Schedule image update on main thread
+                self.window.after(0, update_image)
+                
+        except Exception as e:
+            logging.error(f"Error checking for image updates: {e}")
+        finally:
+            # Schedule next check
+            self.check_file_changes = self.window.after(10000, self.check_for_updates)
+
     def close(self, event):
-        # Cancel the update checker before destroying
-        self.window.after_cancel(self.check_file_changes)
-        self.window.destroy()
+        try:
+            # Cancel the update checker before destroying
+            if hasattr(self, 'check_file_changes'):
+                self.window.after_cancel(self.check_file_changes)
+            self.window.destroy()
+        except Exception as e:
+            logging.error(f"Error closing window: {e}")

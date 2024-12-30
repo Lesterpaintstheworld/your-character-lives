@@ -344,18 +344,29 @@ class RepoVisualizer:
                     # After successful PNG conversion, display the image
                     try:
                         from image_window import ImageWindow
-                        image_window = ImageWindow('diagram.png')
-                        image_window.window.mainloop()
-                        logging.info("Displaying diagram in ImageWindow")
+                        # Use root.after to schedule window creation on main thread
+                        import tkinter as tk
+                        if not hasattr(self, 'root'):
+                            self.root = tk.Tk()
+                            self.root.withdraw()  # Hide the root window
+                        
+                        def create_window():
+                            if hasattr(self, 'image_window'):
+                                self.image_window.window.destroy()
+                            self.image_window = ImageWindow('diagram.png')
+                            self.image_window.window.mainloop()
+                            
+                        self.root.after(0, create_window)
+                        logging.info("Scheduled diagram display in main thread")
                         if hasattr(self, 'status_callback'):
                             self.status_callback("✨ Repository visualization updated and displayed")
                         return True
+                        
                     except Exception as e:
                         logging.error(f"Failed to display diagram: {e}")
                         if hasattr(self, 'status_callback'):
                             self.status_callback("⚠️ Diagram created but display failed")
-                        # Return True since visualization was created successfully
-                        return True
+                        return True  # Return True since visualization was created successfully
                     
                 except Exception as e:
                     logging.error(f"Failed to convert SVG to PNG: {e}")
