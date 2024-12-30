@@ -163,41 +163,16 @@ class RepoVisualizer:
 
     async def generate_visualization(self):
         """Generate repository visualization"""
-        # Check for Node.js first
         try:
-            process = await asyncio.create_subprocess_exec(
-                'node', '--version',
-                stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
-            )
-            await process.wait()
-        except FileNotFoundError:
-            logging.error("Node.js not found! Please install Node.js from https://nodejs.org/")
-            if hasattr(self, 'status_callback'):
-                self.status_callback("❌ Node.js not found - please install Node.js")
-            return False
-        except Exception as e:
-            logging.error(f"Error checking Node.js: {e}")
-            return False
-
-        # Get the installation directory
-        try:
+            # Get the installation directory
             if getattr(sys, 'frozen', False):
                 install_dir = os.path.dirname(sys.executable)
             else:
                 install_dir = os.path.dirname(os.path.abspath(__file__))
                 
-            # Path to repo-visualizer in install directory
+            # Path to repo-visualizer
             repo_dir = os.path.join(install_dir, "repo-visualizer")
-            logging.info(f"Looking for repo-visualizer at: {repo_dir}")
-
-            # Just verify the directory exists and has required files
-            if not await self.verify_repo_integrity():
-                error_msg = "repo-visualizer installation appears invalid"
-                logging.error(error_msg)
-                if hasattr(self, 'status_callback'):
-                    self.status_callback(f"❌ {error_msg}")
-                return False
+            logging.info(f"Using repo-visualizer at: {repo_dir}")
 
             # Ensure npm dependencies are installed if node_modules is missing
             node_modules = os.path.join(repo_dir, 'node_modules')
@@ -233,7 +208,6 @@ class RepoVisualizer:
                 logging.info("Generated visualization successfully")
             else:
                 logging.error(f"Visualization failed with return code {self.current_process.returncode}")
-                logging.error(f"Error output: {stderr.decode()}")
                 return False
 
             # Convert SVG to PNG using cairosvg
@@ -256,12 +230,6 @@ class RepoVisualizer:
                     self.status_callback("❌ Failed to convert visualization")
                 return False
 
-        except FileNotFoundError as e:
-            msg = f"File not found error: {e}"
-            logging.error(msg)
-            if hasattr(self, 'status_callback'):
-                self.status_callback(f"❌ {msg}")
-            return False
         except Exception as e:
             logging.error(f"Failed to generate visualization: {e}")
             if hasattr(self, 'status_callback'):
@@ -317,15 +285,6 @@ class RepoVisualizer:
         """Run continuous visualization generation"""
         while self.running:
             try:
-                # Verify repo integrity first
-                if not await self.verify_repo_integrity():
-                    logging.warning("repo-visualizer installation appears damaged, attempting repair...")
-                    success = await self.generate_visualization()  # This will trigger a fresh clone
-                    if not success:
-                        logging.error("Failed to repair repo-visualizer")
-                        await asyncio.sleep(self.interval)
-                        continue
-                
                 success = await self.generate_visualization()
                 if success:
                     logging.info(f"Visualization updated successfully")
