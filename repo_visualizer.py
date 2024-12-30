@@ -4,6 +4,7 @@ import asyncio
 import subprocess
 import logging
 from threading import Thread
+import queue
 import tkinter as tk
 from PIL import Image, ImageTk
 from image_window import ImageWindow
