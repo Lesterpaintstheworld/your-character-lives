@@ -256,63 +256,51 @@ class RepoVisualizer:
     async def generate_visualization(self):
         """Generate repository visualization"""
         try:
-            # Get the installation directory with detailed logging
+            # Get the current working directory at start
+            working_dir = os.getcwd()
+            logging.info(f"Working directory: {working_dir}")
+
+            # Get repo-visualizer directory
             if getattr(sys, 'frozen', False):
                 install_dir = os.path.dirname(sys.executable)
-                logging.info(f"Running from executable, install_dir: {install_dir}")
             else:
                 install_dir = os.path.dirname(os.path.abspath(__file__))
-                logging.info(f"Running from source, install_dir: {install_dir}")
-                
-            # Path to repo-visualizer with detailed checks
             repo_dir = os.path.join(install_dir, "repo-visualizer")
-            logging.info(f"Full repo-visualizer path: {repo_dir}")
             
-            # Log directory contents and existence
-            logging.info(f"Directory exists: {os.path.exists(repo_dir)}")
-            if os.path.exists(repo_dir):
-                logging.info("Contents of directory:")
-                for item in os.listdir(repo_dir):
-                    logging.info(f"- {item}")
-            else:
-                logging.info(f"Parent directory contents:")
-                parent_dir = os.path.dirname(repo_dir)
-                if os.path.exists(parent_dir):
-                    for item in os.listdir(parent_dir):
-                        logging.info(f"- {item}")
-                else:
-                    logging.info("Parent directory does not exist")
-
-            # Try to find npm executable
+            # Find npm
             npm_path = await self.find_npm()
             if not npm_path:
                 logging.error("npm not found in system")
-                await self.diagnose_npm()  # Add diagnostics
+                await self.diagnose_npm()
                 return False
 
             logging.info(f"Using npm from: {npm_path}")
             
-            # Ensure we're in the correct directory
-            original_dir = os.getcwd()
-            os.chdir(repo_dir)
-            logging.info(f"Changed working directory to: {repo_dir}")
+            # Get npx path
+            npx_path = os.path.join(os.path.dirname(npm_path), 'npx')
+            if os.name == 'nt':  # Windows
+                npx_path += '.cmd'
+            logging.info(f"Using npx from: {npx_path}")
 
+            # Run repo-visualizer from working directory
             try:
-                # Use full path to npm/npx
-                npx_path = os.path.join(os.path.dirname(npm_path), 'npx')
-                if os.name == 'nt':  # Windows
-                    npx_path += '.cmd'
+                # Add repo-visualizer to NODE_PATH
+                env = os.environ.copy()
+                if 'NODE_PATH' in env:
+                    env['NODE_PATH'] = f"{repo_dir}{os.pathsep}{env['NODE_PATH']}"
+                else:
+                    env['NODE_PATH'] = repo_dir
 
-                logging.info(f"Using npx from: {npx_path}")
-                
-                # Run repo-visualizer with full paths
+                # Run command in working directory
                 self.current_process = await asyncio.create_subprocess_exec(
                     npx_path,
                     'repo-visualizer',
                     '--output', 'diagram.svg',
                     '--exclude', '.git,.aider,__pycache__,build,dist',
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env,
+                    cwd=working_dir  # Explicitly set working directory
                 )
                 
                 stdout, stderr = await self.current_process.communicate()
@@ -330,29 +318,41 @@ class RepoVisualizer:
                     logging.error(f"Error output: {stderr.decode()}")
                     return False
 
-            finally:
-                # Restore original directory
-                os.chdir(original_dir)
-                logging.info(f"Restored working directory to: {original_dir}")
+                # Get paths for SVG and PNG
+                svg_path = os.path.join(working_dir, 'diagram.svg')
+                png_path = os.path.join(working_dir, 'diagram.png')
+                
+                logging.info(f"Looking for SVG at: {svg_path}")
+                
+                # Verify SVG was created
+                if not os.path.exists(svg_path):
+                    logging.error(f"SVG file not found at: {svg_path}")
+                    return False
 
-            # Convert SVG to PNG using cairosvg
-            try:
-                from cairosvg import svg2png
-                with open('diagram.svg', 'rb') as svg_file:
-                    svg2png(
-                        file_obj=svg_file,
-                        write_to='diagram.png',
-                        output_width=1024,
-                        output_height=1024
-                    )
-                logging.info("Generated new repository visualization")
-                if hasattr(self, 'status_callback'):
-                    self.status_callback("✨ Repository visualization updated")
-                return True
+                # Convert SVG to PNG
+                try:
+                    from cairosvg import svg2png
+                    with open(svg_path, 'rb') as svg_file:
+                        svg2png(
+                            file_obj=svg_file,
+                            write_to=png_path,
+                            output_width=1024,
+                            output_height=1024
+                        )
+                    logging.info(f"Generated PNG at: {png_path}")
+                    
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("✨ Repository visualization updated")
+                    return True
+                    
+                except Exception as e:
+                    logging.error(f"Failed to convert SVG to PNG: {e}")
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("❌ Failed to convert visualization")
+                    return False
+
             except Exception as e:
-                logging.error(f"Failed to convert SVG to PNG: {e}")
-                if hasattr(self, 'status_callback'):
-                    self.status_callback("❌ Failed to convert visualization")
+                logging.error(f"Error during visualization generation: {e}")
                 return False
 
         except Exception as e:
