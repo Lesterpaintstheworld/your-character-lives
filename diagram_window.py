@@ -12,16 +12,16 @@ class DiagramWindow:
         self.window.title("Repository Diagram")
         
         # Create canvas that fills the window
-        self.canvas = tk.Canvas(self.window, bg='#0d1117')  # Dark background
+        self.canvas = tk.Canvas(self.window, bg='#0d1117')
         self.canvas.pack(fill='both', expand=True)
         
         # Initialize image references
-        self.image = None
-        self.photo = None
-        self.canvas_image = None
+        self.base_image = None
+        self.photo_images = []  # Keep track of all photo images
+        self.current_image_id = None
         
-        # Bind resize event with delay
-        self.resize_after_id = None
+        # Bind resize event with delay and keep reference
+        self._resize_job = None
         self.window.bind('<Configure>', self.on_resize)
         
         # Initial load
@@ -45,59 +45,74 @@ class DiagramWindow:
                 png_data.seek(0)
                 
                 # Load the base image
-                self.image = Image.open(png_data)
+                self.base_image = Image.open(png_data)
                 
-                # Create initial PhotoImage
+                # Initial display
                 self.update_display()
                 
         except Exception as e:
             logging.error(f"Error loading diagram: {e}")
 
+    def clear_photo_images(self):
+        """Clear old photo images"""
+        self.photo_images.clear()
+
     def update_display(self):
         """Update the displayed image with current window dimensions"""
-        if not self.image:
+        if not self.base_image:
             return
             
-        # Get current window dimensions
-        width = self.window.winfo_width()
-        height = self.window.winfo_height()
-        
-        if width <= 1 or height <= 1:  # Skip invalid dimensions
-            return
+        try:
+            # Get current window dimensions
+            width = self.window.winfo_width()
+            height = self.window.winfo_height()
             
-        # Calculate new dimensions maintaining aspect ratio
-        img_ratio = self.image.width / self.image.height
-        win_ratio = width / height
-        
-        if win_ratio > img_ratio:
-            # Window is wider than image
-            new_height = height
-            new_width = int(height * img_ratio)
-        else:
-            # Window is taller than image
-            new_width = width
-            new_height = int(width / img_ratio)
-        
-        # Resize image
-        resized = self.image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-        
-        # Update PhotoImage
-        self.photo = ImageTk.PhotoImage(resized)
-        
-        # Update canvas
-        self.canvas.delete("all")
-        self.canvas_image = self.canvas.create_image(
-            width//2, height//2,
-            image=self.photo,
-            anchor='center'
-        )
+            if width <= 1 or height <= 1:  # Skip invalid dimensions
+                return
+                
+            # Calculate new dimensions maintaining aspect ratio
+            img_ratio = self.base_image.width / self.base_image.height
+            win_ratio = width / height
+            
+            if win_ratio > img_ratio:
+                # Window is wider than image
+                new_height = height
+                new_width = int(height * img_ratio)
+            else:
+                # Window is taller than image
+                new_width = width
+                new_height = int(width / img_ratio)
+            
+            # Resize image
+            resized = self.base_image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+            
+            # Clear old photo images
+            self.clear_photo_images()
+            
+            # Create new PhotoImage and keep reference
+            new_photo = ImageTk.PhotoImage(resized)
+            self.photo_images.append(new_photo)
+            
+            # Clear canvas and create new image
+            self.canvas.delete("all")
+            self.current_image_id = self.canvas.create_image(
+                width//2, height//2,
+                image=new_photo,
+                anchor='center'
+            )
+            
+            # Force update
+            self.canvas.update_idletasks()
+            
+        except Exception as e:
+            logging.error(f"Error updating display: {e}")
 
     def on_resize(self, event):
         """Handle window resize with debouncing"""
         if event.widget == self.window:
-            # Cancel previous resize timer
-            if self.resize_after_id:
-                self.window.after_cancel(self.resize_after_id)
+            # Cancel previous resize job if it exists
+            if self._resize_job:
+                self.window.after_cancel(self._resize_job)
             
-            # Set new timer for resize
-            self.resize_after_id = self.window.after(100, self.update_display)
+            # Schedule new resize job
+            self._resize_job = self.window.after(100, self.update_display)
