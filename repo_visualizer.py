@@ -46,20 +46,24 @@ class RepoVisualizer:
                 )
                 await process.communicate()
             except FileNotFoundError:
-                # repo-visualizer not found, attempt to install it
+                # repo-visualizer not found, install it via HTTPS clone
                 if hasattr(self, 'status_callback'):
                     self.status_callback("📦 Installing repo-visualizer...")
-                logging.info("repo-visualizer not found. Installing...")
+                logging.info("repo-visualizer not found. Installing via HTTPS clone...")
                 
                 try:
-                    # Create node_modules directory if it doesn't exist
-                    if not os.path.exists('node_modules'):
-                        os.makedirs('node_modules')
+                    # Create temp directory for installation
+                    import tempfile
+                    temp_dir = tempfile.mkdtemp()
+                    logging.info(f"Created temp directory: {temp_dir}")
                     
-                    # Clone repo-visualizer from GitHub
+                    # Clone repo-visualizer from GitHub using HTTPS
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("🔄 Cloning repo-visualizer...")
+                        
                     clone_process = await asyncio.create_subprocess_exec(
                         'git', 'clone', 'https://github.com/githubocto/repo-visualizer.git',
-                        'node_modules/repo-visualizer',
+                        temp_dir,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
                     )
@@ -67,11 +71,16 @@ class RepoVisualizer:
                     
                     if clone_process.returncode != 0:
                         raise Exception(f"Failed to clone repo-visualizer: {stderr.decode()}")
+                        
+                    logging.info("Successfully cloned repo-visualizer")
                     
                     # Install dependencies
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("📦 Installing dependencies...")
+                        
                     install_process = await asyncio.create_subprocess_exec(
                         'npm', 'install',
-                        cwd=os.path.join('node_modules', 'repo-visualizer'),
+                        cwd=temp_dir,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
                     )
@@ -79,23 +88,16 @@ class RepoVisualizer:
                     
                     if install_process.returncode != 0:
                         raise Exception(f"Failed to install dependencies: {stderr.decode()}")
-                    
-                    # Build repo-visualizer
-                    build_process = await asyncio.create_subprocess_exec(
-                        'npm', 'run', 'build',
-                        cwd=os.path.join('node_modules', 'repo-visualizer'),
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
-                    )
-                    stdout, stderr = await build_process.communicate()
-                    
-                    if build_process.returncode != 0:
-                        raise Exception(f"Failed to build repo-visualizer: {stderr.decode()}")
+                        
+                    logging.info("Successfully installed dependencies")
                     
                     # Install globally
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("📦 Installing globally...")
+                        
                     global_install_process = await asyncio.create_subprocess_exec(
                         'npm', 'install', '-g',
-                        cwd=os.path.join('node_modules', 'repo-visualizer'),
+                        cwd=temp_dir,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
                     )
@@ -104,14 +106,23 @@ class RepoVisualizer:
                     if global_install_process.returncode != 0:
                         raise Exception(f"Failed to install globally: {stderr.decode()}")
                     
-                    logging.info("Successfully installed repo-visualizer")
+                    logging.info("Successfully installed repo-visualizer globally")
                     if hasattr(self, 'status_callback'):
                         self.status_callback("✅ repo-visualizer installed successfully")
                         
+                    # Cleanup temp directory
+                    import shutil
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    logging.info("Cleaned up temporary installation files")
+                    
                 except Exception as e:
                     logging.error(f"Failed to install repo-visualizer: {e}")
                     if hasattr(self, 'status_callback'):
                         self.status_callback(f"❌ Failed to install repo-visualizer: {str(e)}")
+                    # Cleanup temp directory in case of failure
+                    if 'temp_dir' in locals():
+                        import shutil
+                        shutil.rmtree(temp_dir, ignore_errors=True)
                     return False
 
             # Generate visualization
