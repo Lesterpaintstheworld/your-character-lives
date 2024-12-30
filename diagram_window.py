@@ -1,9 +1,10 @@
+import os
+import io
+import logging
 import tkinter as tk
 from PIL import Image, ImageTk
 from svglib.svglib import svg2rlg
 from reportlab.graphics import renderPM
-import io
-import logging
 import os
 
 class DiagramWindow:
