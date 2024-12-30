@@ -260,185 +260,78 @@ class RepoVisualizer:
             working_dir = os.getcwd()
             logging.info(f"Working directory: {working_dir}")
 
-            # Get repo-visualizer directory
+            # Get path to local repo-visualizer installation
             if getattr(sys, 'frozen', False):
                 install_dir = os.path.dirname(sys.executable)
             else:
                 install_dir = os.path.dirname(os.path.abspath(__file__))
-            repo_dir = os.path.join(install_dir, "repo-visualizer")
+                
+            repo_viz_path = os.path.join(install_dir, "repo-visualizer", "index.js")
+            logging.info(f"Using repo-visualizer at: {repo_viz_path}")
+
+            # Build command with the working node flags
+            cmd = [
+                'node',
+                '--force-node-api-uncaught-exceptions-policy=true',
+                repo_viz_path,
+                '--output', 'diagram.svg',
+                '--exclude', '.git,.aider,__pycache__,build,dist'
+            ]
+            logging.info(f"Executing command: {' '.join(cmd)}")
+
+            # Run the command
+            self.current_process = await asyncio.create_subprocess_exec(
+                *cmd,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+                cwd=working_dir
+            )
             
-            # Find npm
-            npm_path = await self.find_npm()
-            if not npm_path:
-                logging.error("npm not found in system")
-                await self.diagnose_npm()
-                return False
-
-            logging.info(f"Using npm from: {npm_path}")
+            stdout, stderr = await self.current_process.communicate()
             
-            # Get npx path
-            npx_path = os.path.join(os.path.dirname(npm_path), 'npx')
-            if os.name == 'nt':  # Windows
-                npx_path += '.cmd'
-            logging.info(f"Using npx from: {npx_path}")
-
-            # Run repo-visualizer from working directory
-            try:
-                # Add repo-visualizer to NODE_PATH
-                env = os.environ.copy()
-                if 'NODE_PATH' in env:
-                    env['NODE_PATH'] = f"{repo_dir}{os.pathsep}{env['NODE_PATH']}"
-                else:
-                    env['NODE_PATH'] = repo_dir
-
-                # Log full command details
-                cmd = [
-                    npx_path,
-                    'repo-visualizer',
-                    '--output', 'diagram.svg',
-                    '--exclude', '.git,.aider,__pycache__,build,dist'
-                ]
-                logging.info(f"Executing command: {' '.join(cmd)}")
-                logging.info(f"Working directory: {working_dir}")
-                logging.info(f"NODE_PATH: {env.get('NODE_PATH')}")
-
-                # Get install directory path
-                if getattr(sys, 'frozen', False):
-                    install_dir = os.path.dirname(sys.executable)
-                else:
-                    install_dir = os.path.dirname(os.path.abspath(__file__))
+            # Log ALL output regardless of return code
+            if stdout:
+                logging.info(f"Command stdout:\n{stdout.decode()}")
+            if stderr:
+                logging.info(f"Command stderr:\n{stderr.decode()}")
                 
-                repo_dir = os.path.join(install_dir, "repo-visualizer")
-                os.makedirs(repo_dir, exist_ok=True)
+            if self.current_process.returncode == 0:
+                logging.info("Command completed successfully")
                 
-                # Get install directory path where repo-visualizer is already installed
-                if getattr(sys, 'frozen', False):
-                    install_dir = os.path.dirname(sys.executable)
-                else:
-                    install_dir = os.path.dirname(os.path.abspath(__file__))
-                
-                repo_dir = os.path.join(install_dir, "repo-visualizer")
-                logging.info(f"Using existing repo-visualizer from: {repo_dir}")
-
-                # Update NODE_PATH to include the existing repo-visualizer directory
-                env = os.environ.copy()
-                if 'NODE_PATH' in env:
-                    env['NODE_PATH'] = f"{repo_dir}{os.pathsep}{env['NODE_PATH']}"
-                else:
-                    env['NODE_PATH'] = repo_dir
-                logging.info(f"Set NODE_PATH to include repo-visualizer: {env['NODE_PATH']}")
-
-                # Get install directory path where repo-visualizer is already installed
-                if getattr(sys, 'frozen', False):
-                    install_dir = os.path.dirname(sys.executable)
-                else:
-                    install_dir = os.path.dirname(os.path.abspath(__file__))
-                
-                repo_dir = os.path.join(install_dir, "repo-visualizer")
-                logging.info(f"Using existing repo-visualizer from: {repo_dir}")
-
-                # Update NODE_PATH and PATH to include repo-visualizer/node_modules/.bin
-                env = os.environ.copy()
-                bin_dir = os.path.join(repo_dir, "node_modules", ".bin")
-                if 'PATH' in env:
-                    env['PATH'] = f"{bin_dir}{os.pathsep}{env['PATH']}"
-                else:
-                    env['PATH'] = bin_dir
-
-                # Use direct path to repo-visualizer executable
-                repo_viz_bin = os.path.join(repo_dir, "node_modules", ".bin", "repo-visualizer")
-                if os.name == 'nt':  # Windows
-                    repo_viz_bin += '.cmd'
-
-                cmd = [
-                    repo_viz_bin,
-                    '--output', 'diagram.svg',
-                    '--exclude', '.git,.aider,__pycache__,build,dist'
-                ]
-                logging.info(f"Executing command: {' '.join(cmd)}")
-
-                # Run the command with the updated environment
-                self.current_process = await asyncio.create_subprocess_exec(
-                    *cmd,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                    env=env,
-                    cwd=working_dir
-                )
-                
-                stdout, stderr = await self.current_process.communicate()
-                
-                # Log ALL output regardless of return code
-                if stdout:
-                    logging.info(f"Command stdout:\n{stdout.decode()}")
-                if stderr:
-                    logging.info(f"Command stderr:\n{stderr.decode()}")
-                    
-                if self.current_process.returncode == 0:
-                    logging.info("Command completed successfully")
-                    
-                    # List directory contents to verify file creation
-                    try:
-                        files = os.listdir(working_dir)
-                        logging.info(f"Directory contents after command:\n{files}")
-                    except Exception as e:
-                        logging.error(f"Error listing directory: {e}")
-                        
-                    # Check file immediately after creation
-                    svg_path = os.path.join(working_dir, 'diagram.svg')
-                    if os.path.exists(svg_path):
-                        logging.info(f"SVG file found at: {svg_path}")
-                        logging.info(f"SVG file size: {os.path.getsize(svg_path)} bytes")
-                    else:
-                        logging.error(f"SVG file not found immediately after command")
-                        
-                    # Try with a small delay
-                    await asyncio.sleep(1)
-                    if os.path.exists(svg_path):
-                        logging.info("SVG file found after delay")
-                    else:
-                        logging.error("SVG file still not found after delay")
-                        
-                else:
-                    logging.error(f"Command failed with return code {self.current_process.returncode}")
-                    logging.error(f"Error output: {stderr.decode()}")
-                    return False
-
-                # Get paths for SVG and PNG
+                # Check file immediately after creation
                 svg_path = os.path.join(working_dir, 'diagram.svg')
-                png_path = os.path.join(working_dir, 'diagram.png')
-                
-                logging.info(f"Looking for SVG at: {svg_path}")
-                
-                # Verify SVG was created
-                if not os.path.exists(svg_path):
-                    logging.error(f"SVG file not found at: {svg_path}")
-                    return False
-
-                # Convert SVG to PNG
-                try:
-                    from cairosvg import svg2png
-                    with open(svg_path, 'rb') as svg_file:
-                        svg2png(
-                            file_obj=svg_file,
-                            write_to=png_path,
-                            output_width=1024,
-                            output_height=1024
-                        )
-                    logging.info(f"Generated PNG at: {png_path}")
+                if os.path.exists(svg_path):
+                    logging.info(f"SVG file found at: {svg_path}")
+                    logging.info(f"SVG file size: {os.path.getsize(svg_path)} bytes")
                     
-                    if hasattr(self, 'status_callback'):
-                        self.status_callback("✨ Repository visualization updated")
-                    return True
-                    
-                except Exception as e:
-                    logging.error(f"Failed to convert SVG to PNG: {e}")
-                    if hasattr(self, 'status_callback'):
-                        self.status_callback("❌ Failed to convert visualization")
+                    # Convert SVG to PNG using cairosvg
+                    try:
+                        from cairosvg import svg2png
+                        with open(svg_path, 'rb') as svg_file:
+                            svg2png(
+                                file_obj=svg_file,
+                                write_to='diagram.png',
+                                output_width=1024,
+                                output_height=1024
+                            )
+                        logging.info("Generated PNG successfully")
+                        
+                        if hasattr(self, 'status_callback'):
+                            self.status_callback("✨ Repository visualization updated")
+                        return True
+                        
+                    except Exception as e:
+                        logging.error(f"Failed to convert SVG to PNG: {e}")
+                        if hasattr(self, 'status_callback'):
+                            self.status_callback("❌ Failed to convert visualization")
+                        return False
+                else:
+                    logging.error("SVG file not found after command completion")
                     return False
-
-            except Exception as e:
-                logging.error(f"Error during visualization generation: {e}")
+                    
+            else:
+                logging.error(f"Command failed with return code {self.current_process.returncode}")
+                logging.error(f"Error output: {stderr.decode()}")
                 return False
 
         except Exception as e:
