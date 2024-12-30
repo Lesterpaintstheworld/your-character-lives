@@ -114,6 +114,32 @@ class RepoVisualizer:
         )
         self.visualization_thread.start()
         
+    async def ensure_npm_dependencies(self):
+        """Install npm dependencies if needed"""
+        try:
+            npm_path = await self.find_npm()
+            if not npm_path:
+                logging.error("npm not found")
+                return False
+                
+            process = await asyncio.create_subprocess_exec(
+                npm_path, 'install',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode == 0:
+                logging.info("Successfully installed npm dependencies")
+                return True
+            else:
+                logging.error(f"Failed to install dependencies: {stderr.decode()}")
+                return False
+                
+        except Exception as e:
+            logging.error(f"Error installing npm dependencies: {e}")
+            return False
+
     async def verify_repo_integrity(self):
         """Verify repo-visualizer installation is intact"""
         if getattr(sys, 'frozen', False):
@@ -165,44 +191,23 @@ class RepoVisualizer:
             repo_dir = os.path.join(install_dir, "repo-visualizer")
             logging.info(f"Looking for repo-visualizer at: {repo_dir}")
 
-            # If repo directory is missing or damaged, clone it
-            if not os.path.exists(repo_dir) or not await self.verify_repo_integrity():
-                logging.info("Cloning repo-visualizer repository...")
-                if os.path.exists(repo_dir):
-                    logging.info("Removing damaged repo directory...")
-                    import shutil
-                    shutil.rmtree(repo_dir)
-                    
-                # Clone the repository
-                process = await asyncio.create_subprocess_exec(
-                    'git', 'clone', 'https://github.com/githubocto/repo-visualizer.git',
-                    repo_dir,
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                stdout, stderr = await process.communicate()
-                
-                if process.returncode == 0:
-                    logging.info("Successfully cloned repo-visualizer")
-                    
-                    # Install dependencies
-                    npm_process = await asyncio.create_subprocess_exec(
-                        'npm', 'install',
-                        cwd=repo_dir,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
-                    )
-                    stdout, stderr = await npm_process.communicate()
-                    
-                    if npm_process.returncode == 0:
-                        logging.info("Successfully installed dependencies")
-                    else:
-                        error_msg = f"Failed to install dependencies: {stderr.decode()}"
-                        logging.error(error_msg)
-                        return False
-                else:
-                    error_msg = f"Failed to clone repository: {stderr.decode()}"
+            # Just verify the directory exists and has required files
+            if not await self.verify_repo_integrity():
+                error_msg = "repo-visualizer installation appears invalid"
+                logging.error(error_msg)
+                if hasattr(self, 'status_callback'):
+                    self.status_callback(f"❌ {error_msg}")
+                return False
+
+            # Ensure npm dependencies are installed if node_modules is missing
+            node_modules = os.path.join(repo_dir, 'node_modules')
+            if not os.path.exists(node_modules) or not os.listdir(node_modules):
+                logging.info("Installing npm dependencies...")
+                if not await self.ensure_npm_dependencies():
+                    error_msg = "Failed to install npm dependencies"
                     logging.error(error_msg)
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback(f"❌ {error_msg}")
                     return False
 
             # Use npx to run the local version
