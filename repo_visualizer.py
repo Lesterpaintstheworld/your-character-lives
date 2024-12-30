@@ -137,22 +137,25 @@ class RepoVisualizer:
 
     async def generate_visualization(self):
         """Generate repository visualization"""
+        # Check for Node.js first
         try:
-            # Check for Node.js first
-            try:
-                process = await asyncio.create_subprocess_exec(
-                    'node', '--version',
-                    stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL
-                )
-                await process.wait()
-            except FileNotFoundError:
-                logging.error("Node.js not found! Please install Node.js from https://nodejs.org/")
-                if hasattr(self, 'status_callback'):
-                    self.status_callback("❌ Node.js not found - please install Node.js")
-                return False
+            process = await asyncio.create_subprocess_exec(
+                'node', '--version',
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+            await process.wait()
+        except FileNotFoundError:
+            logging.error("Node.js not found! Please install Node.js from https://nodejs.org/")
+            if hasattr(self, 'status_callback'):
+                self.status_callback("❌ Node.js not found - please install Node.js")
+            return False
+        except Exception as e:
+            logging.error(f"Error checking Node.js: {e}")
+            return False
 
-            # Get the installation directory (where the script is located)
+        # Get the installation directory
+        try:
             if getattr(sys, 'frozen', False):
                 install_dir = os.path.dirname(sys.executable)
             else:
@@ -165,47 +168,100 @@ class RepoVisualizer:
             # If repo directory is missing or damaged, clone it
             if not os.path.exists(repo_dir) or not await self.verify_repo_integrity():
                 logging.info("Cloning repo-visualizer repository...")
-                try:
-                    if os.path.exists(repo_dir):
-                        logging.info("Removing damaged repo directory...")
-                        import shutil
-                        shutil.rmtree(repo_dir)
-                        
-                    # Clone the repository
-                    process = await asyncio.create_subprocess_exec(
-                        'git', 'clone', 'https://github.com/githubocto/repo-visualizer.git',
-                        repo_dir,
+                if os.path.exists(repo_dir):
+                    logging.info("Removing damaged repo directory...")
+                    import shutil
+                    shutil.rmtree(repo_dir)
+                    
+                # Clone the repository
+                process = await asyncio.create_subprocess_exec(
+                    'git', 'clone', 'https://github.com/githubocto/repo-visualizer.git',
+                    repo_dir,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await process.communicate()
+                
+                if process.returncode == 0:
+                    logging.info("Successfully cloned repo-visualizer")
+                    
+                    # Install dependencies
+                    npm_process = await asyncio.create_subprocess_exec(
+                        'npm', 'install',
+                        cwd=repo_dir,
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
                     )
-                    stdout, stderr = await process.communicate()
+                    stdout, stderr = await npm_process.communicate()
                     
-                    if process.returncode == 0:
-                        logging.info("Successfully cloned repo-visualizer")
-                        
-                        # Install dependencies
-                        npm_process = await asyncio.create_subprocess_exec(
-                            'npm', 'install',
-                            cwd=repo_dir,
-                            stdout=asyncio.subprocess.PIPE,
-                            stderr=asyncio.subprocess.PIPE
-                        )
-                        stdout, stderr = await npm_process.communicate()
-                        
-                        if npm_process.returncode == 0:
-                            logging.info("Successfully installed dependencies")
-                        else:
-                            error_msg = f"Failed to install dependencies: {stderr.decode()}"
-                            logging.error(error_msg)
-                            return False
+                    if npm_process.returncode == 0:
+                        logging.info("Successfully installed dependencies")
                     else:
-                        error_msg = f"Failed to clone repository: {stderr.decode()}"
+                        error_msg = f"Failed to install dependencies: {stderr.decode()}"
                         logging.error(error_msg)
                         return False
-                except Exception as e:
-                    error_msg = f"Failed to clone repo-visualizer: {e}"
+                else:
+                    error_msg = f"Failed to clone repository: {stderr.decode()}"
                     logging.error(error_msg)
                     return False
+
+            # Use npx to run the local version
+            if hasattr(self, 'status_callback'):
+                self.status_callback("🔄 Generating repository visualization...")
+
+            self.current_process = await asyncio.create_subprocess_exec(
+                'npx', '--prefix', repo_dir, 'repo-visualizer',
+                '--output', 'diagram.svg',
+                '--exclude', '.git,.aider,__pycache__,build,dist',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await self.current_process.communicate()
+            
+            if stdout:
+                logging.info(f"Command stdout: {stdout.decode()}")
+            if stderr:
+                logging.error(f"Command stderr: {stderr.decode()}")
+                
+            if self.current_process.returncode == 0:
+                logging.info("Generated visualization successfully")
+            else:
+                logging.error(f"Visualization failed with return code {self.current_process.returncode}")
+                logging.error(f"Error output: {stderr.decode()}")
+                return False
+
+            # Convert SVG to PNG using cairosvg
+            try:
+                from cairosvg import svg2png
+                with open('diagram.svg', 'rb') as svg_file:
+                    svg2png(
+                        file_obj=svg_file,
+                        write_to='diagram.png',
+                        output_width=1024,
+                        output_height=1024
+                    )
+                logging.info("Generated new repository visualization")
+                if hasattr(self, 'status_callback'):
+                    self.status_callback("✨ Repository visualization updated")
+                return True
+            except Exception as e:
+                logging.error(f"Failed to convert SVG to PNG: {e}")
+                if hasattr(self, 'status_callback'):
+                    self.status_callback("❌ Failed to convert visualization")
+                return False
+
+        except FileNotFoundError as e:
+            msg = f"File not found error: {e}"
+            logging.error(msg)
+            if hasattr(self, 'status_callback'):
+                self.status_callback(f"❌ {msg}")
+            return False
+        except Exception as e:
+            logging.error(f"Failed to generate visualization: {e}")
+            if hasattr(self, 'status_callback'):
+                self.status_callback("❌ Failed to generate visualization")
+            return False
                 except Exception as e:
                     logging.error(f"Failed to clone repo-visualizer: {e}")
                     if hasattr(self, 'status_callback'):
