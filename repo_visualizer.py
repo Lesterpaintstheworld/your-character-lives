@@ -328,16 +328,36 @@ class RepoVisualizer:
                     env['NODE_PATH'] = repo_dir
                 logging.info(f"Set NODE_PATH to include repo-visualizer: {env['NODE_PATH']}")
 
-                # Use npx to run the local version from the install directory
+                # Get install directory path where repo-visualizer is already installed
+                if getattr(sys, 'frozen', False):
+                    install_dir = os.path.dirname(sys.executable)
+                else:
+                    install_dir = os.path.dirname(os.path.abspath(__file__))
+                
+                repo_dir = os.path.join(install_dir, "repo-visualizer")
+                logging.info(f"Using existing repo-visualizer from: {repo_dir}")
+
+                # Update NODE_PATH and PATH to include repo-visualizer/node_modules/.bin
+                env = os.environ.copy()
+                bin_dir = os.path.join(repo_dir, "node_modules", ".bin")
+                if 'PATH' in env:
+                    env['PATH'] = f"{bin_dir}{os.pathsep}{env['PATH']}"
+                else:
+                    env['PATH'] = bin_dir
+
+                # Use direct path to repo-visualizer executable
+                repo_viz_bin = os.path.join(repo_dir, "node_modules", ".bin", "repo-visualizer")
+                if os.name == 'nt':  # Windows
+                    repo_viz_bin += '.cmd'
+
                 cmd = [
-                    npx_path,
-                    '--prefix', repo_dir,  # Use the installed version from repo_dir
-                    'repo-visualizer',
+                    repo_viz_bin,
                     '--output', 'diagram.svg',
                     '--exclude', '.git,.aider,__pycache__,build,dist'
                 ]
                 logging.info(f"Executing command: {' '.join(cmd)}")
 
+                # Run the command with the updated environment
                 self.current_process = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdout=asyncio.subprocess.PIPE,
