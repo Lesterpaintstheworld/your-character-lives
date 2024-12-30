@@ -9,6 +9,104 @@ from image_window import ImageWindow
 
 class RepoVisualizer:
     def __init__(self, interval=10):
+        """Initialize the repo visualizer"""
+        self.interval = interval
+        self.running = True
+        self.current_process = None
+
+    async def find_npm(self):
+        """Find npm executable with detailed logging"""
+        logging.info("Searching for npm installation...")
+        
+        # Possible npm locations
+        npm_cmd = 'npm.cmd' if os.name == 'nt' else 'npm'  # Use npm.cmd on Windows
+        possible_paths = [
+            # Windows-specific paths
+            r"C:\Program Files\nodejs\npm.cmd",
+            r"C:\Program Files (x86)\nodejs\npm.cmd",
+            os.path.join(os.environ.get('APPDATA', ''), 'npm', 'npm.cmd'),
+            os.path.join(os.environ.get('ProgramFiles', ''), 'nodejs', 'npm.cmd'),
+            # Unix-like paths
+            "/usr/local/bin/npm",
+            "/usr/bin/npm",
+            # Look in PATH
+            npm_cmd
+        ]
+
+        # Log PATH for debugging
+        logging.info(f"Current PATH: {os.environ.get('PATH', '')}")
+        
+        for path in possible_paths:
+            try:
+                logging.info(f"Trying npm at: {path}")
+                process = await asyncio.create_subprocess_exec(
+                    path, '--version',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await process.communicate()
+                
+                if process.returncode == 0:
+                    version = stdout.decode().strip()
+                    logging.info(f"Found npm version {version} at {path}")
+                    return path
+                    
+            except Exception as e:
+                logging.debug(f"Failed to execute {path}: {e}")
+                continue
+                
+        return None
+
+    async def diagnose_npm(self):
+        """Run npm installation diagnostics"""
+        logging.info("=== Running npm diagnostics ===")
+        
+        # Check Node.js installation
+        try:
+            node_process = await asyncio.create_subprocess_exec(
+                'node', '--version',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await node_process.communicate()
+            if node_process.returncode == 0:
+                logging.info(f"Node.js version: {stdout.decode().strip()}")
+            else:
+                logging.error("Node.js not found")
+        except Exception as e:
+            logging.error(f"Error checking Node.js: {e}")
+
+        # Check PATH
+        logging.info("Checking PATH environment variable...")
+        path_entries = os.environ.get('PATH', '').split(os.pathsep)
+        for entry in path_entries:
+            logging.info(f"PATH entry: {entry}")
+            if 'node' in entry.lower() or 'npm' in entry.lower():
+                logging.info(f"Potential Node.js/npm path found: {entry}")
+                
+        # Try where/which command
+        try:
+            if os.name == 'nt':  # Windows
+                where_process = await asyncio.create_subprocess_exec(
+                    'where', 'npm',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+            else:  # Unix-like
+                where_process = await asyncio.create_subprocess_exec(
+                    'which', 'npm',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+            stdout, stderr = await where_process.communicate()
+            if where_process.returncode == 0:
+                logging.info(f"npm found at: {stdout.decode().strip()}")
+            else:
+                logging.error("npm not found in PATH")
+        except Exception as e:
+            logging.error(f"Error running where/which: {e}")
+
+        logging.info("=== End npm diagnostics ===")
         self.interval = interval
         self.running = True
         self.current_process = None
@@ -46,25 +144,21 @@ class RepoVisualizer:
                 )
                 await process.communicate()
             except FileNotFoundError:
-                # Check for npm first
-                try:
-                    npm_check = await asyncio.create_subprocess_exec(
-                        'npm', '--version',
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
-                    )
-                    await npm_check.communicate()
-                    if npm_check.returncode != 0:
-                        raise FileNotFoundError("npm not found")
-                except FileNotFoundError:
+                # Find npm first
+                npm_path = await find_npm()
+                if not npm_path:
+                    await diagnose_npm()  # Run diagnostics
                     error_msg = (
-                        "npm not found! Please install Node.js from https://nodejs.org/\n"
-                        "This will install both Node.js and npm."
+                        "npm not found in system! Please ensure Node.js is installed and in your PATH.\n"
+                        "Download from: https://nodejs.org/\n"
+                        "After installation, you may need to restart your computer."
                     )
                     logging.error(error_msg)
                     if hasattr(self, 'status_callback'):
                         self.status_callback(f"❌ {error_msg}")
                     return False
+
+                logging.info(f"Using npm at: {npm_path}")
 
                 # Create temp directory for installation
                 import tempfile
@@ -99,7 +193,7 @@ class RepoVisualizer:
                         self.status_callback("📦 Installing dependencies...")
                         
                     install_process = await asyncio.create_subprocess_exec(
-                        'npm', 'install',
+                        npm_path, 'install',
                         cwd=repo_dir,  # Use the correct directory
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
@@ -116,7 +210,7 @@ class RepoVisualizer:
                         self.status_callback("📦 Installing globally...")
                         
                     global_install_process = await asyncio.create_subprocess_exec(
-                        'npm', 'install', '-g',
+                        npm_path, 'install', '-g',
                         cwd=repo_dir,  # Use the correct directory
                         stdout=asyncio.subprocess.PIPE,
                         stderr=asyncio.subprocess.PIPE
