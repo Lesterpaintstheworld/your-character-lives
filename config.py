@@ -1,6 +1,7 @@
 """Configuration settings for CK3 AI Assistant"""
 
 import os
+import secrets
 from dataclasses import dataclass
 
 @dataclass
@@ -24,6 +25,11 @@ class Config:
     # API Keys
     OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 
+    # API settings
+    API_PORT = 5000
+    API_DEBUG = False
+    API_TOKEN = os.getenv("API_TOKEN", secrets.token_urlsafe(32))
+    
     def validate(self):
         """Validate configuration settings"""
         if not isinstance(self.SCREENSHOT_INTERVAL, int) or self.SCREENSHOT_INTERVAL <= 0:
@@ -38,3 +44,7 @@ class Config:
             raise ValueError("OpenAI API key not found in environment")
         if not self.OPENAI_API_KEY.startswith("sk-"):
             raise ValueError("Invalid OpenAI API key format")
+        if not isinstance(self.API_PORT, int) or not (1024 <= self.API_PORT <= 65535):
+            raise ValueError("Invalid API port number")
+        if not isinstance(self.API_TOKEN, str) or len(self.API_TOKEN) < 32:
+            raise ValueError("Invalid API token")

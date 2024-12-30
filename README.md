@@ -54,6 +54,52 @@ python main.py
 - 500MB free disk space
 - Graphics card supporting OpenCV
 
+## REST API
+
+The AI Assistant exposes a REST API for external integration. All endpoints require authentication using a Bearer token.
+
+### Authentication
+
+Include the API token in the Authorization header:
+```bash
+curl -H "Authorization: Bearer YOUR_API_TOKEN" http://localhost:5000/api/memory
+```
+
+### Endpoints
+
+#### Memory Management
+- GET /api/memory - List all memories
+- GET /api/memory/<id> - Get specific memory
+- POST /api/memory - Create new memory
+- DELETE /api/memory/<id> - Delete memory
+
+#### Performance Metrics
+- GET /api/performance - Get current performance metrics
+
+#### Configuration
+- GET /api/config - Get current configuration
+- PUT /api/config - Update configuration
+
+### Example Usage
+
+List all memories:
+```bash
+curl -H "Authorization: Bearer YOUR_API_TOKEN" http://localhost:5000/api/memory
+```
+
+Create new memory:
+```bash
+curl -X POST -H "Authorization: Bearer YOUR_API_TOKEN" \
+     -H "Content-Type: application/json" \
+     -d '{"id":"123","content":"Test memory","timestamp":"2024-12-30T12:00:00Z","type":"conversation"}' \
+     http://localhost:5000/api/memory
+```
+
+Get performance metrics:
+```bash
+curl -H "Authorization: Bearer YOUR_API_TOKEN" http://localhost:5000/api/performance
+```
+
 ## Audio Device Management
 
 - Automatic detection of input/output devices
