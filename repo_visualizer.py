@@ -408,7 +408,6 @@ class RepoVisualizer:
 
 def start_visualization():
     """Start the repository visualization system"""
-    from diagram_window import DiagramWindow
     
     # Create visualizer with shorter initial interval
     visualizer = RepoVisualizer(interval=10)
