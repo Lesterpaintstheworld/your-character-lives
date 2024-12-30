@@ -13,8 +13,8 @@ class DiagramWindow:
         self.window.attributes('-topmost', True)  # Keep window on top
         
         # Set fixed size
-        self.width = 500
-        self.height = 500
+        self.width = 800  # Changed from 500
+        self.height = 800  # Changed from 500
         
         # Create canvas for image
         self.canvas = tk.Canvas(
@@ -93,6 +93,6 @@ class DiagramWindow:
             logging.error(f"Error loading diagram: {e}")
             
     def check_diagram(self):
-        """Check for diagram updates every second"""
+        """Check for diagram updates every 10 seconds"""
         self.load_diagram()
-        self.window.after(1000, self.check_diagram)
+        self.window.after(10000, self.check_diagram)  # Changed from 1000 to 10000 milliseconds
