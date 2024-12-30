@@ -15,7 +15,13 @@ class DiagramWindow:
         self.canvas = tk.Canvas(self.window, bg='#0d1117')  # Dark background
         self.canvas.pack(fill='both', expand=True)
         
-        # Bind resize event
+        # Initialize image references
+        self.image = None
+        self.photo = None
+        self.canvas_image = None
+        
+        # Bind resize event with delay
+        self.resize_after_id = None
         self.window.bind('<Configure>', self.on_resize)
         
         # Initial load
@@ -38,52 +44,60 @@ class DiagramWindow:
                 svg2png(file_obj=svg_file, write_to=png_data)
                 png_data.seek(0)
                 
-                # Load and display the image
+                # Load the base image
                 self.image = Image.open(png_data)
-                self.photo = ImageTk.PhotoImage(self.image)
                 
-                # Update canvas
-                self.canvas.delete("all")
-                self.canvas.create_image(
-                    self.canvas.winfo_width()//2,
-                    self.canvas.winfo_height()//2,
-                    image=self.photo,
-                    anchor='center'
-                )
+                # Create initial PhotoImage
+                self.update_display()
                 
         except Exception as e:
             logging.error(f"Error loading diagram: {e}")
 
-    def on_resize(self, event):
-        """Handle window resize"""
-        # Only resize if window dimensions actually changed
-        if event.widget == self.window:
-            # Get new dimensions
-            width = event.width
-            height = event.height
+    def update_display(self):
+        """Update the displayed image with current window dimensions"""
+        if not self.image:
+            return
             
-            if hasattr(self, 'image'):
-                # Resize image to fit window while maintaining aspect ratio
-                img_ratio = self.image.width / self.image.height
-                win_ratio = width / height
-                
-                if win_ratio > img_ratio:
-                    # Window is wider than image
-                    new_height = height
-                    new_width = int(height * img_ratio)
-                else:
-                    # Window is taller than image
-                    new_width = width
-                    new_height = int(width / img_ratio)
-                
-                # Resize and display
-                resized = self.image.resize((new_width, new_height), Image.Resampling.LANCZOS)
-                self.photo = ImageTk.PhotoImage(resized)
-                
-                # Update canvas
-                self.canvas.delete("all")
-                self.canvas.create_image(
-                    width//2, height//2,
-                    image=self.photo,
-                    anchor='center'
-                )
+        # Get current window dimensions
+        width = self.window.winfo_width()
+        height = self.window.winfo_height()
+        
+        if width <= 1 or height <= 1:  # Skip invalid dimensions
+            return
+            
+        # Calculate new dimensions maintaining aspect ratio
+        img_ratio = self.image.width / self.image.height
+        win_ratio = width / height
+        
+        if win_ratio > img_ratio:
+            # Window is wider than image
+            new_height = height
+            new_width = int(height * img_ratio)
+        else:
+            # Window is taller than image
+            new_width = width
+            new_height = int(width / img_ratio)
+        
+        # Resize image
+        resized = self.image.resize((new_width, new_height), Image.Resampling.LANCZOS)
+        
+        # Update PhotoImage
+        self.photo = ImageTk.PhotoImage(resized)
+        
+        # Update canvas
+        self.canvas.delete("all")
+        self.canvas_image = self.canvas.create_image(
+            width//2, height//2,
+            image=self.photo,
+            anchor='center'
+        )
+
+    def on_resize(self, event):
+        """Handle window resize with debouncing"""
+        if event.widget == self.window:
+            # Cancel previous resize timer
+            if self.resize_after_id:
+                self.window.after_cancel(self.resize_after_id)
+            
+            # Set new timer for resize
+            self.resize_after_id = self.window.after(100, self.update_display)
