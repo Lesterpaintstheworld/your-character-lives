@@ -11,7 +11,6 @@ class ImageWindow:
             # Create a Toplevel window instead of new Tk
             self.window = tk.Toplevel(root)
             self.window.overrideredirect(True)
-            self.window.attributes('-alpha', 0.9)
             
             # Load initial image
             self.load_image(image_path)
