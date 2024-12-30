@@ -15,26 +15,32 @@ class ImageWindow:
             
             # Load initial image
             self.load_image(image_path)
-        
-        # Create label to display image
-        self.label = tk.Label(self.window, image=self.photo)
-        self.label.pack()
-        
-        # Store path and setup monitoring
-        self.image_path = image_path
-        self.last_modified = os.path.getmtime(image_path)
-        
-        # Start update checker
-        self.check_file_changes = self.window.after(10000, self.check_for_updates)
-        
-        # Setup window dragging
-        self._setup_dragging()
-        
-        # Center window
-        self._center_window()
-        
-        # Keep reference to prevent garbage collection
-        self.window.image = self.photo
+            
+            # Create label to display image
+            self.label = tk.Label(self.window, image=self.photo)
+            self.label.pack()
+            
+            # Store path and setup monitoring
+            self.image_path = image_path
+            self.last_modified = os.path.getmtime(image_path)
+            
+            # Start update checker
+            self.check_file_changes = self.window.after(10000, self.check_for_updates)
+            
+            # Setup window dragging
+            self._setup_dragging()
+            
+            # Center window
+            self._center_window()
+            
+            # Keep reference to prevent garbage collection
+            self.window.image = self.photo
+            
+            logging.info("Image window created successfully")
+            
+        except Exception as e:
+            logging.error(f"Failed to create image window: {e}")
+            raise
 
     def update_image(self, image_path):
         """Thread-safe image update"""
