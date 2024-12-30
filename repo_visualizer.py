@@ -114,6 +114,27 @@ class RepoVisualizer:
         )
         self.visualization_thread.start()
         
+    async def verify_repo_integrity(self):
+        """Verify repo-visualizer installation is intact"""
+        if getattr(sys, 'frozen', False):
+            install_dir = os.path.dirname(sys.executable)
+        else:
+            install_dir = os.path.dirname(os.path.abspath(__file__))
+            
+        repo_dir = os.path.join(install_dir, "repo-visualizer")
+        
+        # Check if essential files exist
+        essential_files = ['package.json', 'src', 'bin']
+        
+        if not os.path.exists(repo_dir):
+            return False
+            
+        for file in essential_files:
+            if not os.path.exists(os.path.join(repo_dir, file)):
+                return False
+                
+        return True
+
     async def generate_visualization(self):
         """Generate repository visualization"""
         try:
@@ -131,72 +152,60 @@ class RepoVisualizer:
                     self.status_callback("❌ Node.js not found - please install Node.js")
                 return False
 
-            # Check if repo-visualizer is installed globally
-            try:
-                process = await asyncio.create_subprocess_exec(
-                    'repo-visualizer', '--version',
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                await process.communicate()
-            except FileNotFoundError:
-                # Find npm first
-                npm_path = await self.find_npm()
-                if not npm_path:
-                    await self.diagnose_npm()  # Run diagnostics
-                    error_msg = (
-                        "npm not found in system! Please ensure Node.js is installed and in your PATH.\n"
-                        "Download from: https://nodejs.org/\n"
-                        "After installation, you may need to restart your computer."
-                    )
-                    logging.error(error_msg)
-                    if hasattr(self, 'status_callback'):
-                        self.status_callback(f"❌ {error_msg}")
-                    return False
+            # Get the installation directory (where the script is located)
+            if getattr(sys, 'frozen', False):
+                install_dir = os.path.dirname(sys.executable)
+            else:
+                install_dir = os.path.dirname(os.path.abspath(__file__))
+                
+            # Path to repo-visualizer in install directory
+            repo_dir = os.path.join(install_dir, "repo-visualizer")
+            logging.info(f"Looking for repo-visualizer at: {repo_dir}")
 
-                logging.info(f"Using npm at: {npm_path}")
-
+            # If repo directory is missing or damaged, clone it
+            if not os.path.exists(repo_dir) or not await self.verify_repo_integrity():
+                logging.info("Cloning repo-visualizer repository...")
                 try:
-                    # Get the installation directory (where the script is located)
-                    if getattr(sys, 'frozen', False):
-                        install_dir = os.path.dirname(sys.executable)
-                    else:
-                        install_dir = os.path.dirname(os.path.abspath(__file__))
-                        
-                    # Path to repo-visualizer in install directory
-                    repo_dir = os.path.join(install_dir, "repo-visualizer")
-                
-                    # Add detailed logging
-                    logging.info(f"=== Directory Check ===")
-                    logging.info(f"Install directory: {install_dir}")
-                    logging.info(f"Repo-visualizer path: {repo_dir}")
-                
-                    # Check if directory exists and log contents
                     if os.path.exists(repo_dir):
-                        logging.info(f"Directory exists!")
-                        try:
-                            contents = os.listdir(repo_dir)
-                            logging.info(f"Contents: {contents}")
+                        logging.info("Removing damaged repo directory...")
+                        import shutil
+                        shutil.rmtree(repo_dir)
                         
-                            # Check for package.json to verify it's a valid npm package
-                            if 'package.json' in contents:
-                                logging.info("Found package.json - valid npm package")
-                            else:
-                                logging.warning("No package.json found - may not be a valid npm package")
-                            
-                            # Check directory permissions
-                            logging.info(f"Directory readable: {os.access(repo_dir, os.R_OK)}")
-                            logging.info(f"Directory writable: {os.access(repo_dir, os.W_OK)}")
-                            logging.info(f"Directory executable: {os.access(repo_dir, os.X_OK)}")
+                    # Clone the repository
+                    process = await asyncio.create_subprocess_exec(
+                        'git', 'clone', 'https://github.com/githubocto/repo-visualizer.git',
+                        repo_dir,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    stdout, stderr = await process.communicate()
+                    
+                    if process.returncode == 0:
+                        logging.info("Successfully cloned repo-visualizer")
                         
-                        except Exception as e:
-                            logging.error(f"Error checking directory contents: {e}")
+                        # Install dependencies
+                        npm_process = await asyncio.create_subprocess_exec(
+                            'npm', 'install',
+                            cwd=repo_dir,
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        stdout, stderr = await npm_process.communicate()
+                        
+                        if npm_process.returncode == 0:
+                            logging.info("Successfully installed dependencies")
+                        else:
+                            error_msg = f"Failed to install dependencies: {stderr.decode()}"
+                            logging.error(error_msg)
+                            return False
                     else:
-                        error_msg = f"repo-visualizer directory not found at: {repo_dir}"
+                        error_msg = f"Failed to clone repository: {stderr.decode()}"
                         logging.error(error_msg)
-                        if hasattr(self, 'status_callback'):
-                            self.status_callback(f"❌ {error_msg}")
                         return False
+                except Exception as e:
+                    error_msg = f"Failed to clone repo-visualizer: {e}"
+                    logging.error(error_msg)
+                    return False
                 except Exception as e:
                     logging.error(f"Failed to clone repo-visualizer: {e}")
                     if hasattr(self, 'status_callback'):
@@ -269,6 +278,15 @@ class RepoVisualizer:
         """Run continuous visualization generation"""
         while self.running:
             try:
+                # Verify repo integrity first
+                if not await self.verify_repo_integrity():
+                    logging.warning("repo-visualizer installation appears damaged, attempting repair...")
+                    success = await self.generate_visualization()  # This will trigger a fresh clone
+                    if not success:
+                        logging.error("Failed to repair repo-visualizer")
+                        await asyncio.sleep(self.interval)
+                        continue
+                
                 success = await self.generate_visualization()
                 if success:
                     logging.info(f"Visualization updated successfully")
