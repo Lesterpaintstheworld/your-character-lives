@@ -7,24 +7,40 @@ import os
 
 class DiagramWindow:
     def __init__(self):
-        # Create window
-        self.window = tk.Toplevel()
-        self.window.overrideredirect(True)  # Remove window decorations
-        self.window.attributes('-topmost', True)  # Keep window on top
+        # Create window with frame
+        self.window = tk.Tk()  # Change to Tk instead of Toplevel
+        self.window.title("Repository Diagram")
         
-        # Set fixed size
-        self.width = 800  # Changed from 500
-        self.height = 800  # Changed from 500
+        # Set fixed size and theme colors
+        self.width = 800
+        self.height = 800
         
-        # Create canvas for image
-        self.canvas = tk.Canvas(
-            self.window, 
-            width=self.width, 
-            height=self.height,
-            highlightthickness=0,
-            bg='white'
+        # Dark blue theme colors
+        self.bg_color = "#0d1117"  # Dark blue background
+        self.frame_color = "#161b22"  # Slightly lighter blue for frame
+        
+        # Configure window
+        self.window.configure(bg=self.bg_color)
+        
+        # Create main frame with padding
+        self.main_frame = tk.Frame(
+            self.window,
+            bg=self.bg_color,
+            padx=10,
+            pady=10
         )
-        self.canvas.pack()
+        self.main_frame.pack(fill='both', expand=True)
+        
+        # Create canvas with border effect
+        self.canvas = tk.Canvas(
+            self.main_frame, 
+            width=self.width,
+            height=self.height,
+            bg=self.bg_color,
+            highlightthickness=1,
+            highlightbackground=self.frame_color
+        )
+        self.canvas.pack(fill='both', expand=True)
         
         # Initialize drag variables
         self.x = 0
@@ -33,7 +49,9 @@ class DiagramWindow:
         # Bind events
         self.canvas.bind('<Button-1>', self.start_drag)
         self.canvas.bind('<B1-Motion>', self.drag)
-        self.canvas.bind('<Double-Button-1>', self.close)
+        
+        # Add window resize binding
+        self.window.bind('<Configure>', self.on_resize)
         
         # Center window on screen
         screen_width = self.window.winfo_screenwidth()
@@ -41,6 +59,9 @@ class DiagramWindow:
         x = (screen_width - self.width) // 2
         y = (screen_height - self.height) // 2
         self.window.geometry(f'{self.width}x{self.height}+{x}+{y}')
+        
+        # Set minimum window size
+        self.window.minsize(400, 400)
         
         # Initial load
         self.load_diagram()
@@ -66,7 +87,7 @@ class DiagramWindow:
     def load_diagram(self):
         try:
             if os.path.exists('diagram.svg'):
-                # Convert SVG to PNG using cairosvg
+                # Convert SVG to PNG using cairosvg with current window size
                 png_data = cairosvg.svg2png(
                     url='diagram.svg',
                     output_width=self.width,
@@ -165,3 +186,19 @@ class DiagramWindow:
                 self.height//2, 
                 image=self.photo
             )
+    def on_resize(self, event):
+        """Handle window resize events"""
+        # Only resize if the window size has actually changed
+        if hasattr(self, 'last_width') and hasattr(self, 'last_height'):
+            if event.width == self.last_width and event.height == self.last_height:
+                return
+                
+        self.last_width = event.width
+        self.last_height = event.height
+        
+        # Update canvas size
+        self.width = event.width - 20  # Account for padding
+        self.height = event.height - 20
+        
+        # Reload diagram at new size
+        self.load_diagram()
