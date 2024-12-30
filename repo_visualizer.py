@@ -274,7 +274,17 @@ class RepoVisualizer:
                 if hasattr(self, 'status_callback'):
                     self.status_callback("❌ Failed to convert visualization")
                 return False
-                
+
+        finally:
+            # Cleanup temp directory only after we're completely done
+            if temp_dir and os.path.exists(temp_dir):
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    logging.info("Cleaned up temporary directory")
+                except Exception as e:
+                    logging.warning(f"Failed to cleanup temp directory: {e}")
+                    
         except FileNotFoundError:
             msg = "repo-visualizer not found. Install with: npm install -g repo-visualizer"
             logging.error(msg)
