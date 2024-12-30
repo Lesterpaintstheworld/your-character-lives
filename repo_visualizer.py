@@ -22,6 +22,20 @@ class RepoVisualizer:
     async def generate_visualization(self):
         """Generate repository visualization"""
         try:
+            # Check for Node.js first
+            try:
+                process = await asyncio.create_subprocess_exec(
+                    'node', '--version',
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL
+                )
+                await process.wait()
+            except FileNotFoundError:
+                logging.error("Node.js not found! Please install Node.js from https://nodejs.org/")
+                if hasattr(self, 'status_callback'):
+                    self.status_callback("❌ Node.js not found - please install Node.js")
+                return False
+
             # Check if repo-visualizer is installed
             process = await asyncio.create_subprocess_exec(
                 'repo-visualizer', '--version',
@@ -30,7 +44,41 @@ class RepoVisualizer:
             )
             await process.communicate()
             
+            # Check if repo-visualizer needs to be built
+            repo_visualizer_path = os.path.join(os.getcwd(), 'node_modules', 'repo-visualizer')
+            dist_path = os.path.join(repo_visualizer_path, 'dist')
+            
+            if not os.path.exists(dist_path):
+                if hasattr(self, 'status_callback'):
+                    self.status_callback("🔨 Building repo-visualizer...")
+                logging.info("repo-visualizer needs to be built. Attempting build...")
+                try:
+                    # Install dependencies
+                    process = await asyncio.create_subprocess_exec(
+                        'npm', 'install',
+                        cwd=repo_visualizer_path,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    await process.communicate()
+                    
+                    # Run build
+                    process = await asyncio.create_subprocess_exec(
+                        'npm', 'run', 'build',
+                        cwd=repo_visualizer_path,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    await process.communicate()
+                except Exception as e:
+                    logging.error(f"Failed to build repo-visualizer: {e}")
+                    if hasattr(self, 'status_callback'):
+                        self.status_callback("❌ Failed to build repo-visualizer")
+                    return False
+
             # Generate visualization
+            if hasattr(self, 'status_callback'):
+                self.status_callback("🔄 Generating repository visualization...")
             self.current_process = await asyncio.create_subprocess_exec(
                 'repo-visualizer',
                 '--output', 'diagram.svg',
@@ -56,16 +104,32 @@ class RepoVisualizer:
                         output_height=1024
                     )
                 logging.info("Generated new repository visualization")
+                # Cleanup SVG file
+                try:
+                    if os.path.exists('diagram.svg'):
+                        os.remove('diagram.svg')
+                except Exception as e:
+                    logging.warning(f"Could not remove temporary SVG file: {e}")
+                
+                if hasattr(self, 'status_callback'):
+                    self.status_callback("✨ Repository visualization updated")
                 return True
             except Exception as e:
                 logging.error(f"Failed to convert SVG to PNG: {e}")
+                if hasattr(self, 'status_callback'):
+                    self.status_callback("❌ Failed to convert visualization")
                 return False
                 
         except FileNotFoundError:
-            logging.error("repo-visualizer not found. Install with: npm install -g repo-visualizer")
+            msg = "repo-visualizer not found. Install with: npm install -g repo-visualizer"
+            logging.error(msg)
+            if hasattr(self, 'status_callback'):
+                self.status_callback(f"❌ {msg}")
             return False
         except Exception as e:
             logging.error(f"Failed to generate visualization: {e}")
+            if hasattr(self, 'status_callback'):
+                self.status_callback("❌ Failed to generate visualization")
             return False
 
     async def visualization_loop(self):
@@ -81,10 +145,18 @@ class RepoVisualizer:
                 await asyncio.sleep(self.interval)
 
     def stop(self):
-        """Stop the visualization loop"""
+        """Stop the visualization loop and cleanup"""
         self.running = False
         if self.current_process:
-            self.current_process.terminate()
+            try:
+                self.current_process.terminate()
+            except:
+                pass
+        try:
+            if os.path.exists('diagram.svg'):
+                os.remove('diagram.svg')
+        except:
+            pass
 
 def start_visualization():
     """Start the repository visualization system"""
