@@ -33,9 +33,7 @@ class RepoVisualizer:
             npm_cmd
         ]
 
-        # Log PATH for debugging
-        logging.info(f"Current PATH: {os.environ.get('PATH', '')}")
-        
+        # Remove PATH logging and just try each location
         for path in possible_paths:
             try:
                 logging.info(f"Trying npm at: {path}")
