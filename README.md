@@ -219,11 +219,20 @@ ck3-ai-assistant/
 
 ## Documentation
 
-- [API Reference](documentation/api_reference.md) - Detailed API documentation
-- [Development Guide](documentation/development.md) - Setup and contribution guidelines
-- [Technical Specifications](documentation/technical_specs.md) - System architecture and requirements
-- [User Guide](documentation/user_guide.md) - Installation and usage instructions
-- [Project Specifications](documentation/specifications.md) - Project overview and features
+Our comprehensive documentation is available in the `docs` directory:
+
+- [Installation Guide](docs/installation.md) - Get started with setup
+- [Usage Guide](docs/usage.md) - Learn how to use the assistant
+- [API Reference](docs/api_reference.md) - Detailed API documentation
+- [Configuration Guide](docs/configuration.md) - Configure the assistant
+- [Plugin Development](docs/plugins.md) - Create custom plugins
+- [Contributing Guidelines](docs/contributing.md) - Help improve the project
+- [Changelog](docs/changelog.md) - Track project changes
+
+To generate the documentation website locally:
+```bash
+python generate_docs.py
+```
 
 ## Support
 
