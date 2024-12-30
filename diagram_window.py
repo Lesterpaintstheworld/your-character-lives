@@ -86,68 +86,82 @@ class DiagramWindow:
         self.window.destroy()
         
     def load_diagram(self):
+        """Load and display the SVG diagram with enhanced error handling"""
         try:
-            if os.path.exists('diagram.svg'):
-                try:
-                    # Try cairosvg first since we're having issues with svglib
-                    from cairosvg import svg2png
-                    logging.info("Using cairosvg for SVG conversion")
-                    
-                    # Set up font configuration for cairosvg
-                    import os
-                    import platform
-                    
-                    # Define system font paths based on OS
-                    if platform.system() == 'Windows':
-                        font_paths = [
-                            os.path.join(os.environ['WINDIR'], 'Fonts'),
-                            os.path.join(os.environ['LOCALAPPDATA'], 'Microsoft', 'Windows', 'Fonts')
-                        ]
-                        default_font = 'Arial'
-                    elif platform.system() == 'Darwin':  # macOS
-                        font_paths = [
-                            '/System/Library/Fonts',
-                            '/Library/Fonts',
-                            os.path.expanduser('~/Library/Fonts')
-                        ]
-                        default_font = 'Helvetica'
-                    else:  # Linux
-                        font_paths = [
-                            '/usr/share/fonts',
-                            '/usr/local/share/fonts',
-                            os.path.expanduser('~/.fonts')
-                        ]
-                        default_font = 'DejaVu Sans'
+            if not os.path.exists('diagram.svg'):
+                logging.error("diagram.svg file not found")
+                return
 
-                    # Create BytesIO object for PNG data
+            # Log file details
+            file_size = os.path.getsize('diagram.svg')
+            logging.info(f"Found diagram.svg: {file_size} bytes")
+
+            try:
+                # First attempt: Try cairosvg
+                from cairosvg import svg2png
+                logging.info("Attempting conversion with cairosvg...")
+                
+                # Create BytesIO object for PNG data
+                png_data = io.BytesIO()
+                
+                with open('diagram.svg', 'rb') as svg_file:
+                    svg_content = svg_file.read()
+                    logging.info(f"Read SVG content: {len(svg_content)} bytes")
+                    
+                    svg2png(
+                        bytestring=svg_content,
+                        write_to=png_data,
+                        scale=2.0
+                    )
+                    
+                png_data.seek(0)
+                logging.info(f"Generated PNG data: {len(png_data.getvalue())} bytes")
+
+            except (ImportError, Exception) as e:
+                logging.warning(f"cairosvg conversion failed: {e}")
+                
+                try:
+                    # Second attempt: Try svglib
+                    logging.info("Attempting conversion with svglib...")
+                    from svglib.svglib import svg2rlg
+                    from reportlab.graphics import renderPM
+                    
+                    drawing = svg2rlg('diagram.svg')
+                    if drawing:
+                        png_data = io.BytesIO()
+                        renderPM.drawToFile(drawing, png_data, fmt='PNG')
+                        png_data.seek(0)
+                        logging.info("svglib conversion successful")
+                    else:
+                        raise ValueError("svg2rlg returned None")
+
+                except Exception as e2:
+                    logging.error(f"Both conversion methods failed: {e2}")
+                    # Create a simple placeholder image
+                    logging.info("Creating placeholder image...")
+                    from PIL import Image, ImageDraw
+                    
+                    img = Image.new('RGB', (400, 300), color='darkgray')
+                    draw = ImageDraw.Draw(img)
+                    draw.text((10, 10), "Diagram Conversion Failed", fill='white')
+                    draw.text((10, 30), f"Error: {str(e2)}", fill='white')
+                    
                     png_data = io.BytesIO()
-                    
-                    # Convert SVG to PNG with font configuration
-                    with open('diagram.svg', 'rb') as svg_file:
-                        svg2png(
-                            file_obj=svg_file,
-                            write_to=png_data,
-                            font_family=default_font,  # Use system default font
-                            scale=2.0  # Increase quality
-                        )
+                    img.save(png_data, format='PNG')
                     png_data.seek(0)
-                    
-                except ImportError as e:
-                    logging.error(f"Failed to import cairosvg: {e}")
-                    raise
-                except Exception as e:
-                    logging.error(f"Error during SVG conversion: {e}")
-                    raise
-                
-                # Convert to PIL Image
+
+            # Convert to PIL Image and display
+            try:
                 new_image = Image.open(png_data)
-                new_photo = ImageTk.PhotoImage(new_image)
+                logging.info(f"Created PIL Image: {new_image.size}")
                 
-                # If there's an existing image, fade to the new one
+                new_photo = ImageTk.PhotoImage(new_image)
+                logging.info("Created Tkinter PhotoImage")
+                
+                # Update display
                 if hasattr(self, 'photo'):
                     self._fade_transition(new_photo)
                 else:
-                    # First load - just display directly
                     self.photo = new_photo
                     self.canvas.delete("all")
                     self.canvas.create_image(
@@ -157,10 +171,16 @@ class DiagramWindow:
                         tags="diagram"
                     )
                 
-                logging.info("Diagram loaded successfully")
-                
+                logging.info("Diagram displayed successfully")
+                return True
+
+            except Exception as e:
+                logging.error(f"Failed to display image: {e}")
+                return False
+
         except Exception as e:
-            logging.error(f"Error loading diagram: {e}")
+            logging.error(f"Critical error in load_diagram: {e}")
+            return False
             
     def check_diagram(self):
         """Check for diagram updates every 10 seconds"""
