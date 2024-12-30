@@ -9,7 +9,7 @@ from PIL import Image, ImageTk
 from image_window import ImageWindow
 
 class RepoVisualizer:
-    def __init__(self, interval=10):
+    def __init__(self, interval=10):  # Changed from default higher value to 10 seconds
         """Initialize the repo visualizer"""
         self.interval = interval
         self.running = True
