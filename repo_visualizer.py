@@ -341,9 +341,21 @@ class RepoVisualizer:
                             os.chmod(png_path, stat.S_IWRITE)
                         logging.info("Protected diagram.png from cleanup")
                     
-                    if hasattr(self, 'status_callback'):
-                        self.status_callback("✨ Repository visualization updated")
-                    return True
+                    # After successful PNG conversion, display the image
+                    try:
+                        from image_window import ImageWindow
+                        image_window = ImageWindow('diagram.png')
+                        image_window.window.mainloop()
+                        logging.info("Displaying diagram in ImageWindow")
+                        if hasattr(self, 'status_callback'):
+                            self.status_callback("✨ Repository visualization updated and displayed")
+                        return True
+                    except Exception as e:
+                        logging.error(f"Failed to display diagram: {e}")
+                        if hasattr(self, 'status_callback'):
+                            self.status_callback("⚠️ Diagram created but display failed")
+                        # Return True since visualization was created successfully
+                        return True
                     
                 except Exception as e:
                     logging.error(f"Failed to convert SVG to PNG: {e}")
