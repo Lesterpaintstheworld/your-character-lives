@@ -310,13 +310,37 @@ class RepoVisualizer:
                 # Convert SVG to PNG using cairosvg
                 try:
                     from cairosvg import svg2png
+                    
+                    # Get original SVG dimensions
+                    from xml.dom import minidom
+                    svg_doc = minidom.parse(svg_path)
+                    svg_element = svg_doc.getElementsByTagName('svg')[0]
+                    original_width = float(svg_element.getAttribute('width').replace('px', ''))
+                    original_height = float(svg_element.getAttribute('height').replace('px', ''))
+                    
+                    # Calculate scaling to maintain aspect ratio
+                    target_width = 1920  # Increased for better quality
+                    scale = target_width / original_width
+                    target_height = int(original_height * scale)
+                    
+                    logging.info(f"Original dimensions: {original_width}x{original_height}")
+                    logging.info(f"Target dimensions: {target_width}x{target_height}")
+                    
+                    # Convert with calculated dimensions
                     with open(svg_path, 'rb') as svg_file:
                         svg2png(
                             file_obj=svg_file,
                             write_to='diagram.png',
-                            output_width=1024,
-                            output_height=1024
+                            output_width=target_width,
+                            output_height=target_height,
+                            scale=1.0  # Let the width/height control scaling
                         )
+                    
+                    # Verify the output file
+                    from PIL import Image
+                    with Image.open('diagram.png') as img:
+                        logging.info(f"Generated PNG dimensions: {img.size}")
+                        
                     logging.info("Generated PNG successfully")
                     
                     # Protect PNG file from cleanup
@@ -331,7 +355,7 @@ class RepoVisualizer:
                     return True
                     
                 except Exception as e:
-                    logging.warning(f"Failed to convert SVG to PNG: {e}")
+                    logging.error(f"Failed to convert SVG to PNG: {e}")
                     if hasattr(self, 'status_callback'):
                         self.status_callback("⚠️ SVG created but PNG conversion failed")
                     # Return True since SVG was created successfully
