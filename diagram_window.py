@@ -88,6 +88,19 @@ class DiagramWindow:
     def load_diagram(self):
         try:
             if os.path.exists('diagram.svg'):
+                # Set default font mapping for svglib
+                from svglib.svglib import register_font
+                import platform
+                
+                # Choose appropriate system font based on OS
+                if platform.system() == 'Windows':
+                    register_font('Arial', 'Helvetica')
+                    register_font('Arial', 'sans-serif')
+                elif platform.system() == 'Darwin':  # macOS
+                    register_font('Helvetica', 'sans-serif')
+                else:  # Linux
+                    register_font('DejaVu Sans', 'sans-serif')
+
                 # Convert SVG to PNG using svglib for better rendering
                 drawing = svg2rlg('diagram.svg')
                 
