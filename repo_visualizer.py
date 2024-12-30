@@ -339,31 +339,6 @@ class RepoVisualizer:
             if hasattr(self, 'status_callback'):
                 self.status_callback("❌ Failed to generate visualization")
             return False
-            if hasattr(self, 'status_callback'):
-                self.status_callback("🔄 Generating repository visualization...")
-            # Use npx to run the local version
-                self.current_process = await asyncio.create_subprocess_exec(
-                    'npx', '--prefix', repo_dir, 'repo-visualizer',
-                    '--output', 'diagram.svg',
-                    '--exclude', '.git,.aider,__pycache__,build,dist',
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
-                )
-                
-                stdout, stderr = await self.current_process.communicate()
-                
-                # Log command output
-                if stdout:
-                    logging.info(f"Command stdout: {stdout.decode()}")
-                if stderr:
-                    logging.error(f"Command stderr: {stderr.decode()}")
-                    
-                if self.current_process.returncode == 0:
-                    logging.info("Generated visualization successfully")
-                else:
-                    logging.error(f"Visualization failed with return code {self.current_process.returncode}")
-                    logging.error(f"Error output: {stderr.decode()}")
-                    return False
             # Convert SVG to PNG using cairosvg
             try:
                 from cairosvg import svg2png
