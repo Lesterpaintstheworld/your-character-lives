@@ -102,11 +102,20 @@ class ImageWindow:
         self.last_width = event.width
         self.last_height = event.height
         
-        # Resize image maintaining aspect ratio
-        ratio = min(event.width / self.image.width, 
-                   event.height / self.image.height)
-        new_width = int(self.image.width * ratio)
-        new_height = int(self.image.height * ratio)
+        # Get original image dimensions
+        orig_width = self.image.width
+        orig_height = self.image.height
+        
+        # Calculate maximum dimensions while maintaining aspect ratio
+        max_width = min(event.width - 4, 1920)  # Subtract padding, add max limit
+        max_height = min(event.height - 4, 1080)  # Subtract padding, add max limit
+        
+        # Calculate scaling ratio while maintaining aspect ratio
+        ratio = min(max_width / orig_width, max_height / orig_height)
+        
+        # Calculate new dimensions
+        new_width = int(orig_width * ratio)
+        new_height = int(orig_height * ratio)
         
         # Resize image
         resized = self.image.resize((new_width, new_height), Image.Resampling.LANCZOS)
