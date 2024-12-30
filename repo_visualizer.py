@@ -225,8 +225,8 @@ class RepoVisualizer:
                 # Wait a moment for installation to complete
                 await asyncio.sleep(2)
 
-        # Generate visualization using installed repo-visualizer
-            try:
+                # Generate visualization using installed repo-visualizer
+                try:
                 if hasattr(self, 'status_callback'):
                     self.status_callback("🔄 Generating repository visualization...")
                 self.current_process = await asyncio.create_subprocess_exec(
@@ -275,16 +275,6 @@ class RepoVisualizer:
                     self.status_callback("❌ Failed to convert visualization")
                 return False
 
-        finally:
-            # Cleanup temp directory only after we're completely done
-            if temp_dir and os.path.exists(temp_dir):
-                try:
-                    import shutil
-                    shutil.rmtree(temp_dir, ignore_errors=True)
-                    logging.info("Cleaned up temporary directory")
-                except Exception as e:
-                    logging.warning(f"Failed to cleanup temp directory: {e}")
-                    
         except FileNotFoundError:
             msg = "repo-visualizer not found. Install with: npm install -g repo-visualizer"
             logging.error(msg)
@@ -296,6 +286,15 @@ class RepoVisualizer:
             if hasattr(self, 'status_callback'):
                 self.status_callback("❌ Failed to generate visualization")
             return False
+        finally:
+            # Cleanup temp directory only after we're completely done
+            if temp_dir and os.path.exists(temp_dir):
+                try:
+                    import shutil
+                    shutil.rmtree(temp_dir, ignore_errors=True)
+                    logging.info("Cleaned up temporary directory")
+                except Exception as e:
+                    logging.warning(f"Failed to cleanup temp directory: {e}")
 
     async def visualization_loop(self):
         """Run continuous visualization generation"""
