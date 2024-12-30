@@ -7,6 +7,7 @@ import time
 import io
 import wave
 import threading
+from PIL import Image, ImageTk
 import tempfile
 import cv2
 import numpy as np
