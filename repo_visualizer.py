@@ -323,44 +323,23 @@ class RepoVisualizer:
                 try:
                     from cairosvg import svg2png
                     
-                    # Get original SVG dimensions
-                    from xml.dom import minidom
-                    svg_doc = minidom.parse(svg_path)
-                    svg_element = svg_doc.getElementsByTagName('svg')[0]
-                    original_width = float(svg_element.getAttribute('width').replace('px', ''))
-                    original_height = float(svg_element.getAttribute('height').replace('px', ''))
-                    
-                    # Calculate scaling to maintain aspect ratio
-                    target_width = 1920  # Increased for better quality
-                    scale = target_width / original_width
-                    target_height = int(original_height * scale)
-                    
-                    logging.info(f"Original dimensions: {original_width}x{original_height}")
-                    logging.info(f"Target dimensions: {target_width}x{target_height}")
-                    
-                    # Convert with calculated dimensions
+                    # Convert without resizing
                     with open(svg_path, 'rb') as svg_file:
                         svg2png(
                             file_obj=svg_file,
-                            write_to='diagram.png',
-                            output_width=target_width,
-                            output_height=target_height,
-                            scale=1.0  # Let the width/height control scaling
+                            write_to='diagram.png'
                         )
                     
-                    # Verify the output file
-                    from PIL import Image
-                    with Image.open('diagram.png') as img:
-                        logging.info(f"Generated PNG dimensions: {img.size}")
+                    # Verify the output file exists
+                    if os.path.exists('diagram.png'):
+                        logging.info("Generated PNG successfully")
                         
-                    logging.info("Generated PNG successfully")
-                    
-                    # Protect PNG file from cleanup
-                    png_path = os.path.join(working_dir, 'diagram.png')
-                    if os.name == 'nt':
-                        import stat
-                        os.chmod(png_path, stat.S_IWRITE)
-                    logging.info("Protected diagram.png from cleanup")
+                        # Protect PNG file from cleanup
+                        png_path = os.path.join(working_dir, 'diagram.png')
+                        if os.name == 'nt':
+                            import stat
+                            os.chmod(png_path, stat.S_IWRITE)
+                        logging.info("Protected diagram.png from cleanup")
                     
                     if hasattr(self, 'status_callback'):
                         self.status_callback("✨ Repository visualization updated")
