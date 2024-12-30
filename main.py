@@ -103,6 +103,7 @@ import pyautogui
 import requests
 import pyaudio
 import pygame
+import asyncio
 import pyperclip
 import pyttsx3
 from dotenv import load_dotenv
@@ -1101,6 +1102,60 @@ def stop_auto_recording():
     auto_recording = False
     update_status("⏹️ Stopping automatic recording...")
 
+async def editor_loop():
+    """Run the editor loop that processes code changes"""
+    while is_playing and editor_active:
+        try:
+            # Call the Claude endpoint
+            response = requests.post(
+                NetworkConstants.EDITOR_ENDPOINT,
+                timeout=NetworkConstants.REQUEST_TIMEOUT
+            )
+            response.raise_for_status()
+            
+            # Extract output from JSON response
+            output = response.json().get('output')
+            if not output:
+                logging.warning("No output received from editor endpoint")
+                continue
+                
+            # Run aider with the output
+            logging.info("Starting aider session...")
+            process = await asyncio.create_subprocess_exec(
+                'python', 'aider', '--yes-always', 
+                '--message', output,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            
+            stdout, stderr = await process.communicate()
+            
+            if process.returncode != 0:
+                logging.error(f"Aider process failed: {stderr.decode()}")
+            else:
+                logging.info("Aider session completed successfully")
+                
+            # Small delay before next iteration
+            await asyncio.sleep(1)
+            
+        except Exception as e:
+            logging.error(f"Error in editor loop: {e}")
+            await asyncio.sleep(5)  # Longer delay on error
+
+def toggle_editor():
+    """Toggle the editor loop on/off"""
+    global editor_active
+    editor_active = not editor_active
+    
+    editor_play_pause_btn.config(text="⏸️ Editor" if editor_active else "▶️ Editor")
+    
+    if editor_active:
+        # Start editor loop in a new task
+        asyncio.create_task(editor_loop())
+        update_status("▶️ Editor loop started")
+    else:
+        update_status("⏸️ Editor loop stopped")
+
 def toggle_auto_recording():
     """Toggle automatic recording every X seconds"""
     global auto_recording, auto_recording_interval
@@ -1190,7 +1245,7 @@ def toggle_auto_recording():
 
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
-    global ui_elements_created
+    global ui_elements_created, editor_play_pause_btn, editor_active
     
     # Check if UI elements have already been created
     if ui_elements_created:
@@ -1218,9 +1273,26 @@ def create_device_selectors():
     main_frame = ttk.Frame(root, style='Modern.TFrame')
     main_frame.pack(fill='x', padx=10, pady=5)
 
-    # Controls row (play/pause, auto recording)
+    # Controls row (play/pause, auto recording, editor)
     controls_frame = ttk.Frame(main_frame, style='Modern.TFrame')
     controls_frame.pack(fill='x', pady=(0, 5))
+
+    # Editor controls
+    editor_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
+    editor_frame.pack(side='left', padx=5)
+    
+    editor_active = False
+    editor_play_pause_btn = tk.Button(editor_frame, text="▶️ Editor",
+        command=toggle_editor,
+        bg=ThemeColors.ACCENT_SECONDARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
+    editor_play_pause_btn.pack(side='left')
 
     # Play/Pause button
     global play_pause_btn
@@ -1570,10 +1642,10 @@ output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_com
 
 def on_closing():
     """Handle application shutdown."""
-    global running, vu_meter, auto_recording, auto_recording_task
+    global running, vu_meter, auto_recording, auto_recording_task, editor_active
     running = False
     auto_recording = False  # Stop auto recording
-    auto_recording = False
+    editor_active = False  # Stop editor loop
     if auto_recording_task:
         auto_recording_task.cancel()
     # Reset VU meter

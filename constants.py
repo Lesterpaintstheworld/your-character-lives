@@ -38,6 +38,7 @@ class NetworkConstants:
     DEFAULT_SCREENSHOT_INTERVAL = 30  # seconds
     DEFAULT_ENDPOINT_EMILY = "https://nlr.app.n8n.cloud/webhook/ai-assistant-emily"
     DEFAULT_ENDPOINT_DAEMON = "https://nlr.app.n8n.cloud/webhook/ai-assistant-daemon"
+    EDITOR_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/kinos-claude"
 
 class UIConstants:
     WINDOW_WIDTH = 80
