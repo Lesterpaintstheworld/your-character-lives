@@ -1358,6 +1358,31 @@ async def editor_loop():
                     logging.info(success_msg)
                     update_status(success_msg)
                     
+                    # Attempt git push
+                    try:
+                        logging.info("Attempting git push...")
+                        update_status("🔄 Pushing changes to remote...")
+                        
+                        push_process = await asyncio.create_subprocess_exec(
+                            'git', 'push',
+                            stdout=asyncio.subprocess.PIPE,
+                            stderr=asyncio.subprocess.PIPE
+                        )
+                        
+                        # Get output
+                        stdout, stderr = await push_process.communicate()
+                        
+                        if push_process.returncode == 0:
+                            logging.info("Git push successful")
+                            update_status("✅ Changes pushed to remote")
+                        else:
+                            error_output = stderr.decode().strip() if stderr else "Unknown error"
+                            logging.warning(f"Git push failed but continuing: {error_output}")
+                            update_status("⚠️ Git push failed - continuing anyway")
+                    except Exception as e:
+                        logging.warning(f"Git push failed but continuing: {e}")
+                        update_status("⚠️ Git push failed - continuing anyway")
+                    
                 # Small delay before next iteration
                 await asyncio.sleep(1)
                 
