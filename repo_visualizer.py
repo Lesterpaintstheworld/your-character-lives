@@ -262,10 +262,9 @@ class RepoVisualizer:
             if hasattr(self, 'status_callback'):
                 self.status_callback("❌ Failed to generate visualization")
             return False
-                    return False
-                if hasattr(self, 'status_callback'):
-                    self.status_callback("🔄 Generating repository visualization...")
-                # Use npx to run the local version
+            if hasattr(self, 'status_callback'):
+                self.status_callback("🔄 Generating repository visualization...")
+            # Use npx to run the local version
                 self.current_process = await asyncio.create_subprocess_exec(
                     'npx', '--prefix', repo_dir, 'repo-visualizer',
                     '--output', 'diagram.svg',
