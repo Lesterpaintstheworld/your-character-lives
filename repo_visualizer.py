@@ -225,29 +225,40 @@ class RepoVisualizer:
                 finally:
                     # Wait a moment before cleanup
                     await asyncio.sleep(1)
-                    # Keep repo-visualizer installed, only cleanup temp dir
-                    try:
-                        if os.path.exists(temp_dir):
-                            os.remove(temp_dir)
+                    
+                    # Keep repo-visualizer installed, only attempt temp dir cleanup
+                    if temp_dir and os.path.exists(temp_dir):
+                        try:
+                            import shutil
+                            shutil.rmtree(temp_dir, ignore_errors=True)
                             logging.info("Cleaned up temporary directory")
-                    except Exception as e:
-                        logging.warning(f"Failed to cleanup temp directory: {e}")
+                        except Exception as e:
+                            # Just log the warning but don't let it stop execution
+                            logging.warning(f"Failed to cleanup temp directory: {e}")
+                            # Continue processing even if cleanup fails
+                            pass
 
-            # Generate visualization
-            if hasattr(self, 'status_callback'):
-                self.status_callback("🔄 Generating repository visualization...")
-            self.current_process = await asyncio.create_subprocess_exec(
-                'repo-visualizer',
-                '--output', 'diagram.svg',
-                '--exclude', '.git,.aider,__pycache__,build,dist',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            stdout, stderr = await self.current_process.communicate()
-            
-            if self.current_process.returncode != 0:
-                logging.error(f"Visualization failed: {stderr.decode()}")
+            # Generate visualization using installed repo-visualizer
+            try:
+                if hasattr(self, 'status_callback'):
+                    self.status_callback("🔄 Generating repository visualization...")
+                self.current_process = await asyncio.create_subprocess_exec(
+                    'repo-visualizer',
+                    '--output', 'diagram.svg',
+                    '--exclude', '.git,.aider,__pycache__,build,dist',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                stdout, stderr = await self.current_process.communicate()
+                
+                if self.current_process.returncode == 0:
+                    logging.info("Generated visualization successfully")
+                else:
+                    logging.error(f"Visualization failed: {stderr.decode()}")
+                    return False
+            except Exception as e:
+                logging.error(f"Error generating visualization: {e}")
                 return False
                 
             # Convert SVG to PNG using cairosvg
