@@ -408,6 +408,8 @@ class RepoVisualizer:
 
 def start_visualization():
     """Start the repository visualization system"""
+    from diagram_window import DiagramWindow
+    
     # Create visualizer with shorter initial interval
     visualizer = RepoVisualizer(interval=10)
     
@@ -415,6 +417,10 @@ def start_visualization():
     try:
         asyncio.run(visualizer.generate_visualization())
         logging.info("Initial visualization generated")
+        
+        # Create diagram window
+        diagram_window = DiagramWindow()
+        
     except Exception as e:
         logging.error(f"Initial visualization failed: {e}")
     
