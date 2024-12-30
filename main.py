@@ -3,6 +3,7 @@ import logging
 import argparse
 import sys
 import os
+from repo_visualizer import start_visualization
 import time
 import io
 import wave
@@ -2116,6 +2117,9 @@ def init_screenshot():
 if __name__ == "__main__":
     # Initialize logging first
     setup_logging()
+    
+    # Initialize visualization system
+    visualizer = start_visualization()
     
     # Initialize screenshot system
     if not init_screenshot():
