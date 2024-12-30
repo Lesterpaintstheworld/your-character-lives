@@ -2289,7 +2289,8 @@ if __name__ == "__main__":
             )
         
         # Check for and display diagram if present
-        check_and_display_diagram()
+        if check_and_display_diagram():
+            logging.info("Diagram displayed")
         else:
             # Initialize video window directly (it will schedule itself on main thread)
             video_logger.info("Initializing video window")
