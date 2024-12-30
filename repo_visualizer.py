@@ -161,6 +161,98 @@ class RepoVisualizer:
                 
         return True
 
+    async def find_npm(self):
+        """Find npm executable with detailed logging"""
+        logging.info("Searching for npm installation...")
+        
+        # Possible npm locations
+        npm_cmd = 'npm.cmd' if os.name == 'nt' else 'npm'  # Use npm.cmd on Windows
+        possible_paths = [
+            # Windows-specific paths
+            r"C:\Program Files\nodejs\npm.cmd",
+            r"C:\Program Files (x86)\nodejs\npm.cmd",
+            os.path.join(os.environ.get('APPDATA', ''), 'npm', 'npm.cmd'),
+            os.path.join(os.environ.get('ProgramFiles', ''), 'nodejs', 'npm.cmd'),
+            # Unix-like paths
+            "/usr/local/bin/npm",
+            "/usr/bin/npm",
+            # Look in PATH
+            npm_cmd
+        ]
+
+        # Remove PATH logging and just try each location
+        for path in possible_paths:
+            try:
+                logging.info(f"Trying npm at: {path}")
+                process = await asyncio.create_subprocess_exec(
+                    path, '--version',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                stdout, stderr = await process.communicate()
+                
+                if process.returncode == 0:
+                    version = stdout.decode().strip()
+                    logging.info(f"Found npm version {version} at {path}")
+                    return path
+                    
+            except Exception as e:
+                logging.debug(f"Failed to execute {path}: {e}")
+                continue
+                
+        return None
+
+    async def diagnose_npm(self):
+        """Run npm installation diagnostics"""
+        logging.info("=== Running npm diagnostics ===")
+        
+        # Check Node.js installation
+        try:
+            node_process = await asyncio.create_subprocess_exec(
+                'node', '--version',
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE
+            )
+            stdout, stderr = await node_process.communicate()
+            if node_process.returncode == 0:
+                logging.info(f"Node.js version: {stdout.decode().strip()}")
+            else:
+                logging.error("Node.js not found")
+        except Exception as e:
+            logging.error(f"Error checking Node.js: {e}")
+
+        # Check PATH
+        logging.info("Checking PATH environment variable...")
+        path_entries = os.environ.get('PATH', '').split(os.pathsep)
+        for entry in path_entries:
+            logging.info(f"PATH entry: {entry}")
+            if 'node' in entry.lower() or 'npm' in entry.lower():
+                logging.info(f"Potential Node.js/npm path found: {entry}")
+                
+        # Try where/which command
+        try:
+            if os.name == 'nt':  # Windows
+                where_process = await asyncio.create_subprocess_exec(
+                    'where', 'npm',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+            else:  # Unix-like
+                where_process = await asyncio.create_subprocess_exec(
+                    'which', 'npm',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+            stdout, stderr = await where_process.communicate()
+            if where_process.returncode == 0:
+                logging.info(f"npm found at: {stdout.decode().strip()}")
+            else:
+                logging.error("npm not found in PATH")
+        except Exception as e:
+            logging.error(f"Error running where/which: {e}")
+
+        logging.info("=== End npm diagnostics ===")
+
     async def generate_visualization(self):
         """Generate repository visualization"""
         try:
@@ -191,41 +283,57 @@ class RepoVisualizer:
                 else:
                     logging.info("Parent directory does not exist")
 
-            # Ensure npm dependencies are installed if node_modules is missing
-            node_modules = os.path.join(repo_dir, 'node_modules')
-            if not os.path.exists(node_modules) or not os.listdir(node_modules):
-                logging.info("Installing npm dependencies...")
-                if not await self.ensure_npm_dependencies():
-                    error_msg = "Failed to install npm dependencies"
-                    logging.error(error_msg)
-                    if hasattr(self, 'status_callback'):
-                        self.status_callback(f"❌ {error_msg}")
+            # Try to find npm executable
+            npm_path = await self.find_npm()
+            if not npm_path:
+                logging.error("npm not found in system")
+                await self.diagnose_npm()  # Add diagnostics
+                return False
+
+            logging.info(f"Using npm from: {npm_path}")
+            
+            # Ensure we're in the correct directory
+            original_dir = os.getcwd()
+            os.chdir(repo_dir)
+            logging.info(f"Changed working directory to: {repo_dir}")
+
+            try:
+                # Use full path to npm/npx
+                npx_path = os.path.join(os.path.dirname(npm_path), 'npx')
+                if os.name == 'nt':  # Windows
+                    npx_path += '.cmd'
+
+                logging.info(f"Using npx from: {npx_path}")
+                
+                # Run repo-visualizer with full paths
+                self.current_process = await asyncio.create_subprocess_exec(
+                    npx_path,
+                    'repo-visualizer',
+                    '--output', 'diagram.svg',
+                    '--exclude', '.git,.aider,__pycache__,build,dist',
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE
+                )
+                
+                stdout, stderr = await self.current_process.communicate()
+                
+                # Log command output
+                if stdout:
+                    logging.info(f"Command stdout: {stdout.decode()}")
+                if stderr:
+                    logging.error(f"Command stderr: {stderr.decode()}")
+                    
+                if self.current_process.returncode == 0:
+                    logging.info("Generated visualization successfully")
+                else:
+                    logging.error(f"Visualization failed with return code {self.current_process.returncode}")
+                    logging.error(f"Error output: {stderr.decode()}")
                     return False
 
-            # Use npx to run the local version
-            if hasattr(self, 'status_callback'):
-                self.status_callback("🔄 Generating repository visualization...")
-
-            self.current_process = await asyncio.create_subprocess_exec(
-                'npx', '--prefix', repo_dir, 'repo-visualizer',
-                '--output', 'diagram.svg',
-                '--exclude', '.git,.aider,__pycache__,build,dist',
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE
-            )
-            
-            stdout, stderr = await self.current_process.communicate()
-            
-            if stdout:
-                logging.info(f"Command stdout: {stdout.decode()}")
-            if stderr:
-                logging.error(f"Command stderr: {stderr.decode()}")
-                
-            if self.current_process.returncode == 0:
-                logging.info("Generated visualization successfully")
-            else:
-                logging.error(f"Visualization failed with return code {self.current_process.returncode}")
-                return False
+            finally:
+                # Restore original directory
+                os.chdir(original_dir)
+                logging.info(f"Restored working directory to: {original_dir}")
 
             # Convert SVG to PNG using cairosvg
             try:
