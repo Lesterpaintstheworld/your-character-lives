@@ -3,6 +3,7 @@ import logging
 import argparse
 import sys
 import os
+from threading import Thread
 from repo_visualizer import start_visualization
 import time
 import io
