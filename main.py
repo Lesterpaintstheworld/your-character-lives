@@ -164,15 +164,16 @@ def collect_text_files_content():
         
         # Walk through directory tree
         for root, dirs, files in os.walk(base_dir):
-            # Remove excluded directories
-            dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist'))]
+            # Remove excluded directories - add .aider to the list
+            dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist', '.aider'))]
             
             logging.debug(f"Scanning directory: {root}")
             logging.debug(f"Found files: {files}")
             
             for file in files:
-                # Case-insensitive extension check for text and code files
-                if file.lower().endswith(('.md', '.txt', '.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.ts', '.html', '.css', '.sql', '.r', '.m', '.scala', '.pl', '.sh', '.bat')):
+                # Case-insensitive extension check for text and code files, exclude .aider files
+                if (not file.startswith('.aider') and
+                    file.lower().endswith(('.md', '.txt', '.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.ts', '.html', '.css', '.sql', '.r', '.m', '.scala', '.pl', '.sh', '.bat'))):
                     full_path = os.path.join(root, file)
                     try:
                         rel_path = os.path.relpath(full_path, base_dir)
