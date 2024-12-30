@@ -1250,9 +1250,12 @@ def toggle_editor():
     else:
         update_status("⏸️ Editor loop stopped")
 
+# Global control variables
+auto_recording_task = None  # To store the auto recording thread
+
 def toggle_auto_recording():
     """Toggle automatic recording every X seconds"""
-    global auto_recording, auto_recording_interval
+    global auto_recording, auto_recording_interval, auto_recording_task
     
     # Get interval from spinbox
     try:
@@ -1269,7 +1272,21 @@ def toggle_auto_recording():
     if auto_recording:
         update_status(f"🔄 Starting continuous recording...")
         
-        async def auto_record_loop():
+        # Start auto recording loop in a new thread to handle asyncio
+        def run_auto_record():
+            asyncio.run(auto_record_loop())
+            
+        auto_recording_task = threading.Thread(
+            target=run_auto_record,
+            daemon=True
+        )
+        auto_recording_task.start()
+    else:
+        update_status("⏹️ Automatic recording stopped")
+
+async def auto_record_loop():
+    """Run the automatic recording loop"""
+    try:
             while auto_recording and is_playing:
                 try:
                     # Record audio for the entire interval
@@ -1302,38 +1319,31 @@ def toggle_auto_recording():
                         timeout=REQUEST_TIMEOUT
                     )
 
-                    # Log response details for debugging
-                    logging.info(f"Response status: {response.status_code}")
-                    logging.info(f"Response headers: {response.headers}")
-                    logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
-                                
-                    # Get raw binary content
-                    binary_data = response.content
-                    logging.info(f"Raw binary length: {len(binary_data)} bytes")
+                    # Process response
+                    if response.status_code == 200:
+                        # Get raw binary content
+                        binary_data = response.content
                         
-                    # Basic validation
-                    if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
-                        logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
-                        raise ValueError("Audio data too small to be valid")
-                            
-                    # Check if it looks like an audio file
-                    if (binary_data.startswith(b'\xFF\xFB') or  # MP3
-                        binary_data.startswith(b'ID3') or       # MP3 with ID3
-                        binary_data.startswith(b'RIFF')):       # WAV
-                        logging.info("Valid audio format detected")
+                        # Process audio response
+                        await process_audio_chunk(binary_data)
                     else:
-                        logging.warning(f"Unknown binary format. First 8 bytes: {binary_data[:8].hex()}")
-                            
-                    # Process audio response
-                    await process_audio_chunk(binary_data)
+                        logging.error(f"Error response from server: {response.status_code}")
+                        update_status(f"❌ Server error: {response.status_code}")
 
                 except Exception as e:
                     logging.error(f"Error in auto recording loop: {e}")
                     update_status(f"❌ Auto recording error: {str(e)}")
+                    await asyncio.sleep(5)  # Wait before retrying
+                    
+                if not auto_recording or not is_playing:
                     break
-
-        # Start auto recording loop in asyncio event loop
-        asyncio.create_task(auto_record_loop())
+                    
+    except Exception as e:
+        logging.error(f"Auto recording loop crashed: {e}")
+        update_status(f"❌ Auto recording crashed: {str(e)}")
+    finally:
+        logging.info("Auto recording loop stopped")
+        update_status("Auto recording stopped")
     else:
         update_status("⏹️ Automatic recording stopped")
 
