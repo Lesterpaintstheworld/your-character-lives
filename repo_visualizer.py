@@ -1,4 +1,5 @@
 import os
+import sys
 import asyncio
 import subprocess
 import logging
@@ -161,8 +162,18 @@ class RepoVisualizer:
                 logging.info(f"Created temp directory: {temp_dir}")
                 
                 try:
-                    # Use local repo-visualizer directory
-                    repo_dir = "repo-visualizer"  # Adjust path as needed
+                    # Get the installation directory (where the script is located)
+                    if getattr(sys, 'frozen', False):
+                        # If running as exe
+                        install_dir = os.path.dirname(sys.executable)
+                    else:
+                        # If running as script
+                        install_dir = os.path.dirname(os.path.abspath(__file__))
+                    
+                    # Path to repo-visualizer in install directory
+                    repo_dir = os.path.join(install_dir, "repo-visualizer")
+                    logging.info(f"Looking for repo-visualizer at: {repo_dir}")
+
                     if not os.path.exists(repo_dir):
                         error_msg = f"repo-visualizer directory not found at: {repo_dir}"
                         logging.error(error_msg)
