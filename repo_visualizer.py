@@ -9,13 +9,13 @@ from PIL import Image, ImageTk
 from image_window import ImageWindow
 
 class RepoVisualizer:
-    def __init__(self, interval=10):
+    def __init__(self, root=None, interval=10):
         """Initialize the repo visualizer"""
         self.interval = interval
         self.running = True
         self.current_process = None
         self.image_queue = queue.Queue()
-        self.root = None
+        self.root = root
         self.image_window = None
 
     async def find_npm(self):
