@@ -2,6 +2,7 @@
 
 import os
 import secrets
+from pathlib import Path
 from dataclasses import dataclass
 
 @dataclass
@@ -30,10 +31,19 @@ class Config:
     API_DEBUG = False
     API_TOKEN = os.getenv("API_TOKEN", secrets.token_urlsafe(32))
     
+    # Visualization settings
+    VISUALIZATION_OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "output", "visualizations")
+    DEFAULT_PLOT_STYLE = "seaborn-darkgrid"
+    CHART_DPI = 300
+    CHART_FIGSIZE = (10, 6)
+    
     def validate(self):
         """Validate configuration settings"""
         if not isinstance(self.SCREENSHOT_INTERVAL, int) or self.SCREENSHOT_INTERVAL <= 0:
             raise ValueError("Invalid screenshot interval")
+        
+        # Create visualization output directory if it doesn't exist
+        os.makedirs(self.VISUALIZATION_OUTPUT_DIR, exist_ok=True)
         if not isinstance(self.AUDIO_FORMAT, int):
             raise ValueError("Invalid audio format")
         if not isinstance(self.CHANNELS, int) or self.CHANNELS <= 0:
