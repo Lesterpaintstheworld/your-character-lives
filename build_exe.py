@@ -23,6 +23,14 @@ def collect_video_files():
                 
     return video_files
 
+def ensure_directories():
+    """Ensure required directories exist"""
+    directories = ['videos', 'visualizations']
+    for directory in directories:
+        if not os.path.exists(directory):
+            os.makedirs(directory)
+            print(f"Created directory: {directory}")
+
 def main():
     video_files = collect_video_files()
     
@@ -64,17 +72,33 @@ def main():
         'io', 
         'threading', 
         'logging', 
-        'argparse'
+        'argparse',
+        'matplotlib',
+        'seaborn',
+        'pandas',
+        'matplotlib.backends.backend_tkagg',
+        'matplotlib.backends.backend_svg',
+        'cairosvg'
     ]
     options.extend([f'--hidden-import={imp}' for imp in hidden_imports])
 
     # Add video files
-    # Add videos directory to the executable
     options.extend([
         '--add-data', f'videos{os.pathsep}videos',  # This copies the entire videos folder
     ])
-    # Add individual video files if found
     options.extend([f'--add-data={src};{dst}' for src, dst in video_files])
+
+    # Add visualization output directory
+    options.extend([
+        '--add-data', f'visualizations{os.pathsep}visualizations',
+    ])
+
+    # Add matplotlib data files
+    import matplotlib
+    matplotlib_data = os.path.join(matplotlib.__path__[0], 'mpl-data')
+    options.extend([
+        '--add-data', f'{matplotlib_data}{os.pathsep}mpl-data'
+    ])
 
     # Add final options
     options.extend([
@@ -86,4 +110,5 @@ def main():
     PyInstaller.__main__.run(options)
 
 if __name__ == '__main__':
+    ensure_directories()
     main()
