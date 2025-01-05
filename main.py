@@ -1400,7 +1400,8 @@ async def auto_record_loop():
                 
                 # Prepare multipart form data
                 data = {
-                    'text': text_content  # Send text directly in request body
+                    'text': text_content,  # Send text directly in request body
+                    'session': session_id
                 }
 
                 files = {
