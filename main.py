@@ -163,7 +163,8 @@ def collect_text_files_content():
             '.vscode',
             '.aider',
             'temp',
-            'tmp'
+            'tmp',
+            '_MEI*'  # Exclude PyInstaller temp directories
         }
 
         excluded_file_prefixes = {
@@ -193,7 +194,10 @@ def collect_text_files_content():
         # Walk through directory tree
         for root, dirs, files in os.walk(base_dir):
             # Remove excluded directories in-place
-            dirs[:] = [d for d in dirs if d not in excluded_dirs]
+            dirs[:] = [d for d in dirs if not any(
+                pattern.endswith('*') and d.startswith(pattern[:-1]) or d == pattern 
+                for pattern in excluded_dirs
+            )]
             
             # Skip if current directory starts with excluded prefix
             current_dir = os.path.basename(root)
