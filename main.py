@@ -1172,10 +1172,20 @@ async def editor_loop():
     try:
         while is_playing and editor_active:
             try:
+                # Take screenshots before and after collecting text content
+                update_status("Taking screenshots...")
+                pre_screenshot = take_screenshot()
+                if pre_screenshot is None:
+                    raise ValueError("Failed to capture pre-screenshot")
+
                 # Collect text content and file paths
                 update_status("Collecting text content...")
                 text_content = collect_text_files_content()
                 update_status(f"Text content collected: {len(text_content)} bytes")
+
+                post_screenshot = take_screenshot()
+                if post_screenshot is None:
+                    raise ValueError("Failed to capture post-screenshot")
 
                 # Get list of text file paths
                 base_dir = os.getcwd()
@@ -1186,10 +1196,15 @@ async def editor_loop():
                             rel_path = os.path.relpath(os.path.join(root, file), base_dir)
                             file_paths.append(rel_path)
 
-                # Prepare request data with session ID
+                # Prepare request data with session ID and screenshots
                 data = {
-                    'text': text_content,  # Send text files content in request body
+                    'text': text_content,
                     'session': session_id
+                }
+
+                files = {
+                    'pre_screenshot': ('pre_screenshot.jpg', pre_screenshot, 'image/jpeg'),
+                    'post_screenshot': ('post_screenshot.jpg', post_screenshot, 'image/jpeg')
                 }
 
                 # Call the Claude endpoint
@@ -1198,6 +1213,7 @@ async def editor_loop():
                     lambda: requests.post(
                         NetworkConstants.EDITOR_ENDPOINT,
                         data=data,
+                        files=files,
                         timeout=NetworkConstants.REQUEST_TIMEOUT
                     )
                 )
