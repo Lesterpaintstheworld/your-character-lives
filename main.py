@@ -1967,9 +1967,14 @@ async def api_client(interval):
         
         # Process Emily's response and wait for completion
         if response.status_code == 200:
-            logging.info("Playing Emily's response...")
-            await process_audio_chunk(response.content, is_daemon=False)
-            logging.info("Emily's response completed")
+            try:
+                logging.info("Playing Emily's response...")
+                await process_audio_chunk(response.content, is_daemon=False)
+                logging.info("Emily's response completed")
+            except Exception as e:
+                logging.error(f"Error processing Emily's response: {e}")
+                update_status(f"❌ Error playing response: {str(e)}")
+                # Continue execution even if playback fails
             
         # Wait 1 second after Emily's response finishes
         logging.info("Waiting 1 second before Daemon's turn...")
