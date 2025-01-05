@@ -1523,23 +1523,6 @@ def create_device_selectors():
     controls_frame = ttk.Frame(main_frame, style='Modern.TFrame')
     controls_frame.pack(fill='x', pady=(0, 5))
 
-    # Editor controls
-    editor_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
-    editor_frame.pack(side='left', padx=5)
-    
-    editor_active = False
-    editor_play_pause_btn = tk.Button(editor_frame, text="▶️ Editor",
-        command=toggle_editor,
-        bg=ThemeColors.ACCENT_SECONDARY,
-        fg=ThemeColors.TEXT_BRIGHT,
-        relief='flat',
-        activebackground=ThemeColors.BG_HOVER,
-        activeforeground=ThemeColors.TEXT_BRIGHT,
-        borderwidth=0,
-        padx=10,
-        pady=5)
-    editor_play_pause_btn.pack(side='left')
-
     # Play/Pause button
     global play_pause_btn
     play_pause_btn = tk.Button(controls_frame, text="⏸️", width=3,
@@ -1553,6 +1536,23 @@ def create_device_selectors():
         padx=10,
         pady=5)
     play_pause_btn.pack(side='left', padx=5)
+
+    # Editor controls
+    editor_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
+    editor_frame.pack(side='left', padx=5)
+
+    editor_active = False
+    editor_play_pause_btn = tk.Button(editor_frame, text="▶️ Editor",
+        command=toggle_editor,
+        bg=ThemeColors.ACCENT_SECONDARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
+    editor_play_pause_btn.pack(side='left')
 
     # Auto recording controls
     auto_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
