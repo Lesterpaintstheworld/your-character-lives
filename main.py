@@ -1887,19 +1887,77 @@ output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_com
 
 
 def on_closing():
-    """Handle application shutdown."""
-    global running, vu_meter, auto_recording, auto_recording_task, editor_active
-    running = False
-    auto_recording = False  # Stop auto recording
-    editor_active = False  # Stop editor loop
-    if auto_recording_task:
-        auto_recording_task.cancel()
-    # Reset VU meter
-    vu_meter.set_level(0.0)
-    logging.info("Shutting down application...")
-    root.quit()
-    root.destroy()
-    sys.exit(0)
+    """Handle application shutdown with force quit fallback."""
+    global running, vu_meter, auto_recording, auto_recording_task, editor_active, current_video_window, second_video_window
+    
+    logging.info("Starting application shutdown...")
+    
+    try:
+        # Stop all ongoing processes
+        running = False
+        auto_recording = False
+        editor_active = False
+        is_playing = False
+        
+        # Cancel auto recording task
+        if auto_recording_task:
+            try:
+                auto_recording_task.cancel()
+            except Exception as e:
+                logging.error(f"Error canceling auto recording task: {e}")
+
+        # Reset VU meter
+        if vu_meter:
+            try:
+                vu_meter.set_level(0.0)
+            except Exception as e:
+                logging.error(f"Error resetting VU meter: {e}")
+
+        # Clean up video windows
+        if current_video_window:
+            try:
+                current_video_window.cleanup()
+            except Exception as e:
+                logging.error(f"Error cleaning up first video window: {e}")
+        
+        if second_video_window:
+            try:
+                second_video_window.cleanup()
+            except Exception as e:
+                logging.error(f"Error cleaning up second video window: {e}")
+
+        # Stop pygame mixer
+        try:
+            pygame.mixer.quit()
+        except Exception as e:
+            logging.error(f"Error stopping pygame mixer: {e}")
+
+        logging.info("Shutting down application...")
+        
+        # Force destroy after brief delay if normal shutdown fails
+        root.after(100, force_quit)
+        
+        # Attempt normal shutdown
+        root.quit()
+        root.destroy()
+        
+    except Exception as e:
+        logging.error(f"Error during shutdown: {e}")
+        force_quit()
+
+def force_quit():
+    """Force quit the application if normal shutdown fails."""
+    try:
+        import os
+        import signal
+        logging.info("Forcing application quit...")
+        if hasattr(signal, 'SIGKILL'):
+            os.kill(os.getpid(), signal.SIGKILL)
+        else:
+            sys.exit(1)
+    except Exception as e:
+        logging.error(f"Error during force quit: {e}")
+        sys.exit(1)
 
 
 async def api_client(interval):
@@ -2170,6 +2228,7 @@ if __name__ == "__main__":
     try:
         logging.info("Initializing UI...")
         root.protocol("WM_DELETE_WINDOW", on_closing)
+        root.wm_attributes("-topmost", 0)  # Ensure window isn't stuck on top
         text_widget.insert(tk.END, "Initializing CK3 AI Assistant...\n")
         root.update()
             
