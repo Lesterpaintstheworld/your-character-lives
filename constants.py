@@ -31,6 +31,8 @@ class AudioConstants:
     SAMPLE_RATE = 24000
     RECORD_DURATION = 15  # seconds
 
+import uuid
+
 class NetworkConstants:
     REQUEST_TIMEOUT = 120
     RECONNECT_DELAY = 5
@@ -39,6 +41,11 @@ class NetworkConstants:
     DEFAULT_ENDPOINT_EMILY = "https://nlr.app.n8n.cloud/webhook/kinos-emily"
     DEFAULT_ENDPOINT_DAEMON = "https://nlr.app.n8n.cloud/webhook/kinos-daemon"
     EDITOR_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/kinos-claude"
+    
+    @staticmethod
+    def generate_session_id():
+        """Generate a unique session ID"""
+        return str(uuid.uuid4())
 
 class UIConstants:
     WINDOW_WIDTH = 80

@@ -1186,9 +1186,10 @@ async def editor_loop():
                             rel_path = os.path.relpath(os.path.join(root, file), base_dir)
                             file_paths.append(rel_path)
 
-                # Prepare request data
+                # Prepare request data with session ID
                 data = {
-                    'text': text_content  # Send text files content in request body
+                    'text': text_content,  # Send text files content in request body
+                    'session': session_id
                 }
 
                 # Call the Claude endpoint
@@ -1902,15 +1903,18 @@ async def api_client(interval):
         # Collect text content
         text_content = collect_text_files_content()
 
-        # Prepare multipart form data
+        # Prepare multipart form data with session ID
         files = {
             'pre_screenshot': ('pre_screenshot.jpg', pre_screenshot_emily, 'image/jpeg'),
             'post_screenshot': ('post_screenshot.jpg', post_screenshot_emily, 'image/jpeg'),
             'audio': ('audio.wav', audio_data, 'audio/wav')
         }
 
-        # Add text content to form data
-        data = {'text': text_content}
+        # Add text content and session ID to form data
+        data = {
+            'text': text_content,
+            'session': session_id
+        }
 
         # Get endpoints from UI
         emily_endpoint = emily_endpoint_var.get()
@@ -2127,8 +2131,9 @@ if __name__ == "__main__":
                         help=f"Screenshot interval in seconds (default: {DEFAULT_SCREENSHOT_INTERVAL})")
     args = parser.parse_args()
     
-    # Initialize logging first
-    logging.info("Starting CK3 AI Assistant...")
+    # Generate session ID and initialize logging
+    session_id = NetworkConstants.generate_session_id()
+    logging.info(f"Starting CK3 AI Assistant (Session: {session_id})...")
     
     # Initialize UI and get endpoint variables
     try:
