@@ -527,14 +527,28 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
         raise
 
     finally:
-        # Clean up temp file with retries
-        if temp_path:
+        # Clean up temp file with elevated permissions if needed
+        if temp_path and os.path.exists(temp_path):
             for attempt in range(3):
                 try:
-                    if os.path.exists(temp_path):
-                        os.remove(temp_path)
-                        logging.info(f"Removed temp file: {temp_path}")
+                    # Ensure we have write permission to delete
+                    current_perms = os.stat(temp_path).st_mode
+                    if not current_perms & 0o200:  # Check write permission
+                        os.chmod(temp_path, 0o600)  # Set user read/write
+                        
+                    os.remove(temp_path)
+                    logging.info(f"Successfully removed temp file: {temp_path}")
                     break
+                except PermissionError as e:
+                    logging.warning(f"Permission error removing file (attempt {attempt+1}): {e}")
+                    # Try to force close any open handles on Windows
+                    if os.name == 'nt':
+                        try:
+                            import win32file
+                            win32file.CloseHandle(win32file._get_osfhandle(temp_fd))
+                        except:
+                            pass
+                    await asyncio.sleep(0.1)
                 except Exception as e:
                     logging.warning(f"Failed to remove temp file (attempt {attempt+1}): {e}")
                     await asyncio.sleep(0.1)
