@@ -58,6 +58,7 @@ def init_video():
 from pathlib import Path
 from tkinter import messagebox, Canvas
 import numpy as np
+import subprocess
 
 def initialize_audio():
     """Initialize audio system with better error handling"""
@@ -1244,10 +1245,18 @@ async def editor_loop():
 
                 # Run aider with the output and file paths
                 update_status(f"Starting aider session with files: {file_paths}")
+                # Create startupinfo to hide console window on Windows
+                startupinfo = None
+                if sys.platform == "win32":
+                    startupinfo = subprocess.STARTUPINFO()
+                    startupinfo.dwFlags |= subprocess.STARTF_USESHOWWINDOW
+                    startupinfo.wShowWindow = subprocess.SW_HIDE
+
                 process = await asyncio.create_subprocess_exec(
                     *cmd,
                     stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE
+                    stderr=asyncio.subprocess.PIPE,
+                    startupinfo=startupinfo
                 )
                 
                 # Stream stdout and stderr in real-time to both logs and UI
