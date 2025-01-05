@@ -410,19 +410,31 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
     temp_path = None
     p = None
     stream = None
-    temp_fd = None
     
     try:
         if not audio_data:
             raise ValueError("Empty audio data received")
             
-        logging.info(f"Received raw audio data: {len(audio_data)} bytes")
+        # Get user-specific temp directory with proper permissions
+        temp_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'Temp', 'AI_Assistant')
         
-        # Validate and fix audio data
+        # Create temp directory if it doesn't exist
         try:
-            audio_data = validate_and_fix_audio_data(audio_data)
+            os.makedirs(temp_dir, exist_ok=True)
+            # Explicitly set directory permissions
+            os.chmod(temp_dir, 0o700)  # User read/write/execute only
         except Exception as e:
-            logging.error(f"Audio validation failed: {e}")
+            logging.error(f"Failed to create/set permissions on temp directory: {e}")
+            # Fallback to system temp directory
+            temp_dir = tempfile.gettempdir()
+
+        # Create temp file with proper permissions
+        try:
+            temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3', dir=temp_dir)
+            os.close(temp_fd)  # Close file descriptor immediately
+            # Set file permissions
+            os.chmod(temp_path, 0o600)  # User read/write only
+            logging.info(f"Created temp file with permissions: {temp_path}")
             raise
 
         # Switch videos sequentially, not simultaneously
