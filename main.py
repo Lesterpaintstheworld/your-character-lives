@@ -435,7 +435,11 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
             # Set file permissions
             os.chmod(temp_path, 0o600)  # User read/write only
             logging.info(f"Created temp file with permissions: {temp_path}")
-            raise
+        except Exception as e:
+            logging.error(f"Failed to create temp file: {e}")
+            # Fallback to system temp directory
+            temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
+            os.close(temp_fd)
 
         # Switch videos sequentially, not simultaneously
         logging.info(f"Attempting to switch to talk video (is_daemon={is_daemon})...")
