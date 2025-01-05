@@ -140,7 +140,7 @@ logger = log_manager.get_logger(__name__)
 
 
 def collect_text_files_content():
-    """Collect content from all .md and .txt files in current directory and subdirectories."""
+    """Collect content from relevant text files in current directory and subdirectories."""
     try:
         content = []
         
@@ -149,19 +149,42 @@ def collect_text_files_content():
         
         logging.info("=== Path Debug Information ===")
         logging.info(f"Current working directory (execution): {base_dir}")
-        
-        # List contents of base directory for debugging
-        try:
-            files = os.listdir(base_dir)
-            logging.info(f"Contents of base directory:")
-            for f in files:
-                full_path = os.path.join(base_dir, f)
-                if os.path.isfile(full_path):
-                    logging.info(f"  File: {f}")
-                elif os.path.isdir(full_path):
-                    logging.info(f"  Dir:  {f}")
-        except Exception as e:
-            logging.error(f"Error listing directory contents: {str(e)}")
+
+        # Define exclusion patterns
+        excluded_dirs = {
+            'node_modules',
+            'dist',
+            'build',
+            '__pycache__',
+            'venv',
+            '.git',
+            '.github',
+            '.idea',
+            '.vscode',
+            '.aider',
+            'temp',
+            'tmp'
+        }
+
+        excluded_file_prefixes = {
+            '.',
+            '_',
+            'flycheck_'
+        }
+
+        excluded_file_extensions = {
+            '.pyc',
+            '.pyo',
+            '.pyd',
+            '.so',
+            '.dll',
+            '.dylib',
+            '.exe',
+            '.bin',
+            '.pkl',
+            '.log',
+            '.cache'
+        }
 
         content.append(f"=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n")
         
@@ -169,16 +192,27 @@ def collect_text_files_content():
         
         # Walk through directory tree
         for root, dirs, files in os.walk(base_dir):
-            # Remove excluded directories - add .aider to the list
-            dirs[:] = [d for d in dirs if not d.startswith(('.', '__pycache__', 'build', 'dist', '.aider'))]
+            # Remove excluded directories in-place
+            dirs[:] = [d for d in dirs if d not in excluded_dirs]
             
+            # Skip if current directory starts with excluded prefix
+            current_dir = os.path.basename(root)
+            if any(current_dir.startswith(prefix) for prefix in excluded_file_prefixes):
+                continue
+
             logging.debug(f"Scanning directory: {root}")
-            logging.debug(f"Found files: {files}")
             
             for file in files:
-                # Case-insensitive extension check for text and code files, exclude .aider files
-                if (not file.startswith('.aider') and
-                    file.lower().endswith(('.md', '.txt', '.py', '.js', '.java', '.cpp', '.c', '.h', '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.ts', '.html', '.css', '.sql', '.r', '.m', '.scala', '.pl', '.sh', '.bat'))):
+                # Skip files with excluded prefixes or extensions
+                if (any(file.startswith(prefix) for prefix in excluded_file_prefixes) or
+                    any(file.endswith(ext) for ext in excluded_file_extensions)):
+                    continue
+
+                # Only include relevant text and code files
+                if file.lower().endswith(('.md', '.txt', '.py', '.js', '.java', '.cpp', '.c', '.h', 
+                                        '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.ts',
+                                        '.html', '.css', '.sql', '.r', '.m', '.scala', '.pl', '.sh',
+                                        '.bat', '.json', '.yaml', '.yml', '.toml', '.ini')):
                     full_path = os.path.join(root, file)
                     try:
                         rel_path = os.path.relpath(full_path, base_dir)
