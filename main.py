@@ -410,6 +410,7 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
     temp_path = None
     p = None
     stream = None
+    temp_fd = None
     
     try:
         if not audio_data:
@@ -443,9 +444,15 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
 
         # Play audio
         try:
-            with tempfile.NamedTemporaryFile(suffix='.mp3', delete=False) as temp_file:
-                temp_file.write(audio_data)
-                temp_path = temp_file.name
+            # Create temp file with unique name in user temp directory
+            temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
+            os.close(temp_fd)  # Close file descriptor immediately
+            
+            logging.info(f"Created temp file: {temp_path}")
+            
+            # Write audio data to temp file
+            with open(temp_path, 'wb') as f:
+                f.write(audio_data)
 
             # Get selected output device
             selected = output_var.get() if output_var else None
@@ -520,12 +527,17 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
         raise
 
     finally:
-        # Clean up temp file
-        if temp_path and os.path.exists(temp_path):
-            try:
-                os.remove(temp_path)
-            except Exception as e:
-                logging.warning(f"Failed to remove temp file: {e}")
+        # Clean up temp file with retries
+        if temp_path:
+            for attempt in range(3):
+                try:
+                    if os.path.exists(temp_path):
+                        os.remove(temp_path)
+                        logging.info(f"Removed temp file: {temp_path}")
+                    break
+                except Exception as e:
+                    logging.warning(f"Failed to remove temp file (attempt {attempt+1}): {e}")
+                    await asyncio.sleep(0.1)
                 
         # Switch back to idle videos sequentially
         logging.info("Switching back to idle videos...")
