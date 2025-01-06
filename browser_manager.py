@@ -1,6 +1,7 @@
 """Browser automation and web interaction management"""
 import asyncio
 import logging
+import os
 from typing import Any, Dict, Optional
 from playwright.async_api import async_playwright, Browser, Page
 import aiohttp
@@ -21,6 +22,11 @@ class BrowserManager:
         self.logger.info(f"Starting {browser_type} browser with headless={self.config.HEADLESS_MODE}")
         try:
             playwright = await async_playwright().start()
+            
+            # Create user data directory for persistence
+            user_data_dir = os.path.join(os.path.expanduser('~'), '.browser_automation')
+            os.makedirs(user_data_dir, exist_ok=True)
+            
             if browser_type == "chrome":
                 self.browser = await playwright.chromium.launch(
                     headless=self.config.HEADLESS_MODE,
@@ -33,7 +39,9 @@ class BrowserManager:
                         '--disable-background-timer-throttling',
                         '--disable-backgrounding-occluded-windows',
                         '--disable-renderer-backgrounding'
-                    ]
+                    ],
+                    # Add persistent context
+                    user_data_dir=user_data_dir
                 )
             elif browser_type == "firefox":
                 self.browser = await playwright.firefox.launch(
@@ -42,13 +50,14 @@ class BrowserManager:
             else:
                 raise ValueError(f"Unsupported browser type: {browser_type}")
             
-            # Create context with viewport and permissions
-            context = await self.browser.new_context(
+            # Create persistent context
+            self.context = await self.browser.new_context(
                 viewport={'width': 1280, 'height': 720},
-                permissions=['geolocation']
+                permissions=['geolocation'],
+                storage_state=os.path.join(user_data_dir, 'storage_state.json')
             )
             
-            self.page = await context.new_page()
+            self.page = await self.context.new_page()
             self.logger.info(f"Successfully started {browser_type} browser")
             self.logger.debug(f"Browser version: {await self.browser.version()}")
             
@@ -185,6 +194,11 @@ class BrowserManager:
         """Clean up browser resources"""
         self.logger.info("Starting browser cleanup")
         try:
+            if hasattr(self, 'context') and self.context:
+                # Save storage state before closing
+                await self.context.storage_state(
+                    path=os.path.join(os.path.expanduser('~'), '.browser_automation', 'storage_state.json')
+                )
             if self.page:
                 self.logger.debug("Closing page")
                 await self.page.close()
