@@ -20,6 +20,7 @@ class BrowserManager:
     async def start_browser(self, browser_type: str = "chrome") -> None:
         """Initialize and start browser instance"""
         self.logger.info(f"Starting {browser_type} browser with headless={self.config.HEADLESS_MODE}")
+        self.logger.debug(f"Browser config: {vars(self.config)}")
         try:
             playwright = await async_playwright().start()
             
@@ -68,6 +69,7 @@ class BrowserManager:
     async def navigate(self, url: str) -> bool:
         """Navigate to specified URL"""
         self.logger.info(f"Navigating to: {url}")
+        self.logger.debug(f"Current page: {self.page.url if self.page else 'No page'}")
         try:
             await self.page.goto(url)
             await self.page.wait_for_load_state("networkidle")
