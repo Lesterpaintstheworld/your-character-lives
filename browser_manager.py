@@ -122,6 +122,10 @@ class BrowserManager:
             await self.start_browser()
             while self.is_running:
                 try:
+                    # Add initial navigation to Kinkong endpoint
+                    self.logger.info(f"Navigating to Kinkong endpoint: {self.endpoint}")
+                    await self.navigate(self.endpoint)
+                    
                     self.logger.debug("Processing current page")
                     result = await self.process_page()
                     if result:
