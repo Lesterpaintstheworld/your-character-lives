@@ -376,7 +376,6 @@ class DraggableVideoWindow:
                         
                     ret, new_frame = self.cap.read()
                     if not ret:
-                        self.logger.info("Reached end of video, resetting position")
                         self.cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
                         ret, new_frame = self.cap.read()
                     
