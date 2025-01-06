@@ -1,11 +1,13 @@
 """Thread management utilities"""
 import threading
+import asyncio
 from typing import Callable, List
 import logging
 
 class ThreadManager:
     def __init__(self):
         self.threads: List[threading.Thread] = []
+        self.tasks: List[asyncio.Task] = []
         self.logger = logging.getLogger(__name__)
         self._running = True
 
