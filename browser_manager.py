@@ -23,23 +23,6 @@ class BrowserManager:
         
         self.logger.info(f"Starting {browser_type} browser with headless={BrowserConstants.HEADLESS_MODE}")
         self.logger.debug(f"Browser config: {vars(self.config)}")
-        
-        # First verify playwright is installed
-        try:
-            from playwright.async_api import async_playwright
-            self.logger.info("Playwright module imported successfully")
-        except ImportError as e:
-            self.logger.error(f"Failed to import playwright: {e}")
-            self.logger.info("Attempting to install playwright...")
-            try:
-                import subprocess
-                subprocess.run(["pip", "install", "playwright"], check=True)
-                subprocess.run(["playwright", "install"], check=True)
-                from playwright.async_api import async_playwright
-                self.logger.info("Playwright installed successfully")
-            except Exception as e:
-                self.logger.error(f"Failed to install playwright: {e}")
-                raise
 
         try:
             self.logger.info("Initializing playwright...")
@@ -62,9 +45,12 @@ class BrowserManager:
                     except Exception as e:
                         self.logger.warning(f"Could not verify chromium installation: {e}")
 
-                    # Launch browser without user_data_dir
-                    self.browser = await playwright.chromium.launch(
+                    # Launch persistent context directly
+                    self.context = await playwright.chromium.launch_persistent_context(
+                        user_data_dir,
                         headless=BrowserConstants.HEADLESS_MODE,
+                        viewport={'width': 1280, 'height': 720},
+                        permissions=['geolocation'],
                         args=[
                             '--disable-dev-shm-usage',
                             '--no-sandbox',
@@ -76,34 +62,27 @@ class BrowserManager:
                             '--disable-renderer-backgrounding'
                         ]
                     )
-                    self.logger.info("Browser launched successfully")
-
-                    # Create persistent context with user_data_dir
-                    self.context = await self.browser.new_context(
-                        viewport={'width': 1280, 'height': 720},
-                        user_data_dir=user_data_dir,
-                        permissions=['geolocation']
-                    )
                     self.logger.info("Browser context created")
 
                     # Create new page
-                    self.logger.info("Creating new page...")
                     self.page = await self.context.new_page()
                     self.logger.info("Page created successfully")
+                    
+                    # Store browser reference
+                    self.browser = self.context.browser
                     
                     # Log browser version
                     version = await self.browser.version()
                     self.logger.info(f"Browser version: {version}")
-                except Exception as e:
-                    self.logger.error(f"Failed to initialize browser: {e}", exc_info=True)
-                    raise
                     
+                except Exception as e:
+                    self.logger.error(f"Failed to launch browser: {e}", exc_info=True)
+                    raise
             else:
                 raise ValueError(f"Unsupported browser type: {browser_type}")
                 
         except Exception as e:
             self.logger.error(f"Failed to start browser: {e}", exc_info=True)
-            # Re-raise to ensure proper cleanup
             raise
 
     async def navigate(self, url: str) -> bool:
