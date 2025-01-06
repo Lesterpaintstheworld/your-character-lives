@@ -156,6 +156,7 @@ ck3-ai-assistant/
 ├── device_manager.py    # Hardware device management  
 ├── video_window.py      # Video avatar system
 ├── thread_manager.py    # Thread management
+├── browser_manager.py   # Browser automation and web interaction management
 ├── log_manager.py       # Logging utilities
 ├── constants.py         # Global constants
 ├── build_exe.py        # Executable builder
@@ -215,6 +216,14 @@ ck3-ai-assistant/
   - Cross-domain context integration
   - Real-time data analysis
   - Secure cloud synchronization
+
+- Browser Automation
+  - Fourth AI agent dedicated to web interactions
+  - Automated browser control and navigation
+  - Web content analysis and extraction
+  - Form filling and submission
+  - Screenshot capture and analysis
+  - Cookie and session management
 
 
 ## Documentation

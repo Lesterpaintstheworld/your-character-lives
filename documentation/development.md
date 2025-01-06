@@ -63,6 +63,14 @@ python -m unittest discover tests
 python build_exe.py
 ```
 
+### Browser Automation Development
+- Use explicit waits for elements
+- Handle JavaScript dialogs
+- Implement proper error recovery
+- Clean up browser resources
+- Log all web interactions
+- Handle network errors gracefully
+
 ### Debugging
 - Use logging for diagnostics
 - Check log files in user directory

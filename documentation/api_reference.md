@@ -88,6 +88,29 @@ def toggle_auto_recording()
 def update_status(message: str)
 ```
 
+## Browser Automation API
+
+### Class: BrowserManager
+```python
+class BrowserManager:
+    def __init__(self, config)
+    def start_browser(self, browser_type: str = "chrome") -> None
+    def navigate(self, url: str) -> bool
+    def execute_script(self, script: str) -> Any
+    def take_screenshot(self) -> bytes
+    def fill_form(self, form_data: Dict[str, str]) -> bool
+    def get_page_content(self) -> str
+    def cleanup() -> None
+```
+
+### Browser Constants
+```python
+BROWSER_TIMEOUT = 30
+SCREENSHOT_QUALITY = 90
+DEFAULT_BROWSER = "chrome"
+HEADLESS_MODE = False
+```
+
 ## Error Handling
 
 ### Exceptions

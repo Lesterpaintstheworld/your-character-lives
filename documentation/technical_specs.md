@@ -27,6 +27,26 @@
    - Status updates
    - Configuration management
 
+5. Browser Automation
+   - Selenium/Playwright integration
+   - DOM manipulation
+   - JavaScript execution
+   - Network monitoring
+   - State management
+   - Screenshot capture
+
+### Browser System
+- Engine: Selenium/Playwright
+- Supported browsers: Chrome, Firefox, Edge
+- Headless mode support
+- Proxy configuration
+- Custom user agent support
+- JavaScript injection
+- Network request interception
+- Cookie management
+- Screenshot capabilities
+- PDF generation
+
 ### Data Flow
 1. Input Processing
    - Audio capture
