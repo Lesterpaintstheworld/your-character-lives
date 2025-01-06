@@ -227,9 +227,16 @@ class BrowserManager:
             self.logger.info("Initializing browser...")
             await self.start_browser()
             
+            # Add state check
+            if not self.browser or not self.page:
+                raise RuntimeError("Browser or page not initialized")
+                
+            self.logger.info("Browser initialized successfully, entering main loop")
+            
             while self.is_running:
                 try:
-                    if not self.page or not self.browser:
+                    if not self.browser or not self.page:
+                        self.logger.error("Browser or page became invalid")
                         raise RuntimeError("Browser or page not initialized")
                         
                     self.logger.info(f"Navigating to Kinkong endpoint: {self.endpoint}")
@@ -262,14 +269,18 @@ class BrowserManager:
         self.logger.info("Starting browser automation")
         if not self.browser_loop_task:
             self.is_running = True
+            # Create and store the task
             self.browser_loop_task = asyncio.create_task(self.browser_loop())
             self.logger.debug("Browser loop task created")
-            
+            # Wait for the task to complete
+            await self.browser_loop_task
+
     async def stop_browser_automation(self):
         """Stop browser automation loop"""
         self.logger.info("Stopping browser automation")
         self.is_running = False
         if self.browser_loop_task:
+            # Wait for the task to complete
             await self.browser_loop_task
             self.browser_loop_task = None
             self.logger.debug("Browser loop task completed")
