@@ -85,9 +85,8 @@ class BrowserManager:
                         permissions=['geolocation']
                     )
                     self.logger.info("Browser context created")
-                    
-                # Create new page with explicit error handling    
-                try:
+
+                    # Create new page
                     self.logger.info("Creating new page...")
                     self.page = await self.context.new_page()
                     self.logger.info("Page created successfully")
@@ -96,7 +95,7 @@ class BrowserManager:
                     version = await self.browser.version()
                     self.logger.info(f"Browser version: {version}")
                 except Exception as e:
-                    self.logger.error(f"Failed to create page: {e}", exc_info=True)
+                    self.logger.error(f"Failed to initialize browser: {e}", exc_info=True)
                     raise
                     
             else:
