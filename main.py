@@ -119,6 +119,7 @@ from audio_manager import AudioManager
 from log_manager import LogManager
 from event_manager import EventManager
 from thread_manager import ThreadManager
+from browser_manager import BrowserManager
 from constants import AudioConstants, NetworkConstants, UIConstants
 
 # Audio constants
