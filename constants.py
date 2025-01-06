@@ -1,5 +1,16 @@
 """Constants used throughout the application"""
 
+class BrowserConstants:
+    BROWSER_TIMEOUT = 30
+    SCREENSHOT_QUALITY = 90
+    DEFAULT_BROWSER = "chrome"
+    HEADLESS_MODE = False
+    MAX_RETRIES = 3
+    RETRY_DELAY = 1.0
+    
+    # Endpoints
+    KINKONG_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/kinos-kinkong"
+
 class ThemeColors:
     # Main backgrounds
     BG_DARK = "#0d1117"      # Darker navy blue for main background

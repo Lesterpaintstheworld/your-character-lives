@@ -35,3 +35,18 @@ class ThreadManager:
     def running(self) -> bool:
         """Check if thread manager is running."""
         return self._running
+        
+    async def start_browser_task(self, target: Callable, *args, **kwargs) -> None:
+        """Start an async browser task.
+        
+        Args:
+            target: Async function to run
+            *args: Positional arguments for target
+            **kwargs: Keyword arguments for target
+        """
+        try:
+            task = asyncio.create_task(target(*args, **kwargs))
+            self.tasks.append(task)
+            await task
+        except Exception as e:
+            self.logger.error(f"Browser task error: {e}")
