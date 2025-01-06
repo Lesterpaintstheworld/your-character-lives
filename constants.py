@@ -4,7 +4,7 @@ class BrowserConstants:
     BROWSER_TIMEOUT = 30
     SCREENSHOT_QUALITY = 90
     DEFAULT_BROWSER = "chrome"
-    HEADLESS_MODE = False
+    HEADLESS_MODE = True  # Set to True for background operation
     MAX_RETRIES = 3
     RETRY_DELAY = 1.0
     BROWSER_INTERVAL = 30  # Seconds between page processing

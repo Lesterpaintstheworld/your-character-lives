@@ -23,7 +23,17 @@ class BrowserManager:
             playwright = await async_playwright().start()
             if browser_type == "chrome":
                 self.browser = await playwright.chromium.launch(
-                    headless=self.config.HEADLESS_MODE
+                    headless=self.config.HEADLESS_MODE,
+                    args=[
+                        '--disable-dev-shm-usage',
+                        '--no-sandbox',
+                        '--disable-setuid-sandbox',
+                        '--disable-gpu',
+                        '--disable-software-rasterizer',
+                        '--disable-background-timer-throttling',
+                        '--disable-backgrounding-occluded-windows',
+                        '--disable-renderer-backgrounding'
+                    ]
                 )
             elif browser_type == "firefox":
                 self.browser = await playwright.firefox.launch(
@@ -31,8 +41,14 @@ class BrowserManager:
                 )
             else:
                 raise ValueError(f"Unsupported browser type: {browser_type}")
-                
-            self.page = await self.browser.new_page()
+            
+            # Create context with viewport and permissions
+            context = await self.browser.new_context(
+                viewport={'width': 1280, 'height': 720},
+                permissions=['geolocation']
+            )
+            
+            self.page = await context.new_page()
             self.logger.info(f"Successfully started {browser_type} browser")
             self.logger.debug(f"Browser version: {await self.browser.version()}")
             
