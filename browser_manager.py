@@ -24,48 +24,68 @@ class BrowserManager:
         self.logger.info(f"Starting {browser_type} browser with headless={BrowserConstants.HEADLESS_MODE}")
         self.logger.debug(f"Browser config: {vars(self.config)}")
         try:
+            self.logger.info("Initializing playwright...")
             playwright = await async_playwright().start()
             
             # Create user data directory for persistence
             user_data_dir = os.path.join(os.path.expanduser('~'), '.browser_automation')
             os.makedirs(user_data_dir, exist_ok=True)
+            self.logger.info(f"Using user data directory: {user_data_dir}")
             
             if browser_type == "chrome":
-                self.browser = await playwright.chromium.launch(
-                    headless=BrowserConstants.HEADLESS_MODE,
-                    args=[
-                        '--disable-dev-shm-usage',
-                        '--no-sandbox',
-                        '--disable-setuid-sandbox',
-                        '--disable-gpu',
-                        '--disable-software-rasterizer',
-                        '--disable-background-timer-throttling',
-                        '--disable-backgrounding-occluded-windows',
-                        '--disable-renderer-backgrounding'
-                    ],
-                    # Add persistent context
-                    user_data_dir=user_data_dir
-                )
-            elif browser_type == "firefox":
-                self.browser = await playwright.firefox.launch(
-                    headless=self.config.HEADLESS_MODE
-                )
+                self.logger.info("Launching chromium browser...")
+                try:
+                    self.browser = await playwright.chromium.launch(
+                        headless=BrowserConstants.HEADLESS_MODE,
+                        args=[
+                            '--disable-dev-shm-usage',
+                            '--no-sandbox',
+                            '--disable-setuid-sandbox',
+                            '--disable-gpu',
+                            '--disable-software-rasterizer',
+                            '--disable-background-timer-throttling',
+                            '--disable-backgrounding-occluded-windows',
+                            '--disable-renderer-backgrounding'
+                        ],
+                        user_data_dir=user_data_dir
+                    )
+                    self.logger.info("Browser launched successfully")
+                except Exception as e:
+                    self.logger.error(f"Failed to launch browser: {e}", exc_info=True)
+                    raise
+                
+                # Create persistent context with explicit error handling
+                try:
+                    self.logger.info("Creating browser context...")
+                    self.context = await self.browser.new_context(
+                        viewport={'width': 1280, 'height': 720},
+                        permissions=['geolocation'],
+                        storage_state=os.path.join(user_data_dir, 'storage_state.json')
+                    )
+                    self.logger.info("Browser context created")
+                except Exception as e:
+                    self.logger.error(f"Failed to create browser context: {e}", exc_info=True)
+                    raise
+                    
+                # Create new page with explicit error handling    
+                try:
+                    self.logger.info("Creating new page...")
+                    self.page = await self.context.new_page()
+                    self.logger.info("Page created successfully")
+                    
+                    # Log browser version
+                    version = await self.browser.version()
+                    self.logger.info(f"Browser version: {version}")
+                except Exception as e:
+                    self.logger.error(f"Failed to create page: {e}", exc_info=True)
+                    raise
+                    
             else:
                 raise ValueError(f"Unsupported browser type: {browser_type}")
-            
-            # Create persistent context
-            self.context = await self.browser.new_context(
-                viewport={'width': 1280, 'height': 720},
-                permissions=['geolocation'],
-                storage_state=os.path.join(user_data_dir, 'storage_state.json')
-            )
-            
-            self.page = await self.context.new_page()
-            self.logger.info(f"Successfully started {browser_type} browser")
-            self.logger.debug(f"Browser version: {await self.browser.version()}")
-            
+                
         except Exception as e:
             self.logger.error(f"Failed to start browser: {e}", exc_info=True)
+            # Re-raise to ensure proper cleanup
             raise
 
     async def navigate(self, url: str) -> bool:
@@ -148,10 +168,14 @@ class BrowserManager:
         """Main browser automation loop"""
         self.logger.info("Starting browser automation loop")
         try:
+            self.logger.info("Initializing browser...")
             await self.start_browser()
+            
             while self.is_running:
                 try:
-                    # Add initial navigation to Kinkong endpoint
+                    if not self.page or not self.browser:
+                        raise RuntimeError("Browser or page not initialized")
+                        
                     self.logger.info(f"Navigating to Kinkong endpoint: {self.endpoint}")
                     await self.navigate(self.endpoint)
                     
