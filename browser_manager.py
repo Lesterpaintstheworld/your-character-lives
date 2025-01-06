@@ -13,7 +13,7 @@ class BrowserManager:
         self.browser: Optional[Browser] = None
         self.page: Optional[Page] = None
         self.logger = logging.getLogger(__name__)
-        self.endpoint = "https://nlr.app.n8n.cloud/webhook/kinos-kinkong"
+        self.endpoint = BrowserConstants.KINKONG_ENDPOINT
         self.is_running = False
         self.browser_loop_task = None
         
@@ -131,6 +131,14 @@ class BrowserManager:
         """Process current page and extract relevant data"""
         self.logger.info(f"Processing page: {self.page.url}")
         try:
+            # Navigate to the endpoint first
+            await self.navigate(self.endpoint)
+            self.logger.info(f"Navigated to endpoint: {self.endpoint}")
+            
+            # Wait for any dynamic content to load
+            await self.page.wait_for_load_state("networkidle")
+            
+            # Get page data
             title = await self.page.title()
             content = await self.page.content()
             screenshot = await self.take_screenshot()
@@ -139,16 +147,25 @@ class BrowserManager:
             self.logger.debug(f"Content length: {len(content)} bytes")
             self.logger.debug(f"Screenshot size: {len(screenshot)} bytes")
             
+            # Prepare data for endpoint
             data = {
                 "title": title,
                 "url": self.page.url,
                 "content": content,
-                "screenshot": screenshot.hex() if screenshot else None
+                "screenshot": base64.b64encode(screenshot).decode() if screenshot else None
             }
             
-            response = await self.send_to_endpoint(data)
-            self.logger.info("Successfully processed page and sent to endpoint")
-            return response
+            # Send to endpoint using aiohttp for better async support
+            async with aiohttp.ClientSession() as session:
+                async with session.post(self.endpoint, json=data) as response:
+                    if response.status == 200:
+                        result = await response.json()
+                        self.logger.info("Successfully processed page and sent to endpoint")
+                        return result
+                    else:
+                        error_text = await response.text()
+                        self.logger.error(f"Endpoint returned status {response.status}: {error_text}")
+                        return None
             
         except Exception as e:
             self.logger.error(f"Page processing failed: {e}", exc_info=True)
@@ -163,7 +180,6 @@ class BrowserManager:
 
     async def browser_loop(self):
         """Main browser automation loop"""
-        self.logger.info("Starting browser automation loop")
         try:
             # Verify playwright installation before starting
             try:
@@ -197,11 +213,9 @@ class BrowserManager:
                         self.logger.error("Browser or page became invalid")
                         raise RuntimeError("Browser or page not initialized")
                         
-                    self.logger.info(f"Navigating to Kinkong endpoint: {self.endpoint}")
-                    await self.navigate(self.endpoint)
-                    
-                    self.logger.debug("Processing current page")
+                    self.logger.info(f"Processing page at endpoint: {self.endpoint}")
                     result = await self.process_page()
+                    
                     if result:
                         self.logger.info("Page processed successfully")
                         self.logger.debug(f"Processing result: {result}")
