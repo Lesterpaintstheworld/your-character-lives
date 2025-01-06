@@ -19,7 +19,9 @@ class BrowserManager:
         
     async def start_browser(self, browser_type: str = "chrome") -> None:
         """Initialize and start browser instance"""
-        self.logger.info(f"Starting {browser_type} browser with headless={self.config.HEADLESS_MODE}")
+        from constants import BrowserConstants
+        
+        self.logger.info(f"Starting {browser_type} browser with headless={BrowserConstants.HEADLESS_MODE}")
         self.logger.debug(f"Browser config: {vars(self.config)}")
         try:
             playwright = await async_playwright().start()
@@ -30,7 +32,7 @@ class BrowserManager:
             
             if browser_type == "chrome":
                 self.browser = await playwright.chromium.launch(
-                    headless=self.config.HEADLESS_MODE,
+                    headless=BrowserConstants.HEADLESS_MODE,
                     args=[
                         '--disable-dev-shm-usage',
                         '--no-sandbox',
