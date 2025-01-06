@@ -43,21 +43,9 @@ class BrowserManager:
 
         try:
             self.logger.info("Initializing playwright...")
-            try:
-                playwright = await async_playwright().start()
-                self.logger.info("Playwright started successfully")
-            except Exception as e:
-                self.logger.error(f"Failed to start playwright: {e}", exc_info=True)
-                # Try to get more diagnostic information
-                self.logger.info("Checking playwright installation...")
-                try:
-                    import subprocess
-                    result = subprocess.run(["playwright", "install", "--help"], capture_output=True, text=True)
-                    self.logger.info(f"Playwright installation status: {result.stdout}")
-                except Exception as diag_e:
-                    self.logger.error(f"Failed to check playwright installation: {diag_e}")
-                raise
-            
+            playwright = await async_playwright().start()
+            self.logger.info("Playwright started successfully")
+
             # Create user data directory for persistence
             user_data_dir = os.path.join(os.path.expanduser('~'), '.browser_automation')
             os.makedirs(user_data_dir, exist_ok=True)
@@ -74,6 +62,7 @@ class BrowserManager:
                     except Exception as e:
                         self.logger.warning(f"Could not verify chromium installation: {e}")
 
+                    # Launch browser without user_data_dir
                     self.browser = await playwright.chromium.launch(
                         headless=BrowserConstants.HEADLESS_MODE,
                         args=[
@@ -85,26 +74,17 @@ class BrowserManager:
                             '--disable-background-timer-throttling',
                             '--disable-backgrounding-occluded-windows',
                             '--disable-renderer-backgrounding'
-                        ],
-                        user_data_dir=user_data_dir
+                        ]
                     )
                     self.logger.info("Browser launched successfully")
-                except Exception as e:
-                    self.logger.error(f"Failed to launch browser: {e}", exc_info=True)
-                    raise
-                
-                # Create persistent context with explicit error handling
-                try:
-                    self.logger.info("Creating browser context...")
+
+                    # Create persistent context with user_data_dir
                     self.context = await self.browser.new_context(
                         viewport={'width': 1280, 'height': 720},
-                        permissions=['geolocation'],
-                        storage_state=os.path.join(user_data_dir, 'storage_state.json')
+                        user_data_dir=user_data_dir,
+                        permissions=['geolocation']
                     )
                     self.logger.info("Browser context created")
-                except Exception as e:
-                    self.logger.error(f"Failed to create browser context: {e}", exc_info=True)
-                    raise
                     
                 # Create new page with explicit error handling    
                 try:
