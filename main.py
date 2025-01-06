@@ -100,6 +100,7 @@ output_var = None  # Will store output device selection
 emily_endpoint_var = None  # Will store Emily endpoint
 daemon_endpoint_var = None  # Will store Daemon endpoint
 ui_elements_created = False  # Track UI element creation
+browser_button = None  # Will store browser control button
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -1555,7 +1556,7 @@ async def auto_record_loop():
 
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
-    global ui_elements_created, editor_play_pause_btn, editor_active
+    global ui_elements_created, editor_play_pause_btn, editor_active, browser_button
     
     # Check if UI elements have already been created
     if ui_elements_created:
@@ -1969,7 +1970,7 @@ output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_com
 
 def on_closing():
     """Handle application shutdown with force quit fallback."""
-    global running, vu_meter, auto_recording, auto_recording_task, editor_active, current_video_window, second_video_window
+    global running, vu_meter, auto_recording, auto_recording_task, editor_active, current_video_window, second_video_window, browser_button
     
     logging.info("Starting application shutdown...")
     
@@ -2006,6 +2007,10 @@ def on_closing():
                 second_video_window.cleanup()
             except Exception as e:
                 logging.error(f"Error cleaning up second video window: {e}")
+
+        # Stop browser automation if running
+        if hasattr(toggle_browser, 'browser_manager'):
+            asyncio.run(toggle_browser.browser_manager.stop_browser_automation())
 
         # Stop pygame mixer
         try:
