@@ -1390,6 +1390,27 @@ async def editor_loop():
         logging.info("Editor loop stopped")
         update_status("Editor loop stopped")
 
+def toggle_browser():
+    """Toggle browser automation"""
+    if not hasattr(toggle_browser, 'browser_manager'):
+        # Initialize browser manager on first use
+        toggle_browser.browser_manager = BrowserManager(config)
+        
+    if toggle_browser.browser_manager.toggle_browser():
+        browser_button.configure(text="⏸️ Browser")
+        # Start browser loop in a new thread to handle asyncio
+        browser_thread = threading.Thread(
+            target=lambda: asyncio.run(toggle_browser.browser_manager.start_browser_automation()),
+            daemon=True
+        )
+        browser_thread.start()
+        update_status("▶️ Browser automation started")
+    else:
+        browser_button.configure(text="▶️ Browser")
+        # Stop browser automation
+        asyncio.run(toggle_browser.browser_manager.stop_browser_automation())
+        update_status("⏸️ Browser automation stopped")
+
 def toggle_editor():
     """Toggle the editor loop on/off"""
     global editor_active
@@ -1595,6 +1616,23 @@ def create_device_selectors():
         padx=10,
         pady=5)
     editor_play_pause_btn.pack(side='left')
+
+    # Browser controls
+    browser_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
+    browser_frame.pack(side='left', padx=5)
+
+    global browser_button
+    browser_button = tk.Button(browser_frame, text="▶️ Browser",
+        command=toggle_browser,
+        bg=ThemeColors.ACCENT_SECONDARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
+    browser_button.pack(side='left')
 
     # Auto recording controls
     auto_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
