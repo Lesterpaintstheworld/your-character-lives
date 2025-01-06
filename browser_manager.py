@@ -13,6 +13,8 @@ class BrowserManager:
         self.page: Optional[Page] = None
         self.logger = logging.getLogger(__name__)
         self.endpoint = "https://nlr.app.n8n.cloud/webhook/kinos-kinkong"
+        self.is_running = False
+        self.browser_loop_task = None
         
     async def start_browser(self, browser_type: str = "chrome") -> None:
         """Initialize and start browser instance"""
@@ -94,6 +96,48 @@ class BrowserManager:
         except Exception as e:
             self.logger.error(f"Page processing failed: {e}")
             return None
+
+    def toggle_browser(self) -> bool:
+        """Toggle browser automation on/off"""
+        self.is_running = not self.is_running
+        self.logger.info(f"Browser automation {'started' if self.is_running else 'stopped'}")
+        return self.is_running
+
+    async def browser_loop(self):
+        """Main browser automation loop"""
+        try:
+            await self.start_browser()
+            while self.is_running:
+                try:
+                    # Process current page
+                    result = await self.process_page()
+                    if result:
+                        self.logger.info("Page processed successfully")
+                    
+                    # Wait before next iteration
+                    await asyncio.sleep(self.config.BROWSER_INTERVAL)
+                    
+                except Exception as e:
+                    self.logger.error(f"Error in browser loop: {e}")
+                    await asyncio.sleep(self.config.RETRY_DELAY)
+                    
+        except Exception as e:
+            self.logger.error(f"Browser loop failed: {e}")
+        finally:
+            await self.cleanup()
+
+    async def start_browser_automation(self):
+        """Start browser automation loop"""
+        if not self.browser_loop_task:
+            self.is_running = True
+            self.browser_loop_task = asyncio.create_task(self.browser_loop())
+            
+    async def stop_browser_automation(self):
+        """Stop browser automation loop"""
+        self.is_running = False
+        if self.browser_loop_task:
+            await self.browser_loop_task
+            self.browser_loop_task = None
 
     async def cleanup(self) -> None:
         """Clean up browser resources"""

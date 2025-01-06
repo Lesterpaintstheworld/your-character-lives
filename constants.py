@@ -7,6 +7,7 @@ class BrowserConstants:
     HEADLESS_MODE = False
     MAX_RETRIES = 3
     RETRY_DELAY = 1.0
+    BROWSER_INTERVAL = 30  # Seconds between page processing
     
     # Endpoints
     KINKONG_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/kinos-kinkong"
