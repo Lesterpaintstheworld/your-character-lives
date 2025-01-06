@@ -23,9 +23,40 @@ class BrowserManager:
         
         self.logger.info(f"Starting {browser_type} browser with headless={BrowserConstants.HEADLESS_MODE}")
         self.logger.debug(f"Browser config: {vars(self.config)}")
+        
+        # First verify playwright is installed
+        try:
+            from playwright.async_api import async_playwright
+            self.logger.info("Playwright module imported successfully")
+        except ImportError as e:
+            self.logger.error(f"Failed to import playwright: {e}")
+            self.logger.info("Attempting to install playwright...")
+            try:
+                import subprocess
+                subprocess.run(["pip", "install", "playwright"], check=True)
+                subprocess.run(["playwright", "install"], check=True)
+                from playwright.async_api import async_playwright
+                self.logger.info("Playwright installed successfully")
+            except Exception as e:
+                self.logger.error(f"Failed to install playwright: {e}")
+                raise
+
         try:
             self.logger.info("Initializing playwright...")
-            playwright = await async_playwright().start()
+            try:
+                playwright = await async_playwright().start()
+                self.logger.info("Playwright started successfully")
+            except Exception as e:
+                self.logger.error(f"Failed to start playwright: {e}", exc_info=True)
+                # Try to get more diagnostic information
+                self.logger.info("Checking playwright installation...")
+                try:
+                    import subprocess
+                    result = subprocess.run(["playwright", "install", "--help"], capture_output=True, text=True)
+                    self.logger.info(f"Playwright installation status: {result.stdout}")
+                except Exception as diag_e:
+                    self.logger.error(f"Failed to check playwright installation: {diag_e}")
+                raise
             
             # Create user data directory for persistence
             user_data_dir = os.path.join(os.path.expanduser('~'), '.browser_automation')
@@ -35,6 +66,14 @@ class BrowserManager:
             if browser_type == "chrome":
                 self.logger.info("Launching chromium browser...")
                 try:
+                    # First check if chromium is installed
+                    try:
+                        import subprocess
+                        result = subprocess.run(["playwright", "install", "chromium"], capture_output=True, text=True)
+                        self.logger.info("Chromium installation verified")
+                    except Exception as e:
+                        self.logger.warning(f"Could not verify chromium installation: {e}")
+
                     self.browser = await playwright.chromium.launch(
                         headless=BrowserConstants.HEADLESS_MODE,
                         args=[
@@ -168,6 +207,23 @@ class BrowserManager:
         """Main browser automation loop"""
         self.logger.info("Starting browser automation loop")
         try:
+            # Verify playwright installation before starting
+            try:
+                import subprocess
+                self.logger.info("Checking playwright installation...")
+                result = subprocess.run(["playwright", "install", "chromium"], capture_output=True, text=True)
+                self.logger.info(f"Playwright installation check result: {result.stdout}")
+            except Exception as e:
+                self.logger.error(f"Failed to verify playwright installation: {e}")
+                self.logger.info("Attempting to install playwright...")
+                try:
+                    subprocess.run(["pip", "install", "playwright"], check=True)
+                    subprocess.run(["playwright", "install"], check=True)
+                    self.logger.info("Playwright installed successfully")
+                except Exception as install_e:
+                    self.logger.error(f"Failed to install playwright: {install_e}")
+                    raise
+
             self.logger.info("Initializing browser...")
             await self.start_browser()
             
