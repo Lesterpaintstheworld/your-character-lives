@@ -1583,7 +1583,7 @@ def create_device_selectors():
     # Send button
     def send_button_click():
         """Non-blocking send button handler"""
-        nonlocal current_speaker, current_recording_buffer
+        global current_speaker, current_recording_buffer
         logging.info("=== Send Button Clicked ===")
         
         # Verify we have data to send
@@ -1597,7 +1597,6 @@ def create_device_selectors():
         logging.info(f"Current buffer size: {len(current_recording_buffer)} chunks")
         
         async def send_task():
-            nonlocal current_speaker
             try:
                 # Take screenshot
                 logging.info("Taking screenshot...")
