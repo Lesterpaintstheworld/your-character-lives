@@ -899,6 +899,8 @@ def record_audio(duration: int) -> bytes:
             try:
                 data = stream.read(CHUNK, exception_on_overflow=False)
                 frames.append(data)
+                if current_recording_buffer is None:
+                    current_recording_buffer = []
                 current_recording_buffer.append(data)
                 bytes_recorded += len(data)
                 
@@ -1092,31 +1094,24 @@ async def send_current():
     global current_recording_buffer, current_speaker, recording_enabled
     
     try:
-        if not recording_enabled:
-            # If recording is disabled, create 5s of silence
-            logging.info("Recording disabled - creating 5s silence")
-            silent_audio = np.zeros(int(44100 * 5), dtype=np.int16).tobytes()
-            current_recording_buffer = [silent_audio]
-            
-        logging.info(f"Send requested - buffer size: {len(current_recording_buffer)} chunks")
-        
         if not current_recording_buffer:
-            # If no buffer, record 5 seconds
             logging.info("No audio in buffer - recording 5 seconds")
             audio_data = record_audio(5)  # Record 5 seconds
             if audio_data is None:
                 update_status("❌ Failed to record audio")
                 return
             current_recording_buffer = [audio_data]
+        else:
+            logging.info(f"Using existing buffer with {len(current_recording_buffer)} chunks")
             
         update_status("📤 Sending request...")
         
-        # Convert buffer to WAV
+        # Convert buffer to WAV with consistent format
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, 'wb') as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(44100)
+            wf.setnchannels(1)  # Mono
+            wf.setsampwidth(2)  # 16-bit
+            wf.setframerate(16000)  # 16kHz for 256 kbits/sec
             # Handle both single chunk and multiple chunks
             if len(current_recording_buffer) == 1 and isinstance(current_recording_buffer[0], bytes):
                 wf.writeframes(current_recording_buffer[0])
