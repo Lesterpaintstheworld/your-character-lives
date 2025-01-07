@@ -4,6 +4,12 @@ import argparse
 import sys
 import os
 
+# Global variables
+current_recording_buffer = []
+current_speaker = "emily"
+is_playing = True
+is_recording = False
+
 def get_or_create_eventloop():
     """Get the current event loop or create a new one for the thread"""
     try:
@@ -1583,14 +1589,16 @@ def create_device_selectors():
     # Send button
     def send_button_click():
         """Non-blocking send button handler"""
+        global current_recording_buffer  # Declare global at function level
+    
         logging.info("=== Send Button Clicked ===")
-        
+    
         # Verify we have data to send
         if not current_recording_buffer:
             logging.warning("No audio data in buffer")
             update_status("❌ No audio recorded")
             return
-            
+        
         # Disable send button temporarily to prevent double-clicks
         send_btn.config(state='disabled')
         logging.info(f"Current buffer size: {len(current_recording_buffer)} chunks")
@@ -2319,6 +2327,13 @@ def init_screenshot():
         return False
 
 if __name__ == "__main__":
+    # Initialize global variables
+    global current_recording_buffer, current_speaker, is_playing, is_recording
+    current_recording_buffer = []
+    current_speaker = "emily"
+    is_playing = True
+    is_recording = False
+    
     # Initialize logging first
     setup_logging()
     configure_logging()
