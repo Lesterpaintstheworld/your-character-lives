@@ -866,7 +866,7 @@ def record_audio(duration):
             channels=CHANNELS,
             rate=RATE,
             input=True,
-            input_device_index=device_index,
+            input_device_index=input_device,
             frames_per_buffer=CHUNK,
             start=False
         )
