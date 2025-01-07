@@ -1585,7 +1585,7 @@ async def start_smart_recording():
 
 
 def create_status_indicators():
-    """Create status indicators for smart mode"""
+    """Create status indicators"""
     status_frame = ttk.Frame(main_frame, style='Modern.TFrame')
     status_frame.pack(fill='x', pady=5)
     
@@ -2002,27 +2002,17 @@ output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_com
 
 
 def on_closing():
-    """Handle application shutdown with force quit fallback."""
-    global running, vu_meter, auto_recording, auto_recording_task, editor_active, current_video_window, second_video_window, browser_button, smart_mode, is_recording
+    """Handle application shutdown"""
+    global running, vu_meter, is_recording, current_video_window, second_video_window
     
     logging.info("Starting application shutdown...")
     
     try:
-        # Stop all ongoing processes
+        # Stop all processes
         running = False
-        auto_recording = False
-        editor_active = False
         is_playing = False
-        smart_mode = False
         is_recording = False
         
-        # Cancel auto recording task
-        if auto_recording_task:
-            try:
-                auto_recording_task.cancel()
-            except Exception as e:
-                logging.error(f"Error canceling auto recording task: {e}")
-
         # Reset VU meter
         if vu_meter:
             try:
@@ -2042,10 +2032,6 @@ def on_closing():
                 second_video_window.cleanup()
             except Exception as e:
                 logging.error(f"Error cleaning up second video window: {e}")
-
-        # Stop browser automation if running
-        if hasattr(toggle_browser, 'browser_manager'):
-            asyncio.run(toggle_browser.browser_manager.stop_browser_automation())
 
         # Stop pygame mixer
         try:
