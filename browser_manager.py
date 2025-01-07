@@ -10,6 +10,7 @@ import aiohttp
 import requests
 import json
 from constants import BrowserConstants
+import os.path
 
 class BrowserManager:
     def __init__(self, config):
@@ -192,7 +193,7 @@ class BrowserManager:
             # Get current page info if we're on a page
             current_data = {}
             webpage_content = ""  # Initialize webpage content
-            
+        
             if self.page and self.page.url != "about:blank":
                 # Get basic page info
                 current_data = {
@@ -200,7 +201,7 @@ class BrowserManager:
                     "title": await self.page.title(),
                     "content": await self.page.content()
                 }
-                
+            
                 # Extract readable text content from the page
                 webpage_content = await self.page.evaluate("""() => {
                     // Helper function to get visible text
@@ -208,13 +209,13 @@ class BrowserManager:
                         if (node.nodeType === Node.TEXT_NODE) {
                             return node.textContent.trim();
                         }
-                        
+                    
                         // Skip hidden elements
                         const style = window.getComputedStyle(node);
                         if (style && (style.display === 'none' || style.visibility === 'hidden')) {
                             return '';
                         }
-                        
+                    
                         // Recursively get text from child nodes
                         let text = '';
                         for (let child of node.childNodes) {
@@ -226,25 +227,108 @@ class BrowserManager:
                         }
                         return text.trim();
                     }
-                    
+                
                     // Get main content, prioritizing article/main content areas
                     const mainContent = document.querySelector('article, [role="main"], main, .main-content');
                     if (mainContent) {
                         return getVisibleText(mainContent);
                     }
-                    
+                
                     // Fallback to body if no main content area found
                     return getVisibleText(document.body);
                 }""")
-                
+            
                 # Format webpage content for context
                 if webpage_content:
                     webpage_content = f"\n=== Current Webpage Content ===\nURL: {self.page.url}\nTitle: {await self.page.title()}\n\n{webpage_content}\n=== End Webpage Content ===\n"
-                
+            
                 # Take screenshot as binary
                 screenshot_bytes = await self.take_screenshot()
                 if screenshot_bytes:
                     current_data["screenshot"] = screenshot_bytes
+
+            # Collect text content from files if endpoint is Kinkong
+            folder_content = ""
+            if self.endpoint == BrowserConstants.KINKONG_ENDPOINT:
+                try:
+                    # Get execution directory
+                    base_dir = os.getcwd()
+                
+                    # Define exclusion patterns
+                    excluded_dirs = {
+                        'node_modules', 'dist', 'build', '__pycache__', 
+                        'venv', '.git', '.github', '.idea', '.vscode',
+                        '.aider', 'temp', 'tmp', '_MEI*'
+                    }
+
+                    excluded_file_prefixes = {'.', '_', 'flycheck_'}
+
+                    excluded_file_extensions = {
+                        '.pyc', '.pyo', '.pyd', '.so', '.dll', '.dylib',
+                        '.exe', '.bin', '.pkl', '.log', '.cache'
+                    }
+
+                    folder_content = f"\n=== Document Scan - {time.strftime('%Y-%m-%d %H:%M:%S')} ===\n"
+                    total_files = 0
+                
+                    # Walk through directory tree
+                    for root, dirs, files in os.walk(base_dir):
+                        # Remove excluded directories in-place
+                        dirs[:] = [d for d in dirs if not any(
+                            pattern.endswith('*') and d.startswith(pattern[:-1]) or d == pattern 
+                            for pattern in excluded_dirs
+                        )]
+                    
+                        # Skip if current directory starts with excluded prefix
+                        current_dir = os.path.basename(root)
+                        if any(current_dir.startswith(prefix) for prefix in excluded_file_prefixes):
+                            continue
+
+                        for file in files:
+                            # Skip files with excluded prefixes or extensions
+                            if (any(file.startswith(prefix) for prefix in excluded_file_prefixes) or
+                                any(file.endswith(ext) for ext in excluded_file_extensions)):
+                                continue
+
+                            # Only include relevant text and code files
+                            if file.lower().endswith(('.md', '.txt', '.py', '.js', '.java', '.cpp', '.c', '.h', 
+                                                    '.cs', '.php', '.rb', '.go', '.rs', '.swift', '.kt', '.ts',
+                                                    '.html', '.css', '.sql', '.r', '.m', '.scala', '.pl', '.sh',
+                                                    '.bat', '.json', '.yaml', '.yml', '.toml', '.ini')):
+                                full_path = os.path.join(root, file)
+                                try:
+                                    rel_path = os.path.relpath(full_path, base_dir)
+                                
+                                    # Try different encodings
+                                    encodings = ['utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+                                    file_content = None
+                                
+                                    for encoding in encodings:
+                                        try:
+                                            with open(full_path, 'r', encoding=encoding) as f:
+                                                file_content = f.read()
+                                            break
+                                        except UnicodeDecodeError:
+                                            continue
+                                
+                                    if file_content is not None:
+                                        folder_content += "\n" + "="*50
+                                        folder_content += f"\nFILE: {rel_path}"
+                                        folder_content += "\n" + "="*50 + "\n"
+                                        folder_content += file_content
+                                        total_files += 1
+                                    
+                                except Exception as e:
+                                    self.logger.error(f"Error processing file {full_path}: {str(e)}")
+                                    continue
+
+                    folder_content += "\n" + "="*50
+                    folder_content += f"\nEnd of document scan - {total_files} files processed"
+                    folder_content += "\n" + "="*50
+                
+                except Exception as e:
+                    self.logger.error(f"Error collecting folder content: {str(e)}")
+                    folder_content = f"Error collecting folder content: {str(e)}"
             
             # Get instructions from endpoint
             self.logger.info("Getting navigation instructions from endpoint")
@@ -254,11 +338,15 @@ class BrowserManager:
                 'screenshot': ('screenshot.jpg', current_data.pop('screenshot', None), 'image/jpeg')
             }
             
-            # Add webpage content to text data if available
-            if 'text' in current_data:
-                current_data['text'] += webpage_content
-            else:
-                current_data['text'] = webpage_content
+            # Combine webpage content and folder content
+            combined_text = ""
+            if webpage_content:
+                combined_text += webpage_content
+            if folder_content:
+                combined_text += "\n\n" + folder_content
+                
+            # Add combined content to form data
+            current_data['text'] = combined_text
                 
             response = requests.post(
                 self.endpoint,
