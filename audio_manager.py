@@ -207,64 +207,76 @@ class AudioManager:
                 device_info = self.p.get_device_info_by_index(device_index)
                 logging.info(f"Using device: {device_info['name']}")
                 
-                # Use larger buffer size and higher quality settings
-                BUFFER_SIZE = 4096  # Increased from 1024 for more stability
-                SAMPLE_RATE = 44100  # CD quality
-                FORMAT = pyaudio.paFloat32  # Higher precision format
+                # Use standard audio settings
+                BUFFER_SIZE = 2048  # Standard buffer size
+                SAMPLE_RATE = 16000  # Standard sample rate for speech
+                FORMAT = pyaudio.paInt16  # 16-bit PCM
                 
-                with self.open_streams() as stream:
-                    if not stream.is_active():
-                        logging.error("Stream not active after opening")
-                        raise RuntimeError("Audio stream not active")
+                stream = self.p.open(
+                    format=FORMAT,
+                    channels=1,
+                    rate=SAMPLE_RATE,
+                    input=True,
+                    input_device_index=device_index,
+                    frames_per_buffer=BUFFER_SIZE
+                )
+                
+                if not stream.is_active():
+                    logging.error("Stream not active after opening")
+                    raise RuntimeError("Audio stream not active")
+                
+                logging.info("Stream opened successfully")
+                
+                # Calculate chunks based on duration
+                chunks = int(SAMPLE_RATE / BUFFER_SIZE * duration)
+                logging.info(f"Will record {chunks} chunks")
+                
+                is_recording = True
+                start_time = time.time()
+                
+                for i in range(chunks):
+                    if not self.is_playing or not self.is_recording:
+                        logging.info("Recording interrupted")
+                        break
                     
-                    logging.info("Stream opened successfully")
-                    
-                    # Calculate chunks based on new buffer size
-                    chunks = int(SAMPLE_RATE / BUFFER_SIZE * duration)
-                    logging.info(f"Will record {chunks} chunks")
-                    
-                    is_recording = True
-                    start_time = time.time()
-                    
-                    for i in range(chunks):
-                        if not self.is_playing or not self.is_recording:
-                            logging.info("Recording interrupted")
-                            break
+                    try:
+                        data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
+                        frames.append(data)
                         
-                        try:
-                            # Read with larger buffer and no overflow exceptions
-                            data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
-                            
-                            # Verify data is not empty
-                            if not data:
-                                logging.warning(f"Empty data received for chunk {i}")
-                                continue
-                            
-                            frames.append(data)
-                            
-                            # Calculate and update VU meter if callback is set
-                            if hasattr(self, 'level_callback'):
-                                level = self._calculate_audio_level(data)
-                                self.level_callback(level)
-                            
-                            # Update progress every second
-                            if i % (SAMPLE_RATE // BUFFER_SIZE) == 0:
-                                elapsed = time.time() - start_time
-                                self._update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
-                        except Exception as e:
-                            logging.error(f"Error reading audio chunk: {e}")
-                            continue
-                            
-                    # Create WAV buffer with improved settings
-                    wav_buffer = io.BytesIO()
-                    with wave.open(wav_buffer, 'wb') as wf:
-                        wf.setnchannels(1)        # Mono
-                        wf.setsampwidth(4)        # 32-bit float
-                        wf.setframerate(SAMPLE_RATE)
-                        wf.writeframes(b''.join(frames))
+                        # Calculate and update VU meter if callback is set
+                        if hasattr(self, 'level_callback'):
+                            level = self._calculate_audio_level(data)
+                            self.level_callback(level)
                         
-                logging.info("Successfully created WAV buffer")
+                        # Update progress every second
+                        if i % (SAMPLE_RATE // BUFFER_SIZE) == 0:
+                            elapsed = time.time() - start_time
+                            self._update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
+                            
+                    except Exception as e:
+                        logging.warning(f"Stream read error: {e}")
+                        continue
+                
+                stream.stop_stream()
+                stream.close()
+                
+                # Create WAV buffer with correct settings
+                wav_buffer = io.BytesIO()
+                with wave.open(wav_buffer, 'wb') as wf:
+                    wf.setnchannels(1)        # Mono
+                    wf.setsampwidth(2)        # 16-bit
+                    wf.setframerate(SAMPLE_RATE)
+                    wf.writeframes(b''.join(frames))
+                
+                logging.info(f"Recording completed - {len(frames)} chunks recorded")
                 return wav_buffer.getvalue()
+                
+            except Exception as e:
+                retry_count += 1
+                logging.error(f"Recording attempt {retry_count} failed: {e}")
+                if retry_count >= max_retries:
+                    raise RuntimeError(f"Failed to record audio after {max_retries} attempts")
+                time.sleep(retry_delay)
                 
             except Exception as e:
                 retry_count += 1
