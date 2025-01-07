@@ -798,17 +798,20 @@ def record_audio(duration):
             frames_per_buffer=4096 # Larger buffer for stability
         )
         
-        # Verify stream is active
-        if not stream.is_active():
-            logging.error("Stream not active after opening")
-            raise RuntimeError("Audio stream not active")
-        logging.info("Stream is active and ready for recording")
+        # Log first chunk to check format
+        if i == 0:
+            logging.info(f"First chunk size: {len(data)} bytes")
+            audio_array = np.frombuffer(data, dtype=np.int16)
+            logging.info(f"Audio array shape: {audio_array.shape}")
+            logging.info(f"Audio range: [{np.min(audio_array)}, {np.max(audio_array)}]")
             
-        chunks = int(44100 / 4096 * duration)  # Adjust chunks for new rate/buffer
-        logging.info(f"Will record {chunks} chunks")
+        # Update VU meter
+        level = calculate_audio_level(data)
+        root.after(0, lambda l=level: vu_meter.set_level(l))
             
-        is_recording = True
-        start_time = time.time()
+        if i % (44100 // 4096) == 0:  # Adjust status update interval
+            elapsed = time.time() - start_time
+            update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
             
         # Verify stream is active
         if not stream.is_active():
@@ -854,6 +857,16 @@ def record_audio(duration):
         if not frames:
             logging.error("No audio data was recorded")
             raise RuntimeError("No audio data recorded")
+            
+        # Create WAV buffer with proper settings
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wf:
+            wf.setnchannels(1)        # Mono
+            wf.setsampwidth(2)        # 16-bit
+            wf.setframerate(44100)    # CD quality
+            wf.writeframes(b''.join(frames))
+            
+        return wav_buffer.getvalue()
             
         # Create WAV buffer with proper settings
         wav_buffer = io.BytesIO()
