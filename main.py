@@ -1089,7 +1089,7 @@ async def send_current():
             update_status("❌ No audio recorded yet")
             return
             
-        update_status("📤 Sending current recording...")
+        update_status("📤 Sending request...")
         
         # Convert buffer to WAV
         wav_buffer = io.BytesIO()
