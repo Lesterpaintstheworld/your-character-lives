@@ -6,7 +6,7 @@ class BrowserConstants:
     DEFAULT_BROWSER = "chrome"
     HEADLESS_MODE = False  # Set to False to see the browser window
     MAX_RETRIES = 3
-    RETRY_DELAY = 1.0
+    RETRY_DELAY = 5.0  # Increased to 5 seconds
     BROWSER_INTERVAL = 30  # Seconds between page processing
     
     # Endpoints

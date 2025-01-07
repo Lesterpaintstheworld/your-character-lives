@@ -234,13 +234,13 @@ class BrowserManager:
                     else:
                         self.logger.warning("Page processing returned no result")
                     
-                    self.logger.debug(f"Waiting {self.config.BROWSER_INTERVAL} seconds before next iteration")
-                    await asyncio.sleep(self.config.BROWSER_INTERVAL)
+                    self.logger.debug(f"Waiting {BrowserConstants.BROWSER_INTERVAL} seconds before next iteration")
+                    await asyncio.sleep(BrowserConstants.BROWSER_INTERVAL)
                     
                 except Exception as e:
                     self.logger.error(f"Error in browser loop iteration: {e}", exc_info=True)
-                    self.logger.info(f"Retrying in {self.config.RETRY_DELAY} seconds")
-                    await asyncio.sleep(self.config.RETRY_DELAY)
+                    self.logger.info(f"Retrying in {BrowserConstants.RETRY_DELAY} seconds")
+                    await asyncio.sleep(BrowserConstants.RETRY_DELAY)
                     
         except Exception as e:
             self.logger.error(f"Browser loop failed: {e}", exc_info=True)
