@@ -4,6 +4,9 @@ import argparse
 import sys
 import os
 from threading import Thread
+from audio_buffer import AudioBufferManager
+from voice_activity import VoiceActivityDetector
+from screenshot_manager import ScreenshotManager
 from repo_visualizer import start_visualization
 import time
 import io
@@ -1475,12 +1478,72 @@ def toggle_smart_mode():
         is_recording = False
         update_status("🧠 Smart mode deactivated")
 
-async def start_smart_recording():
-    """Handle continuous recording in smart mode"""
-    global audio_buffer, last_audio_time, current_speaker
+async def process_buffer(buffer_manager: AudioBufferManager, screenshot: bytes):
+    """Process recorded audio buffer"""
+    global current_speaker
     
     try:
-        # Initialize audio input
+        # Convert buffer to WAV
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(RATE)
+            wf.writeframes(buffer_manager.get_data())
+        
+        # Prepare request
+        endpoint = emily_endpoint_var.get() if current_speaker == "emily" else daemon_endpoint_var.get()
+        
+        files = {
+            'audio': ('audio.wav', wav_buffer.getvalue(), 'audio/wav'),
+            'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
+        }
+        
+        # Send request with timeout and retry
+        for attempt in range(3):
+            try:
+                async with aiohttp.ClientSession() as session:
+                    async with session.post(endpoint, data=files, timeout=30) as response:
+                        if response.status == 200:
+                            response_data = await response.read()
+                            # Play response with interrupt support
+                            await process_audio_chunk(response_data, is_daemon=(current_speaker=="daemon"))
+                            # Switch speakers
+                            current_speaker = "daemon" if current_speaker == "emily" else "emily"
+                            update_speaker_indicator()
+                            break
+            except Exception as e:
+                if attempt == 2:
+                    raise
+                await asyncio.sleep(1)
+                
+    except Exception as e:
+        logging.error(f"Buffer processing error: {e}")
+        update_status(f"❌ Processing error: {str(e)}")
+
+def cleanup_recording(stream: pyaudio.Stream, p: pyaudio.PyAudio):
+    """Clean up recording resources"""
+    if stream:
+        try:
+            stream.stop_stream()
+            stream.close()
+        except:
+            pass
+    if p:
+        try:
+            p.terminate()
+        except:
+            pass
+
+async def start_smart_recording():
+    """Handle continuous recording in smart mode with improved management"""
+    global current_speaker
+    
+    buffer_manager = AudioBufferManager()
+    vad = VoiceActivityDetector()
+    screenshot_manager = ScreenshotManager()
+    
+    try:
         p = pyaudio.PyAudio()
         input_device = get_input_device()
         
@@ -1494,85 +1557,53 @@ async def start_smart_recording():
             start=True
         )
         
-        screenshot_timer = time.time()
-        silence_start = None
+        last_screenshot_time = time.time()
+        current_screenshot = None
+        update_recording_status("Recording")
         
         while smart_mode and is_playing:
-            # Take screenshot every SMART_SCREENSHOT_INTERVAL
-            if time.time() - screenshot_timer >= AudioConstants.SMART_SCREENSHOT_INTERVAL:
-                screenshot_timer = time.time()
-                screenshot = take_screenshot()
-                
-            # Read audio chunk
             try:
-                data = stream.read(AudioConstants.SMART_BUFFER_SIZE, exception_on_overflow=False)
-                audio_buffer.append(data)
+                # Handle screenshot timing
+                current_time = time.time()
+                if current_time - last_screenshot_time >= AudioConstants.SMART_SCREENSHOT_INTERVAL:
+                    current_screenshot = await screenshot_manager.capture()
+                    last_screenshot_time = current_time
                 
-                # Calculate audio level
+                # Read and process audio
+                data = stream.read(AudioConstants.SMART_BUFFER_SIZE, exception_on_overflow=False)
+                if not buffer_manager.add(data):
+                    logging.warning("Buffer full - processing now")
+                    update_recording_status("Processing")
+                    await process_buffer(buffer_manager, current_screenshot)
+                    buffer_manager.clear()
+                    update_recording_status("Recording")
+                
+                # Calculate and display audio level
                 level = calculate_audio_level(data)
                 root.after(0, lambda l=level: vu_meter.set_level(l))
                 
-                # Check for silence
-                if level < AudioConstants.SILENCE_THRESHOLD:
-                    if silence_start is None:
-                        silence_start = time.time()
-                    elif time.time() - silence_start >= AudioConstants.MIN_SILENCE_DURATION:
-                        # Process recorded audio after silence
-                        if audio_buffer:
-                            # Convert buffer to wav
-                            wav_buffer = io.BytesIO()
-                            with wave.open(wav_buffer, 'wb') as wf:
-                                wf.setnchannels(1)
-                                wf.setsampwidth(2)
-                                wf.setframerate(RATE)
-                                wf.writeframes(b''.join(audio_buffer))
-                            
-                            # Clear buffer
-                            audio_buffer = []
-                            
-                            # Send to current speaker's endpoint
-                            endpoint = emily_endpoint_var.get() if current_speaker == "emily" else daemon_endpoint_var.get()
-                            
-                            # Prepare request data
-                            files = {
-                                'audio': ('audio.wav', wav_buffer.getvalue(), 'audio/wav'),
-                                'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
-                            }
-                            
-                            # Send request
-                            response = requests.post(
-                                endpoint,
-                                files=files,
-                                timeout=NetworkConstants.REQUEST_TIMEOUT
-                            )
-                            
-                            if response.status_code == 200:
-                                # Play response
-                                await process_audio_chunk(response.content, is_daemon=(current_speaker=="daemon"))
-                                
-                                # Switch speakers
-                                current_speaker = "daemon" if current_speaker == "emily" else "emily"
-                                
-                            silence_start = None
-                else:
-                    silence_start = None
-                    
+                # Check for silence/speech end
+                if vad.process(level):
+                    if buffer_manager.current_size > 0:
+                        update_recording_status("Processing")
+                        await process_buffer(buffer_manager, current_screenshot)
+                        buffer_manager.clear()
+                        update_recording_status("Recording")
+                    vad.reset()
+                
             except OSError as e:
-                logging.error(f"Error reading audio: {e}")
+                logging.error(f"Stream read error: {e}")
                 await asyncio.sleep(0.1)
                 continue
-                
-            await asyncio.sleep(0.001)  # Prevent CPU overload
+            
+            await asyncio.sleep(0.001)
             
     except Exception as e:
         logging.error(f"Smart recording error: {e}")
         update_status(f"❌ Smart recording error: {str(e)}")
     finally:
-        if stream:
-            stream.stop_stream()
-            stream.close()
-        if p:
-            p.terminate()
+        update_recording_status("Idle")
+        cleanup_recording(stream, p)
 
 def toggle_auto_recording():
     """Toggle automatic recording every X seconds"""
@@ -1697,6 +1728,43 @@ async def auto_record_loop():
     finally:
         logging.info("Auto recording loop stopped")
         update_status("⏹️ Automatic recording stopped")
+
+def create_status_indicators():
+    """Create status indicators for smart mode"""
+    status_frame = ttk.Frame(main_frame, style='Modern.TFrame')
+    status_frame.pack(fill='x', pady=5)
+    
+    # Speaker indicator
+    speaker_label = tk.Label(status_frame, text="Current Speaker:",
+        bg=ThemeColors.BG_DARK,
+        fg=ThemeColors.TEXT_PRIMARY)
+    speaker_label.pack(side='left')
+    
+    global speaker_indicator
+    speaker_indicator = tk.Label(status_frame, text="Emily",
+        bg=ThemeColors.ACCENT_PRIMARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        padx=5)
+    speaker_indicator.pack(side='left', padx=5)
+    
+    # Recording status
+    global recording_status
+    recording_status = tk.Label(status_frame, text="Idle",
+        bg=ThemeColors.BG_LIGHT,
+        fg=ThemeColors.TEXT_SECONDARY)
+    recording_status.pack(side='right')
+
+def update_speaker_indicator():
+    """Update the speaker indicator"""
+    speaker_indicator.config(
+        text="Emily" if current_speaker == "emily" else "Daemon",
+        bg=ThemeColors.ACCENT_PRIMARY if current_speaker == "emily" 
+           else ThemeColors.ACCENT_SECONDARY
+    )
+
+def update_recording_status(status: str):
+    """Update recording status indicator"""
+    recording_status.config(text=status)
 
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
