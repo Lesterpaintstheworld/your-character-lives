@@ -1150,9 +1150,9 @@ def calculate_audio_level(audio_data):
         # Convert to dB relative to full scale
         db = 20 * np.log10(rms / 32768.0)  # 32768 is max value for 16-bit audio
         
-        # Standard dB range
-        MIN_DB = -60  # Back to standard minimum
-        MAX_DB = 0    # Back to standard maximum
+        # Standard dB range but with lower sensitivity
+        MIN_DB = -40  # Less sensitive minimum
+        MAX_DB = -10  # Lower maximum
         
         # Simple linear normalization
         if db < MIN_DB:
