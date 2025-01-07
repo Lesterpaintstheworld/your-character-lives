@@ -80,6 +80,46 @@
 - Fallback device handling
 - Audio format conversion
 
+### Smart Recording Mode
+- Continuous audio monitoring
+  - Real-time audio level analysis
+  - Configurable silence detection threshold (default: -60dB)
+  - Minimum silence duration: 3 seconds
+  - Buffer management for continuous recording
+
+- Automatic Turn Detection
+  - Voice activity detection (VAD)
+  - Silence-based turn completion
+  - Interrupt handling during playback
+  - Turn alternation between Emily and Daemon
+
+- Performance Requirements
+  - Maximum latency: 100ms
+  - Memory usage: < 100MB for audio buffer
+  - CPU usage: < 10% during monitoring
+  - Disk I/O: Minimal (in-memory processing)
+
+- Configuration Parameters
+  - SILENCE_THRESHOLD: -60dB
+  - MIN_SILENCE_DURATION: 3 seconds
+  - SCREENSHOT_INTERVAL: 20 seconds
+  - BUFFER_SIZE: 1024 samples
+  - MAX_RECORDING_SIZE: 500MB
+
+- State Management
+  - RECORDING: Continuous audio capture
+  - PROCESSING: Sending request to API
+  - PLAYING: Response playback
+  - INTERRUPTED: Playback stopped by user
+  - PAUSED: System paused
+
+- UI Elements
+  - Play/Pause toggle button
+  - Current speaker indicator (Emily/Daemon)
+  - Audio level visualization
+  - Recording status indicator
+  - Mode selector (Manual/Auto/Smart)
+
 ### Video System
 - Format: MP4 (H.264)
 - Resolution: 320x240 minimum
