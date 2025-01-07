@@ -121,11 +121,21 @@ class BrowserManager:
             self.logger.error(f"Script execution failed: {e}")
             return None
 
-    async def take_screenshot(self) -> bytes:
-        """Capture screenshot of current page"""
+    async def take_screenshot(self, path: str = None) -> Optional[bytes]:
+        """Capture screenshot of current page
+        
+        Args:
+            path: Optional path to save screenshot file
+            
+        Returns:
+            Screenshot as bytes if no path provided, otherwise None
+        """
         try:
-            screenshot = await self.page.screenshot()
-            return screenshot
+            if path:
+                await self.page.screenshot(path=path)
+                return None
+            else:
+                return await self.page.screenshot()
         except Exception as e:
             self.logger.error(f"Screenshot failed: {e}")
             return None
@@ -141,9 +151,9 @@ class BrowserManager:
             return None
 
     async def process_page(self) -> Dict:
-        """Process current page and get next instructions"""
+        """Process current page and execute instruction sequences"""
         try:
-            # First get current page info if we're on a page
+            # Get current page info if we're on a page
             current_data = {}
             if self.page and self.page.url != "about:blank":
                 current_data = {
@@ -162,44 +172,72 @@ class BrowserManager:
             )
             
             if response.status_code == 200:
-                instructions = response.json()
+                data = response.json()
+                if 'instructions' not in data:
+                    self.logger.warning("No instructions in response")
+                    return None
+                    
+                instructions = data['instructions']
                 self.logger.info(f"Received instructions: {instructions}")
                 
-                # Process instructions
-                if "url" in instructions:
-                    # Navigate to the specified URL
-                    await self.navigate(instructions["url"])
-                    self.logger.info(f"Navigated to: {instructions['url']}")
+                results = {}
+                # Process each instruction in sequence
+                for instruction in instructions:
+                    action = instruction.get('action')
                     
-                    # Wait for any dynamic content
-                    await self.page.wait_for_load_state("networkidle")
-                    
-                    # Execute any scripts if specified
-                    if "script" in instructions:
-                        result = await self.execute_script(instructions["script"])
-                        self.logger.info(f"Script execution result: {result}")
-                    
-                    # Fill any forms if specified
-                    if "form_data" in instructions:
-                        for selector, value in instructions["form_data"].items():
-                            await self.page.fill(selector, value)
-                        self.logger.info("Form data filled")
+                    if action == 'navigate':
+                        url = instruction.get('url')
+                        await self.navigate(url)
+                        if 'wait_for' in instruction:
+                            await self.page.wait_for_selector(instruction['wait_for'])
+                            
+                    elif action == 'waitForSelector':
+                        selector = instruction.get('selector')
+                        timeout = instruction.get('timeout', 5000)
+                        await self.page.wait_for_selector(selector, timeout=timeout)
                         
-                    # Click any elements if specified
-                    if "click" in instructions:
-                        await self.page.click(instructions["click"])
-                        self.logger.info(f"Clicked element: {instructions['click']}")
-                    
-                    return {"status": "success", "url": instructions["url"]}
-                else:
-                    self.logger.warning("No URL in instructions")
-                    return None
+                    elif action == 'click':
+                        selector = instruction.get('selector')
+                        await self.page.click(selector)
+                        
+                    elif action == 'type':
+                        selector = instruction.get('selector')
+                        text = instruction.get('text')
+                        await self.page.fill(selector, text)
+                        
+                    elif action == 'press':
+                        key = instruction.get('key')
+                        await self.page.keyboard.press(key)
+                        
+                    elif action == 'extract':
+                        selector = instruction.get('selector')
+                        attribute = instruction.get('attribute')
+                        output_key = instruction.get('output')
+                        elements = await self.page.query_selector_all(selector)
+                        extracted = []
+                        for element in elements:
+                            if attribute == 'innerText':
+                                text = await element.inner_text()
+                                extracted.append(text)
+                        results[output_key] = extracted
+                        
+                    elif action == 'screenshot':
+                        path = instruction.get('path')
+                        await self.take_screenshot(path)
+                        
+                    elif action == 'close':
+                        await self.page.close()
+                        
+                    else:
+                        self.logger.warning(f"Unknown action: {action}")
+                        
+                return results
                     
             else:
                 error_text = response.text
                 self.logger.error(f"Endpoint returned status {response.status_code}: {error_text}")
                 return None
-            
+                
         except Exception as e:
             self.logger.error(f"Page processing failed: {e}", exc_info=True)
             return None
