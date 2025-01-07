@@ -1,17 +1,15 @@
 """Constants used throughout the application"""
 
 class AudioConstants:
-    CHUNK_SIZE = 2048  # Adjusted for target bitrate
-    FORMAT = 'int16'  # 16-bit samples
-    CHANNELS = 1  # Mono
-    SAMPLE_RATE = 44100  # CD quality
-    # Target bitrate: 705 kbits/s
-    # 44100 Hz * 16 bits = 705.6 kbits/s for mono
+    CHUNK_SIZE = 1024  # Smaller chunks
+    FORMAT = 'int16'
+    CHANNELS = 1       # Mono only
+    SAMPLE_RATE = 16000  # Lower sample rate
     BITS_PER_SAMPLE = 16
     SILENCE_THRESHOLD = -60
     MIN_SILENCE_DURATION = 3.0
     SMART_SCREENSHOT_INTERVAL = 20
-    SMART_BUFFER_SIZE = 2048  # Match chunk size
+    SMART_BUFFER_SIZE = 1024  # Match chunk size
     MAX_RECORDING_SIZE = 500 * 1024 * 1024
 
 class NetworkConstants:
