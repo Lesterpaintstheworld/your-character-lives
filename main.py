@@ -1526,7 +1526,7 @@ def update_recording_status(status: str):
 
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
-    global ui_elements_created, editor_play_pause_btn, editor_active, browser_button, current_recording_buffer, current_speaker
+    global ui_elements_created, editor_play_pause_btn, editor_active, browser_button
     # Initialize globals if not already set
     if 'current_recording_buffer' not in globals():
         current_recording_buffer = []
@@ -1583,7 +1583,6 @@ def create_device_selectors():
     # Send button
     def send_button_click():
         """Non-blocking send button handler"""
-        global current_speaker, current_recording_buffer
         logging.info("=== Send Button Clicked ===")
         
         # Verify we have data to send
@@ -1597,6 +1596,7 @@ def create_device_selectors():
         logging.info(f"Current buffer size: {len(current_recording_buffer)} chunks")
         
         async def send_task():
+            global current_speaker, current_recording_buffer
             try:
                 # Take screenshot
                 logging.info("Taking screenshot...")
