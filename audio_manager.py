@@ -190,9 +190,9 @@ class AudioManager:
                 self.recording_stream = None
 
     def record_audio(self, duration: int) -> bytes:
-        """Record audio with proper buffer management to prevent clicks"""
+        """Record audio at 705 kbits/s bitrate"""
         max_retries = 3
-        retry_delay = 1.0  # seconds
+        retry_delay = 1.0
         retry_count = 0
         
         logging.info("=== Starting Audio Recording ===")
@@ -205,9 +205,13 @@ class AudioManager:
                 device_info = self.p.get_device_info_by_index(device_index)
                 logging.info(f"Using device: {device_info['name']}")
                 
-                # Use larger buffer size and CD quality audio
-                BUFFER_SIZE = 4096  # Increased buffer size
-                SAMPLE_RATE = 44100  # CD quality
+                # Settings for 705 kbits/s:
+                # Sample rate: 44100 Hz
+                # Bit depth: 16 bits
+                # Channels: 1 (mono)
+                # 44100 * 16 = 705.6 kbits/s
+                BUFFER_SIZE = 2048  # Adjusted buffer size
+                SAMPLE_RATE = 44100
                 
                 stream = sd.InputStream(
                     device=device_index,
@@ -216,14 +220,13 @@ class AudioManager:
                     blocksize=BUFFER_SIZE,
                     dtype=np.int16,  # 16-bit PCM
                     latency='high',  # Use high latency for stability
-                    frames_per_buffer=BUFFER_SIZE
                 )
                 
                 if not stream.is_active():
                     logging.error("Stream not active after opening")
                     raise RuntimeError("Audio stream not active")
                 
-                logging.info("Stream opened successfully")
+                logging.info(f"Stream opened successfully - Target bitrate: 705 kbits/s")
                 
                 # Calculate chunks based on duration
                 chunks = int(SAMPLE_RATE / BUFFER_SIZE * duration)
@@ -234,6 +237,7 @@ class AudioManager:
                 
                 is_recording = True
                 start_time = time.time()
+                bytes_recorded = 0
                 
                 for i in range(chunks):
                     if not self.is_playing or not self.is_recording:
@@ -243,8 +247,16 @@ class AudioManager:
                     try:
                         data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
                         frames.append(data)
+                        bytes_recorded += len(data)
                         
-                        # Update VU meter less frequently to reduce overhead
+                        # Calculate current bitrate
+                        elapsed = time.time() - start_time
+                        if elapsed > 0:
+                            current_bitrate = (bytes_recorded * 8) / (elapsed * 1000)  # kbits/s
+                            if i % 10 == 0:  # Log every 10 chunks
+                                logging.info(f"Current bitrate: {current_bitrate:.1f} kbits/s")
+                        
+                        # Update VU meter every 4 chunks
                         if i % 4 == 0 and hasattr(self, 'level_callback'):
                             level = self._calculate_audio_level(data)
                             self.level_callback(level)
@@ -262,7 +274,7 @@ class AudioManager:
                 time.sleep(0.1)
                 
                 stream.stop_stream()
-                time.sleep(0.1)  # Another small delay
+                time.sleep(0.1)
                 stream.close()
                 
                 # Create WAV buffer with correct settings
@@ -273,7 +285,12 @@ class AudioManager:
                     wf.setframerate(SAMPLE_RATE)
                     wf.writeframes(b''.join(frames))
                 
-                logging.info(f"Recording completed - {len(frames)} chunks recorded")
+                # Calculate final bitrate
+                final_size = wav_buffer.tell()
+                total_time = time.time() - start_time
+                final_bitrate = (final_size * 8) / (total_time * 1000)
+                logging.info(f"Recording completed - Final bitrate: {final_bitrate:.1f} kbits/s")
+                
                 return wav_buffer.getvalue()
                 
             except Exception as e:

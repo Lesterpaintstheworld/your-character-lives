@@ -1,15 +1,18 @@
 """Constants used throughout the application"""
 
 class AudioConstants:
-    CHUNK_SIZE = 4096  # Increased buffer size for stability
-    FORMAT = 'int16'  # sounddevice uses dtype strings
-    CHANNELS = 1  # Mono recording
+    CHUNK_SIZE = 2048  # Adjusted for target bitrate
+    FORMAT = 'int16'  # 16-bit samples
+    CHANNELS = 1  # Mono
     SAMPLE_RATE = 44100  # CD quality
-    SILENCE_THRESHOLD = -60  # dB
-    MIN_SILENCE_DURATION = 3.0  # seconds
-    SMART_SCREENSHOT_INTERVAL = 20  # seconds
-    SMART_BUFFER_SIZE = 4096  # Match chunk size
-    MAX_RECORDING_SIZE = 500 * 1024 * 1024  # 500MB
+    # Target bitrate: 705 kbits/s
+    # 44100 Hz * 16 bits = 705.6 kbits/s for mono
+    BITS_PER_SAMPLE = 16
+    SILENCE_THRESHOLD = -60
+    MIN_SILENCE_DURATION = 3.0
+    SMART_SCREENSHOT_INTERVAL = 20
+    SMART_BUFFER_SIZE = 2048  # Match chunk size
+    MAX_RECORDING_SIZE = 500 * 1024 * 1024
 
 class NetworkConstants:
     REQUEST_TIMEOUT = 120
