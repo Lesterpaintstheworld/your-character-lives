@@ -1612,7 +1612,6 @@ def create_device_selectors():
                     update_status("✅ Response completed")
                 
                     # Switch speakers after successful response
-                    global current_speaker
                     current_speaker = "daemon" if current_speaker == "emily" else "emily"
                     update_speaker_indicator()
                 
