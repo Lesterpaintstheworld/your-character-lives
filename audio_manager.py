@@ -190,108 +190,148 @@ class AudioManager:
                 self.recording_stream = None
 
     def record_audio(self, duration: int) -> bytes:
-        """Record audio at 705 kbits/s bitrate"""
-        max_retries = 3
-        retry_delay = 1.0
-        retry_count = 0
-        
-        logging.info("=== Starting Audio Recording ===")
+        """Record audio with detailed diagnostics"""
+        logging.info("\n=== Starting Audio Recording with Diagnostics ===")
+        logging.info(f"Target bitrate: 705 kbits/s")
         logging.info(f"Requested duration: {duration} seconds")
+
+        p = None
+        stream = None
+        frames = []
         
-        while retry_count < max_retries:
-            try:
-                frames = []
-                device_index = self.get_input_device()
-                device_info = self.p.get_device_info_by_index(device_index)
-                logging.info(f"Using device: {device_info['name']}")
+        try:
+            # Get selected mic index with validation
+            selected = mic_var.get()
+            if not selected:
+                raise Exception("No microphone selected")
                 
-                # Settings for 705 kbits/s:
-                # Sample rate: 44100 Hz
-                # Bit depth: 16 bits
-                # Channels: 1 (mono)
-                # 44100 * 16 = 705.6 kbits/s
-                BUFFER_SIZE = 2048  # Adjusted buffer size
-                SAMPLE_RATE = 44100
+            match = re.search(r'Device (\d+)', selected)
+            if not match:
+                raise Exception("Invalid microphone selection")
                 
-                stream = sd.InputStream(
-                    device=device_index,
-                    channels=1,
-                    samplerate=SAMPLE_RATE,
-                    blocksize=BUFFER_SIZE,
-                    dtype=np.int16,  # 16-bit PCM
-                    latency='high',  # Use high latency for stability
-                )
-                
-                if not stream.is_active():
-                    logging.error("Stream not active after opening")
-                    raise RuntimeError("Audio stream not active")
-                
-                logging.info(f"Stream opened successfully - Target bitrate: 705 kbits/s")
-                
-                # Calculate chunks based on duration
-                chunks = int(SAMPLE_RATE / BUFFER_SIZE * duration)
-                logging.info(f"Will record {chunks} chunks")
-                
-                # Add small delay before recording starts
-                time.sleep(0.1)
-                
-                is_recording = True
-                start_time = time.time()
-                bytes_recorded = 0
-                
-                for i in range(chunks):
-                    if not self.is_playing or not self.is_recording:
-                        logging.info("Recording interrupted")
-                        break
+            device_index = int(match.group(1))
+            logging.info(f"Using input device index: {device_index}")
+
+            # Initialize PyAudio
+            p = pyaudio.PyAudio()
+            device_info = p.get_device_info_by_index(device_index)
+            logging.info(f"Device name: {device_info['name']}")
+            logging.info(f"Max input channels: {device_info['maxInputChannels']}")
+            logging.info(f"Default sample rate: {device_info['defaultSampleRate']}")
+            
+            # Configure for exact 705.6 kbits/s:
+            # Bitrate = SampleRate * BitsPerSample * Channels
+            # 705600 = 44100 * 16 * 1
+            CHUNK = 4096  # Increased for stability
+            FORMAT = pyaudio.paInt16  # 16-bit
+            CHANNELS = 1  # Mono
+            RATE = 44100  # CD quality
+            
+            logging.info("\n=== Recording Configuration ===")
+            logging.info(f"Format: 16-bit PCM")
+            logging.info(f"Channels: {CHANNELS} (Mono)")
+            logging.info(f"Sample Rate: {RATE} Hz")
+            logging.info(f"Chunk Size: {CHUNK}")
+            logging.info(f"Theoretical Bitrate: {RATE * 16 * CHANNELS / 1000:.1f} kbits/s")
+
+            # Open stream with explicit settings
+            stream = p.open(
+                format=FORMAT,
+                channels=CHANNELS,
+                rate=RATE,
+                input=True,
+                input_device_index=device_index,
+                frames_per_buffer=CHUNK,
+                start=False  # Don't start yet
+            )
+
+            # Verify stream configuration
+            stream_info = stream._stream.get_info()
+            logging.info("\n=== Stream Configuration ===")
+            logging.info(f"Stream active: {stream.is_active()}")
+            logging.info(f"Stream info: {stream_info}")
+
+            # Start stream
+            stream.start_stream()
+            if not stream.is_active():
+                raise RuntimeError("Failed to start audio stream")
+
+            # Calculate frames needed
+            total_frames = int(RATE * duration)
+            chunks_needed = total_frames // CHUNK
+            logging.info(f"\nWill record {chunks_needed} chunks ({total_frames} frames)")
+
+            # Record with timing and size monitoring
+            start_time = time.time()
+            bytes_recorded = 0
+            
+            for i in range(chunks_needed):
+                if not self.is_playing:
+                    logging.info("Recording stopped by user")
+                    break
                     
-                    try:
-                        data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
-                        frames.append(data)
-                        bytes_recorded += len(data)
+                try:
+                    data = stream.read(CHUNK, exception_on_overflow=False)
+                    frames.append(data)
+                    bytes_recorded += len(data)
+                    
+                    # Monitor actual bitrate every second
+                    elapsed = time.time() - start_time
+                    if i % (RATE // CHUNK) == 0:  # Once per second
+                        current_bitrate = (bytes_recorded * 8) / (elapsed * 1000)
+                        logging.info(f"Current bitrate: {current_bitrate:.1f} kbits/s")
+                        logging.info(f"Progress: {int(elapsed)}s / {duration}s")
                         
-                        # Calculate current bitrate
-                        elapsed = time.time() - start_time
-                        if elapsed > 0:
-                            current_bitrate = (bytes_recorded * 8) / (elapsed * 1000)  # kbits/s
-                            if i % 10 == 0:  # Log every 10 chunks
-                                logging.info(f"Current bitrate: {current_bitrate:.1f} kbits/s")
-                        
-                        # Update VU meter every 4 chunks
-                        if i % 4 == 0 and hasattr(self, 'level_callback'):
-                            level = self._calculate_audio_level(data)
+                    # Update VU meter less frequently
+                    if i % 4 == 0:
+                        level = np.max(np.frombuffer(data, dtype=np.int16)) / 32768.0
+                        if hasattr(self, 'level_callback'):
                             self.level_callback(level)
-                        
-                        # Update progress every second
-                        if i % (SAMPLE_RATE // BUFFER_SIZE) == 0:
-                            elapsed = time.time() - start_time
-                            self._update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                             
-                    except OSError as e:
-                        logging.warning(f"Stream read error (continuing): {e}")
-                        continue
+                except Exception as e:
+                    logging.error(f"Error reading chunk {i}: {e}")
+                    continue
+
+            # Calculate final statistics
+            end_time = time.time()
+            total_time = end_time - start_time
+            total_bytes = sum(len(f) for f in frames)
+            actual_bitrate = (total_bytes * 8) / (total_time * 1000)
+
+            logging.info("\n=== Recording Complete ===")
+            logging.info(f"Total bytes: {total_bytes}")
+            logging.info(f"Total time: {total_time:.2f} seconds")
+            logging.info(f"Final bitrate: {actual_bitrate:.1f} kbits/s")
+            
+            # Create WAV with explicit format
+            wav_buffer = io.BytesIO()
+            with wave.open(wav_buffer, 'wb') as wf:
+                wf.setnchannels(CHANNELS)
+                wf.setsampwidth(2)  # 16-bit
+                wf.setframerate(RATE)
+                wf.writeframes(b''.join(frames))
                 
-                # Add small delay before closing stream
-                time.sleep(0.1)
-                
-                stream.stop_stream()
-                time.sleep(0.1)
-                stream.close()
-                
-                # Create WAV buffer with correct settings
-                wav_buffer = io.BytesIO()
-                with wave.open(wav_buffer, 'wb') as wf:
-                    wf.setnchannels(1)        # Mono
-                    wf.setsampwidth(2)        # 16-bit
-                    wf.setframerate(SAMPLE_RATE)
-                    wf.writeframes(b''.join(frames))
-                
-                # Calculate final bitrate
-                final_size = wav_buffer.tell()
-                total_time = time.time() - start_time
-                final_bitrate = (final_size * 8) / (total_time * 1000)
-                logging.info(f"Recording completed - Final bitrate: {final_bitrate:.1f} kbits/s")
-                
-                return wav_buffer.getvalue()
+            wav_size = wav_buffer.tell()
+            logging.info(f"WAV file size: {wav_size} bytes")
+            
+            return wav_buffer.getvalue()
+
+        except Exception as e:
+            logging.error(f"Recording failed: {e}", exc_info=True)
+            raise
+
+        finally:
+            if stream:
+                try:
+                    stream.stop_stream()
+                    stream.close()
+                except:
+                    pass
+            if p:
+                try:
+                    p.terminate()
+                except:
+                    pass
                 
             except Exception as e:
                 retry_count += 1
