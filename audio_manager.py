@@ -17,6 +17,7 @@ from device_manager import DeviceManager
 class AudioManager:
     def __init__(self, config):
         self.config = config
+        self.p = pyaudio.PyAudio()  # Initialize PyAudio instance
         self.device_manager = DeviceManager()
         self.recording_stream = None
         self.desktop_stream = None
@@ -26,6 +27,11 @@ class AudioManager:
         logging.info("=== Audio Manager Initialization ===")
         if not self.test_microphone_access():
             logging.warning("Microphone access test failed - audio recording may not work")
+
+    def __del__(self):
+        """Cleanup PyAudio on deletion"""
+        if hasattr(self, 'p'):
+            self.p.terminate()
 
     def test_microphone_access(self) -> bool:
         """Test if we can access the microphone."""
@@ -43,22 +49,22 @@ class AudioManager:
             test_stream = None
             try:
                 test_stream = self.p.open(
-                    format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
-                    channels=self.config.CHANNELS,
-                    rate=self.config.SAMPLE_RATE,
+                    format=pyaudio.paInt16,  # Use direct format instead of config
+                    channels=1,              # Use mono for test
+                    rate=16000,             # Use lower sample rate for test
                     input=True,
                     input_device_index=device_index,
-                    frames_per_buffer=self.config.CHUNK_SIZE,
-                    start=True
+                    frames_per_buffer=1024,  # Use smaller buffer for test
+                    start=False
                 )
+                test_stream.start_stream()
                 
                 # Try to read a single chunk with timeout
-                import time
                 start_time = time.time()
                 timeout = 2.0  # 2 second timeout
                 while time.time() - start_time < timeout:
                     try:
-                        data = test_stream.read(self.config.CHUNK_SIZE, exception_on_overflow=False)
+                        data = test_stream.read(1024, exception_on_overflow=False)
                         if data:
                             logging.info("Microphone test successful")
                             return True
@@ -74,6 +80,7 @@ class AudioManager:
                 
             finally:
                 if test_stream:
+                    test_stream.stop_stream()
                     test_stream.close()
                     
         except Exception as e:
