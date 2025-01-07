@@ -4,11 +4,37 @@ import argparse
 import sys
 import os
 
-# Global variables
+# Global variables and initialization
+global current_recording_buffer, current_speaker, is_playing, is_recording, smart_mode
+global running, output_var, emily_endpoint_var, daemon_endpoint_var, ui_elements_created
+global browser_button, recording_status, session_id, current_video_window, second_video_window
+global play_pause_btn, editor_play_pause_btn, editor_active, mic_var, vu_meter
+
+# Initialize core globals
 current_recording_buffer = []
 current_speaker = "emily"
 is_playing = True
 is_recording = False
+running = True
+smart_mode = False
+ui_elements_created = False
+editor_active = False
+
+# Initialize UI-related globals
+output_var = None
+emily_endpoint_var = None
+daemon_endpoint_var = None
+browser_button = None
+recording_status = None
+session_id = None
+play_pause_btn = None
+editor_play_pause_btn = None
+mic_var = None
+vu_meter = None
+
+# Initialize video window globals
+current_video_window = None
+second_video_window = None
 
 def get_or_create_eventloop():
     """Get the current event loop or create a new one for the thread"""
@@ -2327,13 +2353,6 @@ def init_screenshot():
         return False
 
 if __name__ == "__main__":
-    # Initialize global variables
-    global current_recording_buffer, current_speaker, is_playing, is_recording
-    current_recording_buffer = []
-    current_speaker = "emily"
-    is_playing = True
-    is_recording = False
-    
     # Initialize logging first
     setup_logging()
     configure_logging()
