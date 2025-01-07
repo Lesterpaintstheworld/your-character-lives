@@ -822,15 +822,15 @@ def toggle_recording():
     update_status(f"Recording {'enabled' if recording_enabled else 'disabled'} - {'using microphone' if recording_enabled else 'auto-send after 5s'}")
 
 def record_audio(duration: int) -> bytes:
-    """Record audio with consistent sample rate"""
+    """Record audio at 256 kbits/sec (16kHz, 16-bit, mono)"""
     global is_recording, recording_enabled, current_recording_buffer
     
     logging.info(f"Starting {duration}s recording...")
     
     if not recording_enabled:
         logging.info("Recording disabled - creating silent audio")
-        # Create silence at correct sample rate
-        SAMPLE_RATE = 44100  # Standard sample rate
+        # Create silence at correct rate for 256 kbits/sec
+        SAMPLE_RATE = 16000  # 16kHz for 256 kbits/sec
         silent_data = np.zeros(int(SAMPLE_RATE * duration), dtype=np.int16).tobytes()
         current_recording_buffer = [silent_data]
         return silent_data
@@ -855,11 +855,11 @@ def record_audio(duration: int) -> bytes:
         # Initialize PyAudio with consistent settings
         p = pyaudio.PyAudio()
         
-        # Use consistent format settings
+        # Settings for 256 kbits/sec
         CHUNK = 1024
-        FORMAT = pyaudio.paInt16
-        CHANNELS = 1
-        RATE = 44100  # Use standard CD quality rate
+        FORMAT = pyaudio.paInt16  # 16-bit
+        CHANNELS = 1              # Mono
+        RATE = 16000             # 16kHz
         
         # Get device info
         device_info = p.get_device_info_by_index(device_index)
