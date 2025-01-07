@@ -1,13 +1,78 @@
-# CK3 AI Assistant Technical Specifications
+# AI Assistant Technical Specifications
 
-## System Architecture
+## Core Components
 
-### Core Components
-1. Audio Management
-   - Real-time recording/playback
-   - Device detection and management
-   - Audio format conversion
-   - VU meter monitoring
+### Audio System
+- Sample Rate: 24kHz
+- Format: 16-bit PCM
+- Channels: Mono
+- Buffer Size: 1024 samples
+- Device hot-plugging support
+- Real-time VU meter monitoring
+
+### Smart Conversation Mode
+- Continuous audio monitoring
+  - Real-time audio level analysis
+  - Silence detection threshold: -60dB
+  - Minimum silence duration: 3 seconds
+  - Buffer management for continuous recording
+
+- Turn Management
+  - Voice activity detection (VAD)
+  - Silence-based turn completion
+  - Interrupt handling during playback
+  - Turn alternation between Emily and Daemon
+
+- Performance Requirements
+  - Maximum latency: 100ms
+  - Memory usage: < 100MB for audio buffer
+  - CPU usage: < 10% during monitoring
+
+- Configuration Parameters
+  - SILENCE_THRESHOLD: -60dB
+  - MIN_SILENCE_DURATION: 3 seconds
+  - SCREENSHOT_INTERVAL: 20 seconds
+  - BUFFER_SIZE: 1024
+  - MAX_RECORDING_SIZE: 500MB
+
+### Video System
+- Format: MP4 (H.264)
+- Resolution: 320x240 minimum
+- FPS: 30
+- Alpha channel support
+- Hardware acceleration when available
+- Borderless window support
+- Smooth video transitions
+- Multiple avatar support
+
+### Network Communication
+- REST API integration
+- Request/response handling
+- Error recovery
+- Data validation
+- Timeout: 120 seconds
+- Retry mechanism: 3 attempts
+
+## Performance Requirements
+- CPU: < 15% average usage
+- Memory: < 750MB working set
+- Disk: < 2GB total space
+- Network: < 2MB/s bandwidth
+- Frame rate: 30 FPS minimum
+- Audio latency: < 100ms
+- Response time: < 2s average
+
+## Security Considerations
+- No persistent storage of audio
+- Temporary files cleaned up
+- Network encryption (HTTPS)
+- API key protection
+
+## Error Handling
+- Graceful degradation
+- Automatic recovery
+- Detailed logging
+- User notifications
 
 2. Video System
    - Borderless window management
