@@ -852,97 +852,63 @@ def record_audio(duration):
         device_index = int(match.group(1))
         logging.info(f"Using input device {device_index}")
 
-        # Initialize PyAudio with retry mechanism
-        max_retries = 3
-        for attempt in range(max_retries):
-            try:
-                p = pyaudio.PyAudio()
-                
-                # Verify device exists and is valid
-                device_info = p.get_device_info_by_index(device_index)
-                if device_info['maxInputChannels'] == 0:
-                    raise ValueError(f"Device {device_index} has no input channels")
-                
-                logging.info(f"Device info: {device_info}")
-                
-                # Use device's native sample rate if possible
-                native_rate = int(device_info['defaultSampleRate'])
-                RATE = native_rate if native_rate in [44100, 48000] else 44100
-                
-                CHUNK = 1024
-                FORMAT = pyaudio.paInt16
-                CHANNELS = 1
-                
-                # Open stream with explicit error checking
-                stream = p.open(
-                    format=FORMAT,
-                    channels=CHANNELS,
-                    rate=RATE,
-                    input=True,
-                    input_device_index=device_index,
-                    frames_per_buffer=CHUNK,
-                    start=False  # Don't start yet
-                )
-                
-                # Try to start stream
-                stream.start_stream()
-                
-                # Verify stream is actually active
-                if not stream.is_active():
-                    raise RuntimeError("Stream failed to start")
-                    
-                # Test read from stream
-                test_data = stream.read(CHUNK, exception_on_overflow=False)
-                if not test_data:
-                    raise RuntimeError("Failed to read test data from stream")
-                
-                logging.info("Audio stream successfully initialized")
-                break
-                
-            except Exception as e:
-                logging.error(f"Attempt {attempt + 1} failed: {e}")
-                if stream:
-                    try:
-                        stream.stop_stream()
-                        stream.close()
-                    except:
-                        pass
-                if p:
-                    try:
-                        p.terminate()
-                    except:
-                        pass
-                    
-                if attempt == max_retries - 1:
-                    raise RuntimeError(f"Failed to initialize audio after {max_retries} attempts")
-                    
-                time.sleep(0.5)  # Wait before retry
-                continue
+        # Initialize PyAudio with consistent settings
+        p = pyaudio.PyAudio()
         
-        chunks = int(RATE / CHUNK * duration)
-        logging.info(f"Will record {chunks} chunks at {RATE}Hz")
-            
-        is_recording = True
+        # Use consistent format settings
+        CHUNK = 1024
+        FORMAT = pyaudio.paInt16
+        CHANNELS = 1
+        RATE = 44100  # Use standard CD quality rate
+        
+        # Get device info
+        device_info = p.get_device_info_by_index(device_index)
+        logging.info(f"Device info: {device_info}")
+                
+        # Open stream with explicit settings
+        stream = p.open(
+            format=FORMAT,
+            channels=CHANNELS,
+            rate=RATE,  # Force 44.1kHz
+            input=True,
+            input_device_index=device_index,
+            frames_per_buffer=CHUNK,
+            start=False
+        )
+
+        # Start stream explicitly
+        stream.start_stream()
+        if not stream.is_active():
+            raise RuntimeError("Failed to start audio stream")
+        
+        # Calculate frames needed
+        total_frames = int(RATE * duration)
+        chunks_needed = total_frames // CHUNK
+        logging.info(f"\nWill record {chunks_needed} chunks ({total_frames} frames)")
+
+        # Record with timing and monitoring
         start_time = time.time()
+        bytes_recorded = 0
         
-        for i in range(chunks):
+        is_recording = True
+        
+        for i in range(chunks_needed):
             if not is_playing or not is_recording:
                 break
                 
             try:
                 data = stream.read(CHUNK, exception_on_overflow=False)
-                if not data:
-                    logging.warning(f"Empty data chunk at index {i}")
-                    continue
-                    
                 frames.append(data)
                 current_recording_buffer.append(data)
+                bytes_recorded += len(data)
                 
-                # Update VU meter
-                if i % 2 == 0:
+                # Update VU meter less frequently
+                if i % 4 == 0:
                     level = calculate_audio_level(data)
-                    root.after(0, lambda l=level: vu_meter.set_level(l))
-                
+                    if hasattr(root, 'after'):
+                        root.after(0, lambda l=level: vu_meter.set_level(l))
+                    
+                # Update status every second
                 if i % (RATE // CHUNK) == 0:
                     elapsed = time.time() - start_time
                     update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
@@ -956,12 +922,12 @@ def record_audio(duration):
         if not frames:
             raise RuntimeError("No audio data recorded")
             
-        # Create WAV buffer
+        # Create WAV with explicit format
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, 'wb') as wf:
             wf.setnchannels(CHANNELS)
-            wf.setsampwidth(2)
-            wf.setframerate(RATE)
+            wf.setsampwidth(2)  # 16-bit
+            wf.setframerate(RATE)  # Consistent 44.1kHz
             wf.writeframes(b''.join(frames))
             
         logging.info(f"Successfully recorded {len(frames)} chunks")
