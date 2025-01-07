@@ -2164,18 +2164,21 @@ def test_audio_recording():
             # Play back the recorded audio
             update_status("🔊 Playing back test recording...")
             
-            # Save to temporary WAV file
+            # Save to temporary WAV file with explicit format matching recording
             temp_file = 'temp_test.wav'
             with wave.open(temp_file, 'wb') as wf:
-                wf.setnchannels(1)
-                wf.setsampwidth(2)
-                wf.setframerate(44100)
+                wf.setnchannels(1)  # Mono
+                wf.setsampwidth(2)  # 16-bit
+                wf.setframerate(16000)  # Match recording rate of 16kHz
                 wf.writeframes(audio_data)
             
             try:
-                # Initialize pygame mixer
+                # Initialize pygame mixer with matching sample rate
                 pygame.mixer.quit()
-                pygame.mixer.init(frequency=44100)
+                pygame.mixer.init(frequency=16000,  # Match recording rate
+                                size=-16,          # 16-bit
+                                channels=1,        # Mono
+                                buffer=1024)       # Smaller buffer for better response
                 pygame.mixer.music.load(temp_file)
                 pygame.mixer.music.play()
                 
