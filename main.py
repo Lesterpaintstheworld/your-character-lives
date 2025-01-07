@@ -3,6 +3,15 @@ import logging
 import argparse
 import sys
 import os
+
+def get_or_create_eventloop():
+    """Get the current event loop or create a new one for the thread"""
+    try:
+        return asyncio.get_event_loop()
+    except RuntimeError:
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        return loop
 import aiohttp
 from threading import Thread
 from audio_buffer import AudioBufferManager
@@ -1609,8 +1618,28 @@ def create_device_selectors():
     play_pause_btn.pack(side='left', padx=5)
     
     # Send button
+    def send_button_click():
+        """Non-blocking send button handler"""
+        # Disable send button temporarily to prevent double-clicks
+        send_btn.config(state='disabled')
+        
+        # Create and start background task
+        async def send_task():
+            try:
+                await send_current()
+            except Exception as e:
+                logging.error(f"Send error: {e}")
+                update_status(f"❌ Error: {str(e)}")
+            finally:
+                # Re-enable send button in main thread
+                root.after(0, lambda: send_btn.config(state='normal'))
+
+        # Run task in background
+        loop = get_or_create_eventloop()
+        asyncio.run_coroutine_threadsafe(send_task(), loop)
+
     send_btn = tk.Button(controls_frame, text="📤 Send",
-        command=lambda: asyncio.run(send_current()),
+        command=send_button_click,
         bg=ThemeColors.ACCENT_SECONDARY,
         fg=ThemeColors.TEXT_BRIGHT,
         relief='flat',
