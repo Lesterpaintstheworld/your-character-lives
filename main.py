@@ -1579,6 +1579,9 @@ def create_device_selectors():
     main_frame = ttk.Frame(root, style='Modern.TFrame')
     main_frame.pack(fill='x', padx=10, pady=5)
 
+    # Create status indicators right after main frame
+    create_status_indicators()
+
     # Controls row (play/pause only)
     controls_frame = ttk.Frame(main_frame, style='Modern.TFrame')
     controls_frame.pack(fill='x', pady=(0, 5))
