@@ -876,10 +876,10 @@ def record_audio(duration):
         start_time = time.time()
         
         for i in range(chunks):
-        if not is_playing or not is_recording:
-            break
+            if not is_playing or not is_recording:
+                break
                 
-        data = stream.read(1024, exception_on_overflow=False)
+            data = stream.read(1024, exception_on_overflow=False)
         frames.append(data)
             
         # Log first chunk to check format
