@@ -1135,7 +1135,7 @@ class VUMeter(Canvas):
                 self.itemconfig(segment_id, fill='dark gray')
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level from raw audio data with better calibration"""
+    """Calculate audio level from raw audio data"""
     if isinstance(audio_data, bytes):
         # Convert bytes to numpy array
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
@@ -1150,24 +1150,17 @@ def calculate_audio_level(audio_data):
         # Convert to dB relative to full scale
         db = 20 * np.log10(rms / 32768.0)  # 32768 is max value for 16-bit audio
         
-        # Adjusted dB range - make it less sensitive
-        MIN_DB = -30  # Raise minimum to be less sensitive (was -60)
-        MAX_DB = -3   # Lower maximum to avoid constant red (was 0)
+        # Standard dB range
+        MIN_DB = -60  # Back to standard minimum
+        MAX_DB = 0    # Back to standard maximum
         
-        # Strong noise gate
+        # Simple linear normalization
         if db < MIN_DB:
             return 0.0
+        if db > MAX_DB:
+            return 1.0
             
-        # Normalize with adjusted range
         normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
-        
-        # Add exponential scaling to reduce sensitivity
-        normalized = normalized ** 1.5  # Add non-linear scaling
-        
-        # Threshold small values to zero
-        if normalized < 0.1:
-            return 0.0
-            
         return max(0.0, min(1.0, normalized))
     return 0.0
 
