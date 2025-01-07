@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import argparse
 import sys
 import os
 import aiohttp
@@ -18,7 +17,6 @@ import tempfile
 import cv2
 import numpy as np
 from scipy import signal
-import base64
 import json
 from pydub import AudioSegment
 from video_window import DraggableVideoWindow
