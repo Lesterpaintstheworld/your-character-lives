@@ -1144,11 +1144,13 @@ def calculate_audio_level(audio_data):
         
     # Calculate RMS value
     rms = np.sqrt(np.mean(np.square(audio_array, dtype=np.float64)))
+    logging.debug(f"Raw RMS value: {rms}")
     
     # Convert to decibels and normalize
     if rms > 0:
         # Convert to dB relative to full scale
         db = 20 * np.log10(rms / 32768.0)  # 32768 is max value for 16-bit audio
+        logging.debug(f"Decibel value: {db} dB")
         
         # Adjusted range for laptop mic
         MIN_DB = -30  # Higher minimum to filter more noise
@@ -1156,13 +1158,16 @@ def calculate_audio_level(audio_data):
         
         # Add noise gate
         if db < MIN_DB:
+            logging.debug("Below noise gate threshold")
             return 0.0
             
         # Simple linear normalization
         normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
+        logging.debug(f"Normalized value: {normalized}")
         
         # Additional noise gate threshold
         if normalized < 0.1:  # Filter out very low levels
+            logging.debug("Below minimum normalized threshold")
             return 0.0
             
         return max(0.0, min(1.0, normalized))
