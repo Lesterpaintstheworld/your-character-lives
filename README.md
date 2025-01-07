@@ -211,6 +211,20 @@ ck3-ai-assistant/
   - Context-aware responses
   - Multi-modal input processing
 
+- Multi-Agent Context Sharing
+  - Comprehensive context distribution to all agents:
+    - Emily (Creative Intelligence)
+    - Daemon (Technical Implementation) 
+    - Kinkong (Browser Automation)
+  - Shared access to:
+    - Screenshots and visual context
+    - Project folder content and file scanning
+    - Web page content and interactions
+    - Audio recordings and transcripts
+  - Real-time context synchronization
+  - Unified folder scanning system
+  - Intelligent content filtering
+
 - Technical Capabilities
   - Sequential processing pipeline
   - Cross-domain context integration
