@@ -18,6 +18,12 @@ class NetworkConstants:
     DEFAULT_ENDPOINT_EMILY = "https://nlr.app.n8n.cloud/webhook/kinos-emily"
     DEFAULT_ENDPOINT_DAEMON = "https://nlr.app.n8n.cloud/webhook/kinos-daemon"
 
+    @staticmethod
+    def generate_session_id():
+        """Generate a unique session ID"""
+        import uuid
+        return str(uuid.uuid4())
+
 class ThemeColors:
     # Main backgrounds
     BG_DARK = "#0d1117"      # Darker navy blue for main background
