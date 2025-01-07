@@ -1059,8 +1059,9 @@ class VUMeter(Canvas):
     def create_segments(self):
         """Create segments with smooth color transition"""
         self.segments_ids = []
+        self.segment_width = self.width / self.segments  # Use full width
         for i in range(self.segments):
-            x1 = 2 + i * self.segment_width
+            x1 = i * self.segment_width
             y1 = 2
             x2 = x1 + self.segment_width - 1
             y2 = self.height - 2
