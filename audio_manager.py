@@ -215,6 +215,7 @@ class AudioManager:
                     samplerate=SAMPLE_RATE,
                     blocksize=BUFFER_SIZE,
                     dtype=np.int16,  # 16-bit PCM
+                    latency='high',  # Use high latency for stability
                     frames_per_buffer=BUFFER_SIZE
                 )
                 
