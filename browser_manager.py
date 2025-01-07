@@ -167,17 +167,22 @@ class BrowserManager:
                 "screenshot": base64.b64encode(screenshot).decode() if screenshot else None
             }
             
-            # Send to endpoint using aiohttp for better async support
-            async with aiohttp.ClientSession() as session:
-                async with session.post(self.endpoint, json=data) as response:
-                    if response.status == 200:
-                        result = await response.json()
-                        self.logger.info("Successfully processed page and sent to endpoint")
-                        return result
-                    else:
-                        error_text = await response.text()
-                        self.logger.error(f"Endpoint returned status {response.status}: {error_text}")
-                        return None
+            # Use requests instead of aiohttp
+            import requests
+            response = requests.post(
+                self.endpoint,
+                json=data,
+                timeout=30
+            )
+            
+            if response.status_code == 200:
+                result = response.json()
+                self.logger.info("Successfully processed page and sent to endpoint")
+                return result
+            else:
+                error_text = response.text
+                self.logger.error(f"Endpoint returned status {response.status_code}: {error_text}")
+                return None
             
         except Exception as e:
             self.logger.error(f"Page processing failed: {e}", exc_info=True)
