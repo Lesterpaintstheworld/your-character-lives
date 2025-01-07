@@ -869,10 +869,10 @@ def record_audio(duration):
             raise RuntimeError("Audio stream not active")
         logging.info("Stream is active and ready for recording")
             
-    chunks = int(16000 / 1024 * duration)
-    logging.info(f"Will record {chunks} chunks")
-        
-    is_recording = True
+        chunks = int(16000 / 1024 * duration)
+        logging.info(f"Will record {chunks} chunks")
+            
+        is_recording = True
     start_time = time.time()
         
     for i in range(chunks):
