@@ -826,12 +826,12 @@ def record_audio(duration):
     global is_recording, recording_enabled
     
     if not recording_enabled:
-        # If recording is disabled, wait 5 seconds and return empty audio
-        logging.info("Recording disabled - waiting 5 seconds")
-        update_status("⏳ Waiting 5 seconds...")
-        time.sleep(5)
-        # Return 5 seconds of silence
-        return np.zeros(int(44100 * 5), dtype=np.int16).tobytes()
+        # If recording is disabled, wait 1 second and return empty audio
+        logging.info("Recording disabled - waiting 1 second")
+        update_status("⏳ Waiting 1 second...")
+        time.sleep(1)
+        # Return 1 second of silence
+        return np.zeros(int(44100 * 1), dtype=np.int16).tobytes()
         
     logging.info("=== Starting Audio Recording ===")
     
@@ -1080,7 +1080,7 @@ async def send_current():
     try:
         if not recording_enabled and not current_recording_buffer:
             # If recording is disabled and buffer is empty, create silent audio
-            silent_audio = np.zeros(int(44100 * 5), dtype=np.int16).tobytes()
+            silent_audio = np.zeros(int(44100 * 1), dtype=np.int16).tobytes()
             current_recording_buffer = [silent_audio]
             
         logging.info(f"Send requested - buffer size: {len(current_recording_buffer)} chunks")
@@ -1478,8 +1478,8 @@ async def continuous_recording():
     try:
         while smart_mode and is_playing:
             if not recording_enabled:
-                # If recording is disabled, wait 5 seconds then trigger send
-                await asyncio.sleep(5)
+                # If recording is disabled, wait 1 second then trigger send
+                await asyncio.sleep(1)
                 if is_playing and not recording_enabled:
                     await send_current()
                 continue
