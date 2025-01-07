@@ -1043,7 +1043,7 @@ class VUMeter(Canvas):
                  mid_color=ThemeColors.VU_MID,
                  high_color=ThemeColors.VU_HIGH, **kwargs):
         super().__init__(master, width=width, height=height, bg=bg,
-                        highlightthickness=0,  # Remove border
+                        highlightthickness=0,
                         **kwargs)
         self.width = width
         self.height = height
@@ -1052,11 +1052,11 @@ class VUMeter(Canvas):
         self.mid_color = mid_color
         self.high_color = high_color
         
-        # Calculate silence threshold position
-        MIN_DB = -15  # Same as in calculate_audio_level
+        # Calculate silence threshold position (matching calculate_audio_level)
+        MIN_DB = -60
         MAX_DB = 0
-        THRESHOLD = 0.15  # Same as in calculate_audio_level
-        self.threshold_position = THRESHOLD * self.segments
+        THRESHOLD_DB = -40  # Adjust this to set visible threshold
+        self.threshold_position = (THRESHOLD_DB - MIN_DB) / (MAX_DB - MIN_DB) * self.segments
         
         # Bind to resize events
         self.bind('<Configure>', self.on_resize)
@@ -1135,36 +1135,32 @@ class VUMeter(Canvas):
                 self.itemconfig(segment_id, fill='dark gray')
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level from raw audio data with extremely aggressive noise filtering"""
+    """Calculate audio level from raw audio data"""
     if isinstance(audio_data, bytes):
         # Convert bytes to numpy array
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
     else:
         audio_array = audio_data
         
-    # Calculate RMS value with noise floor
+    # Calculate RMS value
     rms = np.sqrt(np.mean(np.square(audio_array, dtype=np.float64)))
     
-    # Convert to decibels and normalize with extremely strict thresholds
+    # Convert to decibels and normalize
     if rms > 0:
-        db = 20 * np.log10(rms / 32768.0)  # Normalize to 16-bit range
+        # Convert to dB relative to full scale
+        db = 20 * np.log10(rms / 32768.0)  # 32768 is max value for 16-bit audio
         
-        # Even stricter thresholds
-        MIN_DB = -15  # Raise minimum threshold further (was -20)
-        MAX_DB = 0    # Keep maximum at 0 dB (full scale)
+        # Map dB range to 0-1
+        MIN_DB = -60  # Adjust this if needed - lower value = more sensitive
+        MAX_DB = 0
         
-        # Strong noise gate - anything below MIN_DB is treated as silence
+        # Normalize to 0-1 range
         if db < MIN_DB:
             return 0.0
+        if db > MAX_DB:
+            return 1.0
             
-        # Normalize with quartic scaling to really reduce sensitivity
-        normalized = ((db - MIN_DB) / (MAX_DB - MIN_DB)) ** 4  # Changed from cubic to quartic
-        
-        # Higher threshold to ensure very low levels read as 0
-        if normalized < 0.15:  # Increased from 0.1 to 0.15
-            return 0.0
-            
-        # Clamp to 0-1 range
+        normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
         return max(0.0, min(1.0, normalized))
     return 0.0
 
