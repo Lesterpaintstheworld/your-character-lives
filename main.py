@@ -889,11 +889,43 @@ def get_input_device():
         p.terminate()
 
 def record_audio(duration):
-    """Record audio with optimal sample rate."""
+    """Record audio with ALC compensation"""
     global is_recording
     logging.info("=== Starting Audio Recording ===")
     logging.info(f"Requested duration: {duration} seconds")
     
+    # First get a noise floor sample
+    noise_floor = None
+    try:
+        p = pyaudio.PyAudio()
+        device_index = get_input_device()
+        stream = p.open(
+            format=FORMAT,
+            channels=1,
+            rate=48000,  # Match Jabra's native rate
+            input=True,
+            input_device_index=device_index,
+            frames_per_buffer=1024
+        )
+        
+        # Sample noise for 100ms
+        noise_data = []
+        for _ in range(5):  # ~100ms at 48kHz
+            data = stream.read(1024, exception_on_overflow=False)
+            noise_data.append(np.frombuffer(data, dtype=np.int16))
+            
+        noise_floor = np.mean([np.sqrt(np.mean(np.square(chunk))) for chunk in noise_data])
+        logging.info(f"Measured noise floor RMS: {noise_floor}")
+        
+    except Exception as e:
+        logging.error(f"Error measuring noise floor: {e}")
+    finally:
+        if stream:
+            stream.stop_stream()
+            stream.close()
+        if p:
+            p.terminate()
+
     update_status("🎤 Initializing audio...")
     
     p = None
@@ -983,12 +1015,19 @@ def record_audio(duration):
                     
                 frames.append(data)
                 
-                # Update VU meter
-                level = calculate_audio_level(data)
-                root.after(0, lambda l=level: vu_meter.set_level(l))
+                # Calculate level with noise floor compensation
+                if noise_floor is not None:
+                    audio_array = np.frombuffer(data, dtype=np.int16)
+                    rms = np.sqrt(np.mean(np.square(audio_array)))
+                    level = max(0, (rms - noise_floor) / (32768 - noise_floor))
+                    root.after(0, lambda l=level: vu_meter.set_level(l))
+                else:
+                    # Fallback to original calculation if no noise floor
+                    level = calculate_audio_level(data)
+                    root.after(0, lambda l=level: vu_meter.set_level(l))
                 
                 # Progress update every second
-                if i % (device_rate // 1024) == 0:
+                if i % (48000 // 1024) == 0:  # Update every second at 48kHz
                     elapsed = time.time() - start_time
                     update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                     
