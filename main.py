@@ -3,6 +3,7 @@ import logging
 import argparse
 import sys
 import os
+import aiohttp
 from threading import Thread
 from audio_buffer import AudioBufferManager
 from voice_activity import VoiceActivityDetector
@@ -2172,6 +2173,10 @@ def update_mic_status(combo):
 # Create main window
 root = tk.Tk()
 root.title("AI Assistant")
+
+# Create main frame to contain all controls
+main_frame = ttk.Frame(root, style='Modern.TFrame')
+main_frame.pack(fill='x', padx=10, pady=5)
 
 # Create text widget first
 text_widget = scrolledtext.ScrolledText(root, wrap=tk.WORD, width=80, height=20,
