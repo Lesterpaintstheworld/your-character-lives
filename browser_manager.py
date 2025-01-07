@@ -112,7 +112,7 @@ class BrowserManager:
             raise
 
     @backoff.on_exception(backoff.expo, 
-                         (playwright.core.Error, BrowserError),
+                         (PlaywrightTimeout, BrowserError),
                          max_tries=3)
     async def safe_navigate(self, url: str) -> bool:
         """Navigate with retry logic and better error handling"""
