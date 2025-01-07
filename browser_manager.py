@@ -136,7 +136,8 @@ class BrowserManager:
                 await self.page.screenshot(path=path)
                 return None
             else:
-                return await self.page.screenshot()
+                # Return optimized JPEG bytes directly
+                return await self.page.screenshot(type='jpeg', quality=85)
         except Exception as e:
             self.logger.error(f"Screenshot failed: {e}")
             return None
@@ -194,15 +195,24 @@ class BrowserManager:
                 current_data = {
                     "current_url": self.page.url,
                     "title": await self.page.title(),
-                    "content": await self.page.content(),
-                    "screenshot": base64.b64encode(await self.take_screenshot()).decode() if self.page else None
+                    "content": await self.page.content()
                 }
+                # Take screenshot as binary
+                screenshot_bytes = await self.take_screenshot()
+                if screenshot_bytes:
+                    current_data["screenshot"] = screenshot_bytes  # Store raw bytes
             
             # Get instructions from endpoint
             self.logger.info("Getting navigation instructions from endpoint")
+            # Prepare multipart form data
+            files = {
+                'screenshot': ('screenshot.jpg', current_data.pop('screenshot', None), 'image/jpeg')
+            }
+                
             response = requests.post(
                 self.endpoint,
-                json=current_data,
+                data=current_data,  # Regular form data
+                files=files,        # File data
                 timeout=30
             )
             
@@ -291,9 +301,9 @@ class BrowserManager:
                                     # Take screenshot on failure
                                     error_screenshot = await self.take_screenshot()
                                     if error_screenshot:
-                                        error_path = f"error_{action}_{time.time()}.png"
+                                        error_path = f"error_{action}_{time.time()}.jpg"
                                         with open(error_path, "wb") as f:
-                                            f.write(error_screenshot)
+                                            f.write(error_screenshot)  # Write raw bytes
                                         self.logger.info(f"Error screenshot saved to {error_path}")
                                     raise
                                 else:
