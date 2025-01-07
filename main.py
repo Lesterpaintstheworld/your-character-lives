@@ -94,12 +94,10 @@ def initialize_audio():
 # Global control variables
 running = True
 is_playing = True
-is_recording = False
 current_speaker = "emily"  # Alternates between "emily" and "daemon"
 last_audio_time = 0
 audio_buffer = []
 current_recording_buffer = []  # Store audio chunks during recording
-is_recording_paused = False    # Track if recording is paused
 output_var = None  # Will store output device selection
 emily_endpoint_var = None  # Will store Emily endpoint
 daemon_endpoint_var = None  # Will store Daemon endpoint
@@ -1285,29 +1283,27 @@ async def send_current():
         update_status(f"❌ Error: {str(e)}")
 
 def toggle_play_pause():
-    """Toggle between play and pause states"""
-    global is_playing, is_recording, current_recording_buffer
+    """Toggle continuous recording mode on/off"""
+    global is_playing, current_recording_buffer
     is_playing = not is_playing
     
     # Update button text
-    play_pause_btn.config(text="▶️" if not is_playing else "⏸️")
+    play_pause_btn.config(text="⏸️" if is_playing else "▶️")
     
     if is_playing:
         # Clear buffer when starting
         current_recording_buffer = []
-        # Start smart recording
-        update_status("▶️ Starting interaction...")
-        smart_thread = threading.Thread(
-            target=lambda: asyncio.run(start_smart_recording()),
+        # Start continuous recording
+        update_status("▶️ Starting continuous recording...")
+        recording_thread = threading.Thread(
+            target=lambda: asyncio.run(continuous_recording()),
             daemon=True
         )
-        smart_thread.start()
+        recording_thread.start()
     else:
-        # Stop current recording and playback
-        is_recording = False
+        update_status("⏸️ Recording stopped")
         try:
             pygame.mixer.music.stop()
-            update_status("⏸️ Interaction stopped")
         except:
             pass
 
@@ -1598,7 +1594,7 @@ def cleanup_recording(stream: pyaudio.Stream, p: pyaudio.PyAudio):
         except:
             pass
 
-async def start_smart_recording():
+async def continuous_recording():
     """Handle continuous recording in smart mode with improved management"""
     global current_speaker, current_recording_buffer
     
