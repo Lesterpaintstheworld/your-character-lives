@@ -76,6 +76,12 @@ class BrowserManager:
                     # Create new page
                     self.page = await self.context.new_page()
                     self.logger.info("Page created successfully")
+
+                    # Initialize Phantom wallet if needed
+                    if await self.init_phantom_wallet():
+                        self.logger.info("Phantom wallet integration ready")
+                    else:
+                        self.logger.warning("Phantom wallet not available")
                     
                     # Get browser version info
                     try:
@@ -556,10 +562,99 @@ class BrowserManager:
             self.browser_loop_task = None
             self.logger.debug("Browser loop task completed")
 
+    async def init_phantom_wallet(self) -> bool:
+        """Initialize Phantom wallet integration"""
+        try:
+            from phantom_manager import PhantomManager
+            self.phantom = PhantomManager(self.page)
+            
+            # Check if wallet is available
+            if not await self.phantom.detect_wallet():
+                self.logger.error("Phantom wallet not detected")
+                return False
+                
+            # Try to connect
+            if not await self.phantom.connect():
+                self.logger.error("Failed to connect to Phantom wallet")
+                return False
+                
+            self.logger.info("Phantom wallet initialized successfully")
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to initialize Phantom wallet: {e}")
+            return False
+
+    async def send_phantom_transaction(self, to_address: str, amount: float, 
+                                     token: Optional[str] = None) -> bool:
+        """Send transaction through Phantom wallet
+        
+        Args:
+            to_address: Destination wallet address
+            amount: Amount to send
+            token: Optional token mint address for SPL transfers
+        """
+        try:
+            from phantom_manager import PhantomTransaction
+            
+            # Create transaction object
+            params = {
+                "to": to_address,
+                "amount": amount
+            }
+            
+            if token:
+                # SPL token transfer
+                params["token"] = token
+                transaction = PhantomTransaction("token", params)
+            else:
+                # SOL transfer
+                transaction = PhantomTransaction("transfer", params)
+                
+            # Send transaction
+            if await self.phantom.send_transaction(transaction):
+                self.logger.info(f"Transaction sent successfully: {transaction.signature}")
+                return True
+            else:
+                self.logger.error(f"Transaction failed: {transaction.error}")
+                return False
+                
+        except Exception as e:
+            self.logger.error(f"Error sending Phantom transaction: {e}")
+            return False
+
+    async def verify_phantom_network(self, expected_network: str = "mainnet-beta") -> bool:
+        """Verify Phantom wallet is connected to expected network"""
+        try:
+            network = await self.page.evaluate("""
+                () => window.solana.connection.rpcEndpoint
+            """)
+            
+            if expected_network not in network.lower():
+                self.logger.error(f"Wrong network: {network} (expected {expected_network})")
+                return False
+                
+            return True
+            
+        except Exception as e:
+            self.logger.error(f"Failed to verify network: {e}")
+            return False
+
     async def cleanup(self) -> None:
         """Clean up browser resources"""
         self.logger.info("Starting browser cleanup")
         try:
+            # Cleanup Phantom if initialized
+            if hasattr(self, 'phantom'):
+                try:
+                    # Disconnect wallet if connected
+                    if self.phantom.connected:
+                        await self.page.evaluate("""
+                            () => window.solana.disconnect()
+                        """)
+                except Exception as e:
+                    self.logger.warning(f"Error disconnecting Phantom wallet: {e}")
+
             if hasattr(self, 'context') and self.context:
                 # Save storage state before closing
                 await self.context.storage_state(
