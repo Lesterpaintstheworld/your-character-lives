@@ -98,6 +98,8 @@ is_recording = False
 current_speaker = "emily"  # Alternates between "emily" and "daemon"
 last_audio_time = 0
 audio_buffer = []
+current_recording_buffer = []  # Store audio chunks during recording
+is_recording_paused = False    # Track if recording is paused
 output_var = None  # Will store output device selection
 emily_endpoint_var = None  # Will store Emily endpoint
 daemon_endpoint_var = None  # Will store Daemon endpoint
@@ -1014,6 +1016,7 @@ def record_audio(duration):
                     continue
                     
                 frames.append(data)
+                current_recording_buffer.append(data)  # Add to global buffer
                 
                 # Calculate level with noise floor compensation
                 if noise_floor is not None:
@@ -1213,6 +1216,71 @@ def calculate_audio_level(audio_data):
         return result
         
     return 0.0
+
+async def send_current():
+    """Send currently recorded audio buffer"""
+    global current_recording_buffer, current_speaker
+    
+    try:
+        if not current_recording_buffer:
+            update_status("❌ No audio recorded yet")
+            return
+            
+        update_status("📤 Sending current recording...")
+        
+        # Convert buffer to WAV
+        wav_buffer = io.BytesIO()
+        with wave.open(wav_buffer, 'wb') as wf:
+            wf.setnchannels(1)
+            wf.setsampwidth(2)
+            wf.setframerate(RATE)
+            wf.writeframes(b''.join(current_recording_buffer))
+            
+        # Take screenshot
+        screenshot_manager = ScreenshotManager()
+        screenshot = await screenshot_manager.capture()
+        
+        # Collect text content
+        text_content = collect_text_files_content()
+        
+        # Prepare request
+        endpoint = emily_endpoint_var.get() if current_speaker == "emily" else daemon_endpoint_var.get()
+        
+        files = {
+            'audio': ('audio.wav', wav_buffer.getvalue(), 'audio/wav'),
+            'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
+        }
+        
+        data = {
+            'text': text_content,
+            'session': session_id
+        }
+        
+        # Send request
+        response = requests.post(
+            endpoint,
+            data=data,
+            files=files,
+            timeout=NetworkConstants.REQUEST_TIMEOUT
+        )
+        
+        if response.status_code == 200:
+            update_status("✅ Processing response...")
+            await process_audio_chunk(response.content, is_daemon=(current_speaker=="daemon"))
+            update_status("✅ Response completed")
+            
+            # Switch speakers after successful response
+            current_speaker = "daemon" if current_speaker == "emily" else "emily"
+            update_speaker_indicator()
+            
+            # Clear buffer after successful send
+            current_recording_buffer = []
+        else:
+            update_status(f"❌ API error: {response.status_code}")
+            
+    except Exception as e:
+        logging.error(f"Send error: {e}")
+        update_status(f"❌ Error: {str(e)}")
 
 def toggle_play_pause():
     """Toggle between play and pause states"""
@@ -1691,6 +1759,19 @@ def create_device_selectors():
         padx=10,
         pady=5)
     play_pause_btn.pack(side='left', padx=5)
+    
+    # Send button
+    send_btn = tk.Button(controls_frame, text="📤 Send",
+        command=lambda: asyncio.run(send_current()),
+        bg=ThemeColors.ACCENT_SECONDARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
+    send_btn.pack(side='left', padx=5)
 
     # Editor controls
     editor_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
