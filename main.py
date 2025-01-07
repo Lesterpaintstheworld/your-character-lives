@@ -1473,34 +1473,39 @@ async def auto_record_loop():
                 # Record audio for the entire interval
                 audio_data = record_audio(auto_recording_interval)
                 
-                # Take screenshot
-                screenshot_data = take_screenshot()
-                
-                # Collect text content as string
+                # Take screenshots before and after collecting text content
+                logging.info("Taking pre-recording screenshot...")
+                pre_screenshot = take_screenshot()
+                if pre_screenshot is None:
+                    raise ValueError("Failed to capture pre-screenshot")
+
+                # Collect text content and file paths
                 logging.info("Collecting text content...")
-                text_content = collect_text_files_content()
+                text_content = collect_text_files_content()  # This includes folder scanning
                 logging.info(f"Text content collected: {len(text_content)} bytes")
+
+                logging.info("Taking post-recording screenshot...")
+                post_screenshot = take_screenshot()
+                if post_screenshot is None:
+                    raise ValueError("Failed to capture post-screenshot")
 
                 # Get endpoints from UI
                 emily_endpoint = emily_endpoint_var.get()
                 daemon_endpoint = daemon_endpoint_var.get()
 
-                # Log request details
-                logging.info(f"Sending request to Emily endpoint: {emily_endpoint}")
-                
-                # Prepare multipart form data
+                # Prepare request data with complete context
                 data = {
-                    'text': text_content,  # Send text directly in request body
+                    'text': text_content,  # This now includes folder content
                     'session': session_id
                 }
 
                 files = {
-                    'pre_screenshot': ('pre_screenshot.jpg', screenshot_data, 'image/jpeg'),
-                    'post_screenshot': ('post_screenshot.jpg', screenshot_data, 'image/jpeg'),
+                    'pre_screenshot': ('pre_screenshot.jpg', pre_screenshot, 'image/jpeg'),
+                    'post_screenshot': ('post_screenshot.jpg', post_screenshot, 'image/jpeg'),
                     'audio': ('audio.wav', audio_data, 'audio/wav')
                 }
 
-                # Send request to Emily first
+                # Send to Emily with complete context
                 logging.info("Sending data to Emily...")
                 response = requests.post(
                     emily_endpoint,
@@ -1510,13 +1515,12 @@ async def auto_record_loop():
                 )
 
                 if response.status_code == 200:
-                    # Process Emily's response
                     await process_audio_chunk(response.content, is_daemon=False)
                     
                     # Wait a bit before Daemon's turn
                     await asyncio.sleep(1)
                     
-                    # Now send to Daemon
+                    # Send to Daemon with same complete context
                     logging.info("Sending data to Daemon...")
                     response = requests.post(
                         daemon_endpoint,
@@ -1534,7 +1538,7 @@ async def auto_record_loop():
                     logging.error(f"Emily request failed: {response.status_code}")
                     update_status(f"❌ Emily error: {response.status_code}")
 
-                # Log response details
+                # Log response details for debugging
                 logging.info(f"Response status: {response.status_code}")
                 logging.info(f"Response headers: {response.headers}")
                 logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
