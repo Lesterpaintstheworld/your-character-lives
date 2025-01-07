@@ -332,68 +332,45 @@ def validate_and_fix_audio_data(audio_data: bytes) -> bytes:
         raise
 
 async def process_audio_chunk(audio_data: bytes, is_daemon=False):
-    """Process and play audio data with debug logging"""
+    """Process and play MP3 audio data with proper buffering"""
     temp_path = None
     
     try:
-        logging.info(f"Received audio data size: {len(audio_data)} bytes")
+        logging.info(f"Processing MP3 data: {len(audio_data)} bytes")
         
         if not audio_data:
             raise ValueError("Empty audio data received")
-            
-        # Try to validate audio format
-        try:
-            with wave.open(io.BytesIO(audio_data)) as wf:
-                logging.info(f"WAV format: channels={wf.getnchannels()}, "
-                           f"width={wf.getsampwidth()}, "
-                           f"rate={wf.getframerate()}, "
-                           f"frames={wf.getnframes()}")
-        except Exception as e:
-            logging.error(f"Not valid WAV data: {e}")
-            # Try to interpret as raw PCM
-            audio_array = np.frombuffer(audio_data, dtype=np.int16)
-            logging.info(f"Raw PCM data shape: {audio_array.shape}")
-            
-        # Write to temp WAV file
-        temp_fd, temp_path = tempfile.mkstemp(suffix='.wav')
+
+        # Write MP3 data to temp file
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
         os.close(temp_fd)
         
         with open(temp_path, 'wb') as f:
             f.write(audio_data)
-            
-        # Get selected output device
-        selected = output_var.get() if output_var else None
-        device_index = None
-        
-        if selected:
-            device_name = re.match(r'^([^(]+)', selected).group(1).strip()
-            p = pyaudio.PyAudio()
-            for i in range(p.get_device_count()):
-                info = p.get_device_info_by_index(i)
-                if device_name.lower() in info['name'].lower():
-                    device_index = i
-                    break
-            p.terminate()
-            
-        # Load and process audio
-        audio = AudioSegment.from_mp3(temp_path)
-        
-        # Convert to standard format
-        audio = audio.set_frame_rate(24000)
-        audio = audio.set_channels(1)
-        audio = audio.set_sample_width(2)
-        
-        # Play audio
-        pygame.mixer.init(frequency=24000, size=-16, channels=1)
-        pygame.mixer.music.load(temp_path)
-        pygame.mixer.music.play()
-        
-        while pygame.mixer.music.get_busy():
-            await asyncio.sleep(0.1)
-            if not is_playing:
-                pygame.mixer.music.stop()
-                break
 
+        # Initialize pygame mixer with larger buffer
+        pygame.mixer.quit()
+        pygame.mixer.init(
+            frequency=24000,  # Higher sample rate
+            size=-16,        # 16-bit audio
+            channels=1,      # Mono
+            buffer=4096      # Larger buffer to prevent clicks
+        )
+        
+        try:
+            pygame.mixer.music.load(temp_path)
+            pygame.mixer.music.play(fade_ms=50)  # Add slight fade-in
+            
+            while pygame.mixer.music.get_busy():
+                await asyncio.sleep(0.1)
+                if not is_playing:
+                    pygame.mixer.music.fadeout(50)  # Add slight fade-out
+                    break
+                    
+        except Exception as e:
+            logging.error(f"Playback error: {e}")
+            raise
+            
     finally:
         pygame.mixer.quit()
         if temp_path and os.path.exists(temp_path):
@@ -401,7 +378,7 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
                 os.remove(temp_path)
             except:
                 pass
-                
+
         # Switch back to idle videos sequentially
         logging.info("Switching back to idle videos...")
         if not is_daemon:  # Emily back to loop2
