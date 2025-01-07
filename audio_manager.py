@@ -176,12 +176,13 @@ class AudioManager:
         try:
             input_device = self.get_input_device()
             self.recording_stream = self.p.open(
-                format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
-                channels=self.config.CHANNELS,
-                rate=self.config.SAMPLE_RATE,
+                format=pyaudio.paFloat32,  # Higher precision format
+                channels=1,
+                rate=44100,  # CD quality
                 input=True,
                 input_device_index=input_device,
-                frames_per_buffer=self.config.CHUNK_SIZE
+                frames_per_buffer=4096,  # Larger buffer
+                stream_callback=None  # Disable callback for direct reading
             )
             yield self.recording_stream
         finally:
@@ -199,129 +200,63 @@ class AudioManager:
         logging.info("=== Starting Audio Recording ===")
         logging.info(f"Requested duration: {duration} seconds")
         
-        # Vérifier si le périphérique supporte 16000Hz
-        device_info = self.p.get_device_info_by_index(self.get_input_device())
-        supported_rates = [8000, 16000, 44100, 48000]  # Taux communs
-        target_rate = 16000
-        
-        # Trouver le meilleur taux supporté
-        if target_rate in supported_rates:
-            sample_rate = target_rate
-        else:
-            sample_rate = int(device_info['defaultSampleRate'])
-            
-        logging.info(f"Recording at {sample_rate}Hz...")
-        
         while retry_count < max_retries:
             try:
                 frames = []
                 device_index = self.get_input_device()
                 device_info = self.p.get_device_info_by_index(device_index)
                 logging.info(f"Using device: {device_info['name']}")
-                logging.info(f"Device index: {device_index}")
+                
+                # Use larger buffer size and higher quality settings
+                BUFFER_SIZE = 4096  # Increased from 1024 for more stability
+                SAMPLE_RATE = 44100  # CD quality
+                FORMAT = pyaudio.paFloat32  # Higher precision format
                 
                 with self.open_streams() as stream:
                     if not stream.is_active():
                         logging.error("Stream not active after opening")
                         raise RuntimeError("Audio stream not active")
-                        
+                    
                     logging.info("Stream opened successfully")
                     
-                    # Verify stream is active
-                    if not stream.is_active():
-                        logging.error("Stream not active after opening")
-                        raise RuntimeError("Audio stream not active")
-                
-                    logging.info("Stream opened successfully and is active")
-            
-                    # Log audio format settings
-                    logging.info(f"PyAudio Format: {self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8)}")
-                    logging.info(f"PyAudio Channels: {self.config.CHANNELS}")
-                    logging.info(f"PyAudio Rate: {self.config.SAMPLE_RATE}")
-                    logging.info(f"PyAudio Chunk Size: {self.config.CHUNK_SIZE}")
-
-                    chunks = int(self.config.SAMPLE_RATE / self.config.CHUNK_SIZE * duration)
+                    # Calculate chunks based on new buffer size
+                    chunks = int(SAMPLE_RATE / BUFFER_SIZE * duration)
                     logging.info(f"Will record {chunks} chunks")
-            
+                    
                     is_recording = True
                     start_time = time.time()
-            
+                    
                     for i in range(chunks):
                         if not self.is_playing or not self.is_recording:
                             logging.info("Recording interrupted")
-                            self._update_status("⏸️ Recording stopped")
                             break
-                    
+                        
                         try:
-                            # Log before reading
-                            logging.debug(f"Reading chunk {i}/{chunks}")
-                    
-                            # Add timeout for read operation
-                            data = stream.read(self.config.CHUNK_SIZE, exception_on_overflow=False)
-                    
+                            # Read with larger buffer and no overflow exceptions
+                            data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
+                            
                             # Verify data is not empty
                             if not data:
                                 logging.warning(f"Empty data received for chunk {i}")
                                 continue
-                        
-                            # Log data size
-                            logging.debug(f"Chunk {i} size: {len(data)} bytes")
-                    
+                            
                             frames.append(data)
-                    
+                            
                             # Calculate and update VU meter if callback is set
                             if hasattr(self, 'level_callback'):
                                 level = self._calculate_audio_level(data)
-                                logging.debug(f"Audio level: {level}")
                                 self.level_callback(level)
-                    
+                            
                             # Update progress every second
-                            if i % (self.config.SAMPLE_RATE // self.config.CHUNK_SIZE) == 0:
+                            if i % (SAMPLE_RATE // BUFFER_SIZE) == 0:
                                 elapsed = time.time() - start_time
-                                logging.info(f"Recording progress: {elapsed:.1f}s/{duration}s")
                                 self._update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
-    finally:
-        if stream:
-            try:
-                stream.stop_stream()
-                stream.close()
-            except Exception as e:
-                logging.warning(f"Error closing stream: {e}")
-        if p:
-            try:
-                p.terminate()
-            except Exception as e:
-                logging.warning(f"Error terminating PyAudio: {e}")
-                
-                # Resample to 16000 Hz if needed
-                if self.supported_rate != 16000:
-                    import numpy as np
-                    from scipy import signal
-                    
-                    # Convert frames to numpy array
-                    audio_data = np.frombuffer(b''.join(frames), dtype=np.int16)
-                    
-                    # Resample to 16000 Hz
-                    samples_out = int(len(audio_data) * 16000 / self.supported_rate)
-                    audio_resampled = signal.resample(audio_data, samples_out)
-                    
-                    # Convert to int16
-                    audio_resampled = np.int16(audio_resampled)
-                    
-                    # Create WAV with resampled data
+                    # Create WAV buffer with improved settings
                     wav_buffer = io.BytesIO()
                     with wave.open(wav_buffer, 'wb') as wf:
-                        wf.setnchannels(1)
-                        wf.setsampwidth(2)
-                        wf.setframerate(16000)
-                        wf.writeframes(audio_resampled.tobytes())
-                else:
-                    # Use raw data if already at 16000 Hz
-                    wav_buffer = io.BytesIO()
-                    with wave.open(wav_buffer, 'wb') as wf:
-                        wf.setnchannels(1)
-                        wf.setsampwidth(2)
-                        wf.setframerate(16000)
+                        wf.setnchannels(1)        # Mono
+                        wf.setsampwidth(4)        # 32-bit float
+                        wf.setframerate(SAMPLE_RATE)
                         wf.writeframes(b''.join(frames))
                         
                 logging.info("Successfully created WAV buffer")
