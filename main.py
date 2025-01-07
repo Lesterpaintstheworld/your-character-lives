@@ -1526,8 +1526,7 @@ def update_recording_status(status: str):
 
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
-    global ui_elements_created, editor_play_pause_btn, editor_active, browser_button
-    global current_recording_buffer, current_speaker
+    global ui_elements_created, editor_play_pause_btn, editor_active, browser_button, current_recording_buffer, current_speaker
     # Initialize globals if not already set
     if 'current_recording_buffer' not in globals():
         current_recording_buffer = []
@@ -1598,6 +1597,7 @@ def create_device_selectors():
         logging.info(f"Current buffer size: {len(current_recording_buffer)} chunks")
         
         async def send_task():
+            nonlocal current_speaker
             try:
                 # Take screenshot
                 logging.info("Taking screenshot...")
@@ -1664,7 +1664,6 @@ def create_device_selectors():
                     update_speaker_indicator()
                     
                     # Clear buffer after successful send
-                    global current_recording_buffer
                     current_recording_buffer = []
                 else:
                     error_msg = f"API error: {response.status_code}"
