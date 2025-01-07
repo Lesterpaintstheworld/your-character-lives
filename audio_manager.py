@@ -1,5 +1,6 @@
 """Audio recording and playback management"""
 import os
+import re
 import asyncio
 import sounddevice as sd
 import numpy as np
@@ -8,6 +9,7 @@ import pygame
 import logging
 import io
 import time
+import pyaudio
 from contextlib import contextmanager
 from typing import Optional
 from device_manager import DeviceManager
@@ -189,7 +191,7 @@ class AudioManager:
                 self.recording_stream.close()
                 self.recording_stream = None
 
-    def record_audio(self, duration: int) -> bytes:
+    def record_audio(self, duration: int, mic_var) -> bytes:
         """Record audio with detailed diagnostics"""
         max_retries = 3
         retry_delay = 1.0
