@@ -251,6 +251,10 @@ class AudioManager:
                             if i % (SAMPLE_RATE // BUFFER_SIZE) == 0:
                                 elapsed = time.time() - start_time
                                 self._update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
+                        except Exception as e:
+                            logging.error(f"Error reading audio chunk: {e}")
+                            continue
+                            
                     # Create WAV buffer with improved settings
                     wav_buffer = io.BytesIO()
                     with wave.open(wav_buffer, 'wb') as wf:
