@@ -1,10 +1,10 @@
 """Constants used throughout the application"""
 
 class AudioConstants:
-    CHUNK_SIZE = 4096  # Increased buffer size
-    FORMAT = 'int16'  # sounddevice uses dtype strings instead of constants
-    CHANNELS = 1
-    SAMPLE_RATE = 44100  # Standard CD quality
+    CHUNK_SIZE = 4096  # Increased buffer size for stability
+    FORMAT = 'int16'  # sounddevice uses dtype strings
+    CHANNELS = 1  # Mono recording
+    SAMPLE_RATE = 44100  # CD quality
     SILENCE_THRESHOLD = -60  # dB
     MIN_SILENCE_DURATION = 3.0  # seconds
     SMART_SCREENSHOT_INTERVAL = 20  # seconds
