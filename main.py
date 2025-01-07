@@ -395,11 +395,11 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
         if not is_daemon:  # Emily's window
             if current_video_window:
                 current_video_window.switch_to_talk_video()
-                await asyncio.sleep(0.1)  # Give time for video switch
+                await asyncio.sleep(0.1)
         else:  # Daemon's window
             if second_video_window:
                 second_video_window.switch_to_talk_video()
-                await asyncio.sleep(0.1)  # Give time for video switch
+                await asyncio.sleep(0.1)
 
         # Write MP3 data to temp file
         temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
@@ -408,9 +408,9 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
         with open(temp_path, 'wb') as f:
             f.write(audio_data)
 
-        # Initialize pygame mixer
+        # Initialize pygame mixer with higher quality settings
         pygame.mixer.quit()
-        pygame.mixer.init(frequency=44100, size=-16, channels=2, buffer=8192)
+        pygame.mixer.init(frequency=48000, size=-16, channels=2, buffer=2048)
         
         try:
             pygame.mixer.music.load(temp_path)
@@ -831,9 +831,9 @@ def record_audio(duration):
         logging.info("Recording disabled - waiting 1 second")
         update_status("⏳ Waiting 1 second...")
         time.sleep(1)
-        # Create 1 second of silence
-        silent_data = np.zeros(int(44100 * 1), dtype=np.int16).tobytes()
-        current_recording_buffer = [silent_data]  # Store in buffer
+        # Create 1 second of silence at correct sample rate
+        silent_data = np.zeros(int(48000 * 1), dtype=np.int16).tobytes()
+        current_recording_buffer = [silent_data]
         return silent_data
 
     p = None
@@ -855,14 +855,20 @@ def record_audio(duration):
         
         p = pyaudio.PyAudio()
         
-        # Configure for high quality audio capture
+        # Use higher quality settings
+        CHUNK = 1024
+        FORMAT = pyaudio.paInt16
+        CHANNELS = 1
+        RATE = 48000  # Higher sample rate for better quality
+        
         stream = p.open(
-            format=pyaudio.paInt16,
-            channels=1,            # Mono input
-            rate=44100,           # CD quality
+            format=FORMAT,
+            channels=CHANNELS,
+            rate=RATE,
             input=True,
-            input_device_index=input_device,
-            frames_per_buffer=4096 # Larger buffer for stability
+            input_device_index=device_index,
+            frames_per_buffer=CHUNK,
+            start=False
         )
         
         # Verify stream is active
