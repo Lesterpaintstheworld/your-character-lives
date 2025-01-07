@@ -2222,6 +2222,28 @@ def setup_logging():
     logging.root.addHandler(handler)
     logging.root.setLevel(logging.DEBUG)
 
+def configure_logging():
+    """Configure logging with proper levels for different modules"""
+    # Set root logger to INFO
+    logging.getLogger().setLevel(logging.INFO)
+    
+    # Configure specific loggers
+    logging.getLogger('PIL').setLevel(logging.WARNING)  # Suppress PIL debug messages
+    logging.getLogger('PIL.PngImagePlugin').setLevel(logging.WARNING)
+    logging.getLogger('matplotlib').setLevel(logging.WARNING)
+    logging.getLogger('asyncio').setLevel(logging.INFO)
+    
+    # Keep debug logging for our application modules
+    logging.getLogger('audio_manager').setLevel(logging.DEBUG)
+    logging.getLogger('video_window').setLevel(logging.DEBUG)
+    logging.getLogger('browser_manager').setLevel(logging.DEBUG)
+    logging.getLogger('device_manager').setLevel(logging.DEBUG)
+    
+    # Configure format
+    formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    for handler in logging.getLogger().handlers:
+        handler.setFormatter(formatter)
+
 def init_screenshot():
     """Initialize screenshot capabilities"""
     logging.info("=== Initializing Screenshot System ===")
@@ -2246,6 +2268,7 @@ def init_screenshot():
 if __name__ == "__main__":
     # Initialize logging first
     setup_logging()
+    configure_logging()
     
     # Initialize visualization after root window exists
     try:
