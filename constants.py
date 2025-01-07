@@ -1,9 +1,8 @@
 """Constants used throughout the application"""
-import pyaudio
 
 class AudioConstants:
     CHUNK_SIZE = 2048
-    FORMAT = pyaudio.paInt16
+    FORMAT = 'int16'  # sounddevice uses dtype strings instead of constants
     CHANNELS = 1
     SAMPLE_RATE = 16000
     SILENCE_THRESHOLD = -60  # dB
