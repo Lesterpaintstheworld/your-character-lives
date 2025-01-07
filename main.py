@@ -1630,7 +1630,7 @@ def create_device_selectors():
         logging.info(f"Current buffer size: {len(current_recording_buffer)} chunks")
         
         async def send_task():
-            global current_speaker, current_recording_buffer
+            global current_recording_buffer, current_speaker
             try:
                 # Take screenshot
                 logging.info("Taking screenshot...")
@@ -1712,18 +1712,24 @@ def create_device_selectors():
                 # Re-enable send button in main thread
                 root.after(0, lambda: send_btn.config(state='normal'))
 
-        # Run task in background
-        try:
-            loop = get_or_create_eventloop()
-            if loop and loop.is_running():
-                asyncio.run_coroutine_threadsafe(send_task(), loop)
-            else:
-                logging.error("No running event loop found")
-                update_status("❌ Event loop error")
-        except Exception as e:
-            logging.error(f"Failed to start send task: {e}")
-            update_status("❌ Failed to start send")
-            send_btn.config(state='normal')
+        # Create and run the task in a new thread with proper event loop handling
+        def run_async_task():
+            try:
+                # Create new event loop for this thread
+                loop = asyncio.new_event_loop()
+                asyncio.set_event_loop(loop)
+                
+                # Run the send task
+                loop.run_until_complete(send_task())
+                
+            except Exception as e:
+                logging.error(f"Failed to run send task: {e}")
+                root.after(0, lambda: update_status(f"❌ Send error: {str(e)}"))
+            finally:
+                loop.close()
+                
+        # Start the task in a new thread
+        threading.Thread(target=run_async_task, daemon=True).start()
 
     send_btn = tk.Button(controls_frame, text="📤 Send",
         command=send_button_click,
