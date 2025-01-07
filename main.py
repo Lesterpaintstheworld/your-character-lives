@@ -1152,19 +1152,19 @@ def calculate_audio_level(audio_data):
         db = 20 * np.log10(rms / 32768.0)
         logging.debug(f"Decibel value: {db} dB")
         
-        # Adjusted ranges - higher MAX_DB to be less sensitive
+        # Use positive max dB for better scaling
         MIN_DB = -60  # Baseline for silence
-        MAX_DB = 0    # Full scale reference
-        NOISE_GATE = -50  # Noise gate threshold
+        MAX_DB = 6    # Allow for peaks above 0dB
+        NOISE_GATE = -30  # Higher noise gate
         
         # Apply noise gate
         if db < NOISE_GATE:
             logging.debug("Below noise gate threshold")
             return 0.0
             
-        # Improved normalization with compression
+        # Improved normalization with stronger compression
         normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
-        normalized = np.power(normalized, 0.6)  # Moderate compression
+        normalized = np.power(normalized, 0.4)  # More aggressive compression
         
         # Clip to 0-1 range
         result = max(0.0, min(1.0, normalized))
