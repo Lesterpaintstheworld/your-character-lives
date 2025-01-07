@@ -811,9 +811,28 @@ def get_input_device():
     finally:
         p.terminate()
 
+def toggle_recording():
+    """Toggle between recording and non-recording modes"""
+    global recording_enabled
+    recording_enabled = not recording_enabled
+    record_toggle_btn.config(
+        text="🎤 Recording ON" if recording_enabled else "🎤 Recording OFF",
+        bg=ThemeColors.ACCENT_PRIMARY if recording_enabled else ThemeColors.BG_LIGHT
+    )
+    update_status(f"Recording {'enabled' if recording_enabled else 'disabled'} - {'using microphone' if recording_enabled else 'auto-send after 5s'}")
+
 def record_audio(duration):
-    """Record audio with basic error checking and logging"""
-    global is_recording
+    """Record audio with optional silent mode"""
+    global is_recording, recording_enabled
+    
+    if not recording_enabled:
+        # If recording is disabled, wait 5 seconds and return empty audio
+        logging.info("Recording disabled - waiting 5 seconds")
+        update_status("⏳ Waiting 5 seconds...")
+        time.sleep(5)
+        # Return 5 seconds of silence
+        return np.zeros(int(44100 * 5), dtype=np.int16).tobytes()
+        
     logging.info("=== Starting Audio Recording ===")
     
     p = None
