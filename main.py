@@ -1585,6 +1585,7 @@ def create_device_selectors():
         send_btn.config(state='disabled')
     
         async def send_task():
+            global current_recording_buffer, current_speaker
             try:
                 # Take screenshot
                 screenshot_manager = ScreenshotManager()
