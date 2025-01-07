@@ -214,11 +214,7 @@ class AudioManager:
                     channels=1,
                     samplerate=SAMPLE_RATE,
                     blocksize=BUFFER_SIZE,
-                    dtype=np.int16  # 16-bit PCM
-                    channels=1,
-                    rate=SAMPLE_RATE,
-                    input=True,
-                    input_device_index=device_index,
+                    dtype=np.int16,  # 16-bit PCM
                     frames_per_buffer=BUFFER_SIZE
                 )
                 
