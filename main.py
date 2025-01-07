@@ -1724,7 +1724,8 @@ def create_device_selectors():
                 
             except Exception as e:
                 logging.error(f"Failed to run send task: {e}")
-                root.after(0, lambda: update_status(f"❌ Send error: {str(e)}"))
+                error_msg = str(e)  # Capture error message
+                root.after(0, lambda: update_status(f"❌ Send error: {error_msg}"))
             finally:
                 loop.close()
                 
