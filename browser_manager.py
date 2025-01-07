@@ -4,8 +4,14 @@ import logging
 import os
 import base64
 import time
-from typing import Any, Dict, Optional
+import backoff
+from typing import Any, Dict, Optional, List
 from playwright.async_api import async_playwright, Browser, Page
+import playwright.core
+
+class BrowserError(Exception):
+    """Custom exception for browser operations"""
+    pass
 import aiohttp
 import requests
 import json
@@ -106,18 +112,27 @@ class BrowserManager:
             self.logger.error(f"Failed to start browser: {e}", exc_info=True)
             raise
 
-    async def navigate(self, url: str) -> bool:
-        """Navigate to specified URL"""
-        self.logger.info(f"Navigating to: {url}")
-        self.logger.debug(f"Current page: {self.page.url if self.page else 'No page'}")
+    @backoff.on_exception(backoff.expo, 
+                         (playwright.core.Error, BrowserError),
+                         max_tries=3)
+    async def safe_navigate(self, url: str) -> bool:
+        """Navigate with retry logic and better error handling"""
         try:
-            await self.page.goto(url)
-            await self.page.wait_for_load_state("networkidle")
+            self.logger.info(f"Navigating to: {url}")
+            self.logger.debug(f"Current page: {self.page.url if self.page else 'No page'}")
+            await self.page.goto(url, wait_until='networkidle')
             self.logger.info(f"Successfully loaded {url}")
             self.logger.debug(f"Page title: {await self.page.title()}")
             return True
         except Exception as e:
-            self.logger.error(f"Navigation failed for {url}: {e}", exc_info=True)
+            self.logger.error(f"Navigation failed: {e}")
+            raise BrowserError(f"Failed to navigate to {url}: {e}")
+
+    async def navigate(self, url: str) -> bool:
+        """Legacy navigation method that calls safe_navigate"""
+        try:
+            return await self.safe_navigate(url)
+        except Exception:
             return False
 
     async def execute_script(self, script: str) -> Any:
@@ -129,22 +144,37 @@ class BrowserManager:
             self.logger.error(f"Script execution failed: {e}")
             return None
 
-    async def take_screenshot(self, path: str = None) -> Optional[bytes]:
-        """Capture screenshot of current page
-        
-        Args:
-            path: Optional path to save screenshot file
+    async def safe_screenshot(self) -> Optional[bytes]:
+        """Take screenshot with better error handling"""
+        try:
+            if not self.page:
+                raise BrowserError("No active page")
+                
+            screenshot = await self.page.screenshot(
+                type='jpeg',
+                quality=85,
+                full_page=False
+            )
             
-        Returns:
-            Screenshot as bytes if no path provided, otherwise None
-        """
+            if not screenshot:
+                raise BrowserError("Screenshot capture failed")
+                
+            return screenshot
+            
+        except Exception as e:
+            self.logger.error(f"Screenshot failed: {e}")
+            return None
+
+    async def take_screenshot(self, path: str = None) -> Optional[bytes]:
+        """Legacy screenshot method that uses safe_screenshot"""
         try:
             if path:
-                await self.page.screenshot(path=path)
+                screenshot = await self.safe_screenshot()
+                if screenshot:
+                    with open(path, 'wb') as f:
+                        f.write(screenshot)
                 return None
-            else:
-                # Return optimized JPEG bytes directly
-                return await self.page.screenshot(type='jpeg', quality=85)
+            return await self.safe_screenshot()
         except Exception as e:
             self.logger.error(f"Screenshot failed: {e}")
             return None
