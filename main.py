@@ -1126,16 +1126,22 @@ async def send_current():
     global current_recording_buffer, current_speaker, recording_enabled
     
     try:
-        if not recording_enabled and not current_recording_buffer:
-            # If recording is disabled and buffer is empty, create silent audio
-            silent_audio = np.zeros(int(44100 * 1), dtype=np.int16).tobytes()
+        if not recording_enabled:
+            # If recording is disabled, create 5s of silence
+            logging.info("Recording disabled - creating 5s silence")
+            silent_audio = np.zeros(int(44100 * 5), dtype=np.int16).tobytes()
             current_recording_buffer = [silent_audio]
             
         logging.info(f"Send requested - buffer size: {len(current_recording_buffer)} chunks")
         
         if not current_recording_buffer:
-            update_status("❌ No audio recorded yet")
-            return
+            # If no buffer, record 5 seconds
+            logging.info("No audio in buffer - recording 5 seconds")
+            audio_data = record_audio(5)  # Record 5 seconds
+            if audio_data is None:
+                update_status("❌ Failed to record audio")
+                return
+            current_recording_buffer = [audio_data]
             
         update_status("📤 Sending request...")
         
@@ -1144,8 +1150,12 @@ async def send_current():
         with wave.open(wav_buffer, 'wb') as wf:
             wf.setnchannels(1)
             wf.setsampwidth(2)
-            wf.setframerate(RATE)
-            wf.writeframes(b''.join(current_recording_buffer))
+            wf.setframerate(44100)
+            # Handle both single chunk and multiple chunks
+            if len(current_recording_buffer) == 1 and isinstance(current_recording_buffer[0], bytes):
+                wf.writeframes(current_recording_buffer[0])
+            else:
+                wf.writeframes(b''.join(current_recording_buffer))
             
         # Take screenshot
         screenshot_manager = ScreenshotManager()
