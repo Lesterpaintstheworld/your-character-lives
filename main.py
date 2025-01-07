@@ -2097,7 +2097,7 @@ def refresh_devices(mic_combo, output_combo):
     update_status(" | ".join(status))
 
 def test_audio_recording():
-    """Test audio recording with diagnostics"""
+    """Test audio recording with diagnostics and playback"""
     logging.info("\n=== Audio Recording Test ===")
     
     try:
@@ -2116,6 +2116,7 @@ def test_audio_recording():
         # Test recording
         DURATION = 5  # 5 seconds test
         logging.info(f"\nStarting {DURATION} second test recording...")
+        update_status("🎤 Recording test audio...")
         
         audio_data = record_audio(DURATION)
         
@@ -2131,13 +2132,47 @@ def test_audio_recording():
             logging.info(f"RMS value: {rms}")
             logging.info(f"Signal/Noise ratio: {20 * np.log10(max_amplitude/rms) if rms > 0 else 'N/A'} dB")
             
+            # Play back the recorded audio
+            update_status("🔊 Playing back test recording...")
+            
+            # Save to temporary WAV file
+            temp_file = 'temp_test.wav'
+            with wave.open(temp_file, 'wb') as wf:
+                wf.setnchannels(1)
+                wf.setsampwidth(2)
+                wf.setframerate(44100)
+                wf.writeframes(audio_data)
+            
+            try:
+                # Initialize pygame mixer
+                pygame.mixer.quit()
+                pygame.mixer.init(frequency=44100)
+                pygame.mixer.music.load(temp_file)
+                pygame.mixer.music.play()
+                
+                # Wait for playback to complete
+                while pygame.mixer.music.get_busy():
+                    time.sleep(0.1)
+                    
+                pygame.mixer.quit()
+                
+            finally:
+                # Clean up temp file
+                try:
+                    os.remove(temp_file)
+                except:
+                    pass
+            
+            update_status("✅ Test recording completed")
             return True
         else:
             logging.error("No audio data recorded")
+            update_status("❌ Test recording failed - no audio data")
             return False
             
     except Exception as e:
         logging.error(f"Test recording failed: {e}", exc_info=True)
+        update_status(f"❌ Test recording failed: {str(e)}")
         return False
     finally:
         if 'p' in locals():
