@@ -2217,11 +2217,11 @@ def setup_logging():
     for handler in logging.root.handlers[:]:
         logging.root.removeHandler(handler)
 
-    # Add UTF-8 handler
+    # Add UTF-8 handler with DEBUG level
     handler = UTFStreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logging.root.addHandler(handler)
-    logging.root.setLevel(logging.INFO)
+    logging.root.setLevel(logging.DEBUG)
 
 def init_screenshot():
     """Initialize screenshot capabilities"""
