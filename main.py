@@ -332,11 +332,11 @@ def validate_and_fix_audio_data(audio_data: bytes) -> bytes:
         raise
 
 async def process_audio_chunk(audio_data: bytes, is_daemon=False):
-    """Process and play MP3 audio data with proper buffering"""
+    """Process and play MP3 audio data (160kbps) with proper buffering"""
     temp_path = None
     
     try:
-        logging.info(f"Processing MP3 data: {len(audio_data)} bytes")
+        logging.info(f"Processing 160kbps MP3 data: {len(audio_data)} bytes")
         
         if not audio_data:
             raise ValueError("Empty audio data received")
@@ -348,13 +348,13 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
         with open(temp_path, 'wb') as f:
             f.write(audio_data)
 
-        # Initialize pygame mixer with larger buffer
+        # Initialize pygame mixer optimized for 160kbps MP3
         pygame.mixer.quit()
         pygame.mixer.init(
-            frequency=24000,  # Higher sample rate
-            size=-16,        # 16-bit audio
-            channels=1,      # Mono
-            buffer=4096      # Larger buffer to prevent clicks
+            frequency=44100,    # Standard MP3 rate
+            size=-16,           # 16-bit audio
+            channels=2,         # Stereo for MP3
+            buffer=8192         # Larger buffer for 160kbps
         )
         
         try:
