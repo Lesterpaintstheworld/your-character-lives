@@ -1585,6 +1585,7 @@ def create_device_selectors():
     # Send button
     def send_button_click():
         """Non-blocking send button handler"""
+        global current_speaker
         logging.info("=== Send Button Clicked ===")
         
         # Verify we have data to send
@@ -1660,7 +1661,6 @@ def create_device_selectors():
                     update_status("✅ Response completed")
                     
                     # Switch speakers after successful response
-                    global current_speaker
                     current_speaker = "daemon" if current_speaker == "emily" else "emily"
                     update_speaker_indicator()
                     
