@@ -332,185 +332,69 @@ def validate_and_fix_audio_data(audio_data: bytes) -> bytes:
         raise
 
 async def process_audio_chunk(audio_data: bytes, is_daemon=False):
-    """Process and play raw binary audio data using PyAudio directly."""
+    """Process and play audio data with proper format handling"""
     temp_path = None
-    p = None
-    stream = None
     
     try:
         if not audio_data:
             raise ValueError("Empty audio data received")
             
-        # Switch videos sequentially, not simultaneously
-        logging.info(f"Attempting to switch to talk video (is_daemon={is_daemon})...")
-        if not is_daemon:  # Emily (first speaker) uses loop2/talk2
-            if current_video_window:
-                logging.info("Switching Emily to talk2 video...")
-                current_video_window.switch_to_talk_video()  # This will use talk2.mp4
-                await asyncio.sleep(0.2)  # Give time for video switch
-            else:
-                logging.error("First video window (Emily) not initialized")
-        else:  # Daemon uses loop/talk
-            if second_video_window:
-                logging.info("Switching Daemon to talk video...")
-                second_video_window.switch_to_talk_video()  # This will use talk.mp4
-                await asyncio.sleep(0.2)  # Give time for video switch
-            else:
-                logging.error("Second video window (Daemon) not initialized")
+        # Switch videos based on speaker
+        if not is_daemon and current_video_window:
+            current_video_window.switch_to_talk_video()
+            await asyncio.sleep(0.2)
+        elif is_daemon and second_video_window:
+            second_video_window.switch_to_talk_video()
+            await asyncio.sleep(0.2)
             
-        # Get user-specific temp directory with proper permissions
-        temp_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'Temp', 'AI_Assistant')
-        
-        # Create temp directory if it doesn't exist
-        try:
-            os.makedirs(temp_dir, exist_ok=True)
-            # Explicitly set directory permissions
-            os.chmod(temp_dir, 0o700)  # User read/write/execute only
-        except Exception as e:
-            logging.error(f"Failed to create/set permissions on temp directory: {e}")
-            # Fallback to system temp directory
-            temp_dir = tempfile.gettempdir()
-
         # Create temp file with proper permissions
-        try:
-            temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3', dir=temp_dir)
-            os.close(temp_fd)  # Close file descriptor immediately
-            # Set file permissions
-            os.chmod(temp_path, 0o600)  # User read/write only
-            logging.info(f"Created temp file with permissions: {temp_path}")
-        except Exception as e:
-            logging.error(f"Failed to create temp file: {e}")
-            # Fallback to system temp directory
-            temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
-            os.close(temp_fd)
-
-        # Switch videos sequentially, not simultaneously
-        logging.info(f"Attempting to switch to talk video (is_daemon={is_daemon})...")
-        if not is_daemon:  # Emily (first speaker) uses loop2/talk2
-            if current_video_window:
-                logging.info("Switching Emily to talk2 video...")
-                current_video_window.switch_to_talk_video()  # This will use talk2.mp4
-                await asyncio.sleep(0.2)  # Give time for video switch
-            else:
-                logging.error("First video window (Emily) not initialized")
-        else:  # Daemon uses loop/talk
-            if second_video_window:
-                logging.info("Switching Daemon to talk video...")
-                second_video_window.switch_to_talk_video()  # This will use talk.mp4
-                await asyncio.sleep(0.2)  # Give time for video switch
-            else:
-                logging.error("Second video window (Daemon) not initialized")
-
-        # Play audio
-        try:
-            # Create temp file with unique name in user temp directory
-            temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
-            os.close(temp_fd)  # Close file descriptor immediately
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
+        os.close(temp_fd)
+        
+        # Write audio data
+        with open(temp_path, 'wb') as f:
+            f.write(audio_data)
             
-            logging.info(f"Created temp file: {temp_path}")
-            
-            # Write audio data to temp file
-            with open(temp_path, 'wb') as f:
-                f.write(audio_data)
-
-            # Get selected output device
-            selected = output_var.get() if output_var else None
-            device_index = None
-            
+        # Get selected output device
+        selected = output_var.get() if output_var else None
+        device_index = None
+        
+        if selected:
+            device_name = re.match(r'^([^(]+)', selected).group(1).strip()
             p = pyaudio.PyAudio()
-            
-            # Find selected device
-            if selected:
-                device_name = re.match(r'^([^(]+)', selected).group(1).strip()
-                for i in range(p.get_device_count()):
-                    info = p.get_device_info_by_index(i)
-                    if device_name.lower() in info['name'].lower():
-                        if validate_output_device(i):
-                            device_index = i
-                            break
-
-            # Process and play audio
-            audio = AudioSegment.from_mp3(io.BytesIO(audio_data))
-            if len(audio) == 0:
-                raise ValueError("Audio file is empty")
-            
-            # Force specific format
-            audio = audio.set_frame_rate(24000)
-            audio = audio.set_channels(1)
-            audio = audio.set_sample_width(2)
-            
-            raw_data = audio.raw_data
-            if not raw_data:
-                raise ValueError("No raw audio data available")
-
-            # Open and configure audio stream
-            stream = p.open(
-                format=pyaudio.paInt16,
-                channels=1,
-                rate=24000,
-                output=True,
-                output_device_index=device_index,
-                frames_per_buffer=1024,
-                start=False
-            )
-            
-            stream.start_stream()
-            
-            # Play audio in smaller chunks with yields to prevent blocking
-            chunk_size = 1024
-            total_bytes = len(raw_data)
-            total_chunks = (total_bytes + chunk_size - 1) // chunk_size
-
-            for i in range(total_chunks):
-                if not is_playing:
+            for i in range(p.get_device_count()):
+                info = p.get_device_info_by_index(i)
+                if device_name.lower() in info['name'].lower():
+                    device_index = i
                     break
-                    
-                start = i * chunk_size
-                end = min(start + chunk_size, total_bytes)
-                chunk = raw_data[start:end]
-                
-                if chunk:
-                    stream.write(chunk)
-                    await asyncio.sleep(0.001)  # Yield to other tasks
-
-        finally:
-            # Cleanup audio resources
-            if stream:
-                stream.stop_stream()
-                stream.close()
-            if p:
-                p.terminate()
-
-    except Exception as e:
-        logging.error(f"Error in process_audio_chunk: {e}")
-        raise
+            p.terminate()
+            
+        # Load and process audio
+        audio = AudioSegment.from_mp3(temp_path)
+        
+        # Convert to standard format
+        audio = audio.set_frame_rate(24000)
+        audio = audio.set_channels(1)
+        audio = audio.set_sample_width(2)
+        
+        # Play audio
+        pygame.mixer.init(frequency=24000, size=-16, channels=1)
+        pygame.mixer.music.load(temp_path)
+        pygame.mixer.music.play()
+        
+        while pygame.mixer.music.get_busy():
+            await asyncio.sleep(0.1)
+            if not is_playing:
+                pygame.mixer.music.stop()
+                break
 
     finally:
-        # Clean up temp file with elevated permissions if needed
+        pygame.mixer.quit()
         if temp_path and os.path.exists(temp_path):
-            for attempt in range(3):
-                try:
-                    # Ensure we have write permission to delete
-                    current_perms = os.stat(temp_path).st_mode
-                    if not current_perms & 0o200:  # Check write permission
-                        os.chmod(temp_path, 0o600)  # Set user read/write
-                        
-                    os.remove(temp_path)
-                    logging.info(f"Successfully removed temp file: {temp_path}")
-                    break
-                except PermissionError as e:
-                    logging.warning(f"Permission error removing file (attempt {attempt+1}): {e}")
-                    # Try to force close any open handles on Windows
-                    if os.name == 'nt':
-                        try:
-                            import win32file
-                            win32file.CloseHandle(win32file._get_osfhandle(temp_fd))
-                        except:
-                            pass
-                    await asyncio.sleep(0.1)
-                except Exception as e:
-                    logging.warning(f"Failed to remove temp file (attempt {attempt+1}): {e}")
-                    await asyncio.sleep(0.1)
+            try:
+                os.remove(temp_path)
+            except:
+                pass
                 
         # Switch back to idle videos sequentially
         logging.info("Switching back to idle videos...")
@@ -889,23 +773,38 @@ def get_input_device():
         p.terminate()
 
 def record_audio(duration):
-    """Record audio with ALC compensation"""
+    """Record audio with proper buffer handling and noise reduction"""
     global is_recording
     logging.info("=== Starting Audio Recording ===")
     logging.info(f"Requested duration: {duration} seconds")
     
-    # First get a noise floor sample
-    noise_floor = None
+    p = None
+    stream = None
+    frames = []
+    
     try:
+        # Get selected mic index
+        selected = mic_var.get()
+        if not selected:
+            raise Exception("No microphone selected")
+            
+        match = re.search(r'Device (\d+)', selected)
+        if not match:
+            raise Exception("Invalid microphone selection")
+            
+        input_device = int(match.group(1))
+        
         p = pyaudio.PyAudio()
-        device_index = get_input_device()
+        
+        # Always use 16-bit PCM format
         stream = p.open(
-            format=FORMAT,
+            format=pyaudio.paInt16,
             channels=1,
-            rate=48000,  # Match Jabra's native rate
+            rate=16000,  # Fixed rate for better compatibility
             input=True,
-            input_device_index=device_index,
-            frames_per_buffer=1024
+            input_device_index=input_device,
+            frames_per_buffer=1024,
+            start=True
         )
         
         # Sample noise for 100ms
