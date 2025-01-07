@@ -1,4 +1,4 @@
-# Multi-Domain AI Assistant User Guide
+# AI Assistant User Guide
 
 ## Quick Start
 
@@ -23,9 +23,8 @@ python main.py
 
 ### Main Interface
 - Click ▶️ to start interaction
-- Use 🔄 Auto button for continuous recording
-- Adjust recording interval (5-3600 seconds)
 - Monitor input levels with VU meter
+- Current speaker indicator shows who is speaking (Emily/Daemon)
 
 ### Audio Setup
 - Select input device (microphone)
@@ -33,20 +32,16 @@ python main.py
 - Use refresh button to update device lists
 - Test audio devices before starting
 
-### Smart Recording Mode
-Smart mode provides a more natural conversation experience by automatically detecting when you've finished speaking and managing the turn-taking between Emily and Daemon.
+### Smart Conversation Mode
+The AI Assistant uses smart conversation mode for natural interaction:
 
-#### How it works
-- Click the "Smart Mode" button to activate
-- Speak naturally - the system will listen continuously
-- When you pause for 3+ seconds, the system will automatically respond
-- Emily and Daemon will take turns responding
+- System automatically detects when you've finished speaking
+- Emily and Daemon take turns responding
 - You can interrupt their responses by speaking
 - Screenshots are automatically taken every 20 seconds
 
 #### Controls
-- Play/Pause: Start or stop the smart conversation mode
-- Mode Switch: Toggle between Manual/Auto/Smart modes
+- Play/Pause: Start or stop the conversation
 - Status Indicator: Shows current state (recording/processing/playing)
 - Level Meter: Shows your audio input level
 
@@ -54,7 +49,6 @@ Smart mode provides a more natural conversation experience by automatically dete
 - Speak at a normal volume and pace
 - Natural pauses under 3 seconds won't trigger a response
 - You can interrupt responses at any time by speaking
-- Use Play/Pause to control the conversation flow
 
 ### Video Avatars
 - Drag avatars to reposition
@@ -75,12 +69,6 @@ Smart mode provides a more natural conversation experience by automatically dete
 - Check if OpenCV is properly installed
 - Verify video files exist in correct location
 - Try restarting application
-
-### Performance Issues
-- Close unnecessary applications
-- Check system requirements
-- Monitor resource usage
-- Reduce recording interval if needed
 
 ## Support
 - Open an issue on GitHub
