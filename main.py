@@ -96,14 +96,9 @@ def initialize_audio():
 running = True
 is_playing = True
 is_recording = False
-auto_recording = False
-smart_mode = False
 current_speaker = "emily"  # Alternates between "emily" and "daemon"
 last_audio_time = 0
 audio_buffer = []
-auto_recording_interval = 50  # seconds
-interval_spinbox = None  # Will be set when UI is created
-auto_recording_task = None
 output_var = None  # Will store output device selection
 emily_endpoint_var = None  # Will store Emily endpoint
 daemon_endpoint_var = None  # Will store Daemon endpoint
@@ -1215,16 +1210,16 @@ def toggle_play_pause():
     play_pause_btn.config(text="▶️" if not is_playing else "⏸️")
     
     if is_playing:
-        # Start a new recording cycle immediately
-        update_status("▶️ Starting new interaction...")
-        api_thread = threading.Thread(
-            target=lambda: asyncio.run(api_client(0))
+        # Start smart recording
+        update_status("▶️ Starting interaction...")
+        smart_thread = threading.Thread(
+            target=lambda: asyncio.run(start_smart_recording()),
+            daemon=True
         )
-        api_thread.daemon = True
-        api_thread.start()
+        smart_thread.start()
     else:
-        # If pausing, stop current recording and playback
-        is_recording = False  # Signal recording to stop
+        # Stop current recording and playback
+        is_recording = False
         try:
             pygame.mixer.music.stop()
             update_status("⏸️ Interaction stopped")
@@ -1797,29 +1792,11 @@ def create_device_selectors():
     main_frame = ttk.Frame(root, style='Modern.TFrame')
     main_frame.pack(fill='x', padx=10, pady=5)
 
-    # Controls row (play/pause, auto recording, smart mode, editor)
+    # Controls row (play/pause only)
     controls_frame = ttk.Frame(main_frame, style='Modern.TFrame')
     controls_frame.pack(fill='x', pady=(0, 5))
 
-    # Mode selection frame
-    mode_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
-    mode_frame.pack(side='left', padx=5)
-    
-    # Add smart mode button
-    global smart_mode_btn
-    smart_mode_btn = tk.Button(mode_frame, text="🧠 Smart OFF",
-        command=toggle_smart_mode,
-        bg=ThemeColors.ACCENT_SECONDARY,
-        fg=ThemeColors.TEXT_BRIGHT,
-        relief='flat',
-        activebackground=ThemeColors.BG_HOVER,
-        activeforeground=ThemeColors.TEXT_BRIGHT,
-        borderwidth=0,
-        padx=10,
-        pady=5)
-    smart_mode_btn.pack(side='left')
-
-    # Play/Pause button
+    # Play/Pause button 
     global play_pause_btn
     play_pause_btn = tk.Button(controls_frame, text="⏸️", width=3,
         command=toggle_play_pause,
@@ -1867,44 +1844,6 @@ def create_device_selectors():
         pady=5)
     browser_button.pack(side='left')
 
-    # Auto recording controls
-    auto_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
-    auto_frame.pack(side='left', padx=5)
-
-    global auto_btn
-    auto_btn = tk.Button(auto_frame, text="🔄 Auto OFF",
-        command=toggle_auto_recording,
-        bg=ThemeColors.ACCENT_SECONDARY,
-        fg=ThemeColors.TEXT_BRIGHT,
-        relief='flat',
-        activebackground=ThemeColors.BG_HOVER,
-        activeforeground=ThemeColors.TEXT_BRIGHT,
-        borderwidth=0,
-        padx=10,
-        pady=5)
-    auto_btn.pack(side='left')
-
-    # Interval controls
-    tk.Label(auto_frame, text="Interval:",
-        bg=ThemeColors.BG_DARK,
-        fg=ThemeColors.TEXT_SECONDARY).pack(side='left', padx=(5,0))
-    
-    global interval_spinbox
-    interval_spinbox = tk.Spinbox(auto_frame, from_=5, to=3600, width=5,
-        bg=ThemeColors.BG_LIGHT,
-        fg=ThemeColors.TEXT_PRIMARY,
-        buttonbackground=ThemeColors.ACCENT_SECONDARY,
-        relief='flat',
-        highlightthickness=1,
-        highlightbackground=ThemeColors.BORDER,
-        highlightcolor=ThemeColors.ACCENT_SECONDARY)
-    interval_spinbox.delete(0, tk.END)
-    interval_spinbox.insert(0, "15")  # Changed default to 15 seconds
-    interval_spinbox.pack(side='left', padx=(0,5))
-    
-    tk.Label(auto_frame, text="sec",
-        bg=ThemeColors.BG_DARK,
-        fg=ThemeColors.TEXT_SECONDARY).pack(side='left')
 
     # Device selection frame
     devices_frame = ttk.Frame(main_frame, style='Modern.TFrame')
