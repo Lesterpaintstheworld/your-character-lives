@@ -6,8 +6,7 @@ import base64
 import time
 import backoff
 from typing import Any, Dict, Optional, List
-from playwright.async_api import async_playwright, Browser, Page
-import playwright.core
+from playwright.async_api import async_playwright, Browser, Page, TimeoutError as PlaywrightTimeout
 
 class BrowserError(Exception):
     """Custom exception for browser operations"""
