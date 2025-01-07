@@ -46,3 +46,15 @@ class UIConstants:
     WINDOW_WIDTH = 80
     WINDOW_HEIGHT = 20
     UPDATE_INTERVAL = 100  # ms
+
+class BrowserConstants:
+    HEADLESS_MODE = False
+    BROWSER_INTERVAL = 30  # seconds between browser actions
+    RETRY_DELAY = 5  # seconds between retries
+    KINKONG_ENDPOINT = "https://nlr.app.n8n.cloud/webhook/kinkong"
+    
+    @staticmethod
+    def generate_session_id():
+        """Generate a unique session ID"""
+        import uuid
+        return str(uuid.uuid4())
