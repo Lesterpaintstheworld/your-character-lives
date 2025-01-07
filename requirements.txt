@@ -1,3 +1,4 @@
+# Core dependencies
 pyaudio>=0.2.13
 pygame>=2.5.0
 opencv-python>=4.8.0
@@ -6,3 +7,12 @@ pillow>=10.0.0
 requests>=2.31.0
 python-dotenv>=1.0.0
 pydub>=0.25.1
+
+# Browser automation
+playwright>=1.40.0
+aiohttp>=3.9.1
+
+# Development tools
+pytest>=7.4.0
+black>=23.11.0
+mypy>=1.7.0
