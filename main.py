@@ -114,6 +114,10 @@ ui_elements_created = False  # Track UI element creation
 browser_button = None  # Will store browser control button
 recording_status = None  # Will store recording status label
 session_id = None  # Will store the current session ID
+
+# Initialize global variables that need explicit initialization
+current_recording_buffer = []
+current_speaker = "emily"
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -1519,6 +1523,13 @@ def update_recording_status(status: str):
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
     global ui_elements_created, editor_play_pause_btn, editor_active, browser_button, current_recording_buffer, current_speaker
+    # Initialize globals if not already set
+    if 'current_recording_buffer' not in globals():
+        global current_recording_buffer
+        current_recording_buffer = []
+    if 'current_speaker' not in globals():
+        global current_speaker
+        current_speaker = "emily"
     
     # Check if UI elements have already been created
     if ui_elements_created:
