@@ -6,6 +6,7 @@ import base64
 from typing import Any, Dict, Optional
 from playwright.async_api import async_playwright, Browser, Page
 import aiohttp
+import requests
 import json
 from constants import BrowserConstants
 
