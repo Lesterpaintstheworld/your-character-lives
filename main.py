@@ -1332,14 +1332,21 @@ async def editor_loop():
         update_status("Editor loop stopped")
 
 def toggle_browser():
-    """Toggle browser automation"""
+    """Toggle browser automation with proper event loop handling"""
     if not hasattr(toggle_browser, 'browser_manager'):
-        # Initialize browser manager on first use
         toggle_browser.browser_manager = BrowserManager(config)
         
+    def run_stop_browser():
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(toggle_browser.browser_manager.stop_browser_automation())
+        finally:
+            loop.close()
+
     if toggle_browser.browser_manager.toggle_browser():
         browser_button.configure(text="⏸️ Browser")
-        # Start browser loop in a new thread to handle asyncio
+        # Start browser loop in a new thread
         browser_thread = threading.Thread(
             target=lambda: asyncio.run(toggle_browser.browser_manager.start_browser_automation()),
             daemon=True
@@ -1348,8 +1355,9 @@ def toggle_browser():
         update_status("▶️ Browser automation started")
     else:
         browser_button.configure(text="▶️ Browser")
-        # Stop browser automation
-        asyncio.run(toggle_browser.browser_manager.stop_browser_automation())
+        # Stop browser automation in a new thread
+        stop_thread = threading.Thread(target=run_stop_browser, daemon=True)
+        stop_thread.start()
         update_status("⏸️ Browser automation stopped")
 
 def toggle_editor():
@@ -1822,6 +1830,17 @@ def create_device_selectors():
         borderwidth=0)
     refresh_btn.pack(side='right', padx=(5, 0))
 
+    # Add test button next to refresh button
+    test_btn = tk.Button(devices_frame, text="🎤 Test",
+        command=test_audio_recording,
+        bg=ThemeColors.ACCENT_SECONDARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0)
+    test_btn.pack(side='right', padx=(5, 0))
+
     # VU meter
     vu_frame = ttk.Frame(main_frame, style='Modern.TFrame')
     vu_frame.pack(fill='x', pady=5)
@@ -2029,6 +2048,53 @@ def refresh_devices(mic_combo, output_combo):
         status.append("❌ No output devices found")
         
     update_status(" | ".join(status))
+
+def test_audio_recording():
+    """Test audio recording with diagnostics"""
+    logging.info("\n=== Audio Recording Test ===")
+    
+    try:
+        # Get available devices
+        p = pyaudio.PyAudio()
+        logging.info("\nAvailable Audio Devices:")
+        for i in range(p.get_device_count()):
+            try:
+                dev_info = p.get_device_info_by_index(i)
+                logging.info(f"Device {i}: {dev_info['name']}")
+                logging.info(f"  Max Input Channels: {dev_info['maxInputChannels']}")
+                logging.info(f"  Default Sample Rate: {dev_info['defaultSampleRate']}")
+            except Exception as e:
+                logging.error(f"Error getting device {i} info: {e}")
+        
+        # Test recording
+        DURATION = 5  # 5 seconds test
+        logging.info(f"\nStarting {DURATION} second test recording...")
+        
+        audio_data = record_audio(DURATION)
+        
+        if audio_data:
+            # Analyze recorded audio
+            audio_array = np.frombuffer(audio_data, dtype=np.int16)
+            max_amplitude = np.max(np.abs(audio_array))
+            rms = np.sqrt(np.mean(np.square(audio_array)))
+            
+            logging.info("\nRecording Analysis:")
+            logging.info(f"Recorded data size: {len(audio_data)} bytes")
+            logging.info(f"Max amplitude: {max_amplitude}")
+            logging.info(f"RMS value: {rms}")
+            logging.info(f"Signal/Noise ratio: {20 * np.log10(max_amplitude/rms) if rms > 0 else 'N/A'} dB")
+            
+            return True
+        else:
+            logging.error("No audio data recorded")
+            return False
+            
+    except Exception as e:
+        logging.error(f"Test recording failed: {e}", exc_info=True)
+        return False
+    finally:
+        if 'p' in locals():
+            p.terminate()
 
 def update_mic_status(combo):
     """Update status text based on selected microphone"""
