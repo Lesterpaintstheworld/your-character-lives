@@ -13,7 +13,7 @@ global play_pause_btn, editor_play_pause_btn, editor_active, mic_var, vu_meter
 # Initialize core globals
 current_recording_buffer = []
 current_speaker = "emily"
-is_playing = True
+is_playing = False
 is_recording = False
 running = True
 smart_mode = False
@@ -1612,7 +1612,7 @@ def create_device_selectors():
 
     # Play/Pause button 
     global play_pause_btn
-    play_pause_btn = tk.Button(controls_frame, text="⏸️", width=3,
+    play_pause_btn = tk.Button(controls_frame, text="▶️", width=3,
         command=toggle_play_pause,
         bg=ThemeColors.ACCENT_PRIMARY,
         fg=ThemeColors.TEXT_BRIGHT,
