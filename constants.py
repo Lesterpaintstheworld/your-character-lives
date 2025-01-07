@@ -42,6 +42,11 @@ class AudioConstants:
     CHANNELS = 1
     SAMPLE_RATE = 24000
     RECORD_DURATION = 15  # seconds
+    SILENCE_THRESHOLD = -60  # dB
+    MIN_SILENCE_DURATION = 3.0  # seconds
+    SMART_SCREENSHOT_INTERVAL = 20  # seconds
+    SMART_BUFFER_SIZE = 1024
+    MAX_RECORDING_SIZE = 500 * 1024 * 1024  # 500MB
 
 import uuid
 

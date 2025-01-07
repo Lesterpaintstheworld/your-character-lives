@@ -93,6 +93,10 @@ running = True
 is_playing = True
 is_recording = False
 auto_recording = False
+smart_mode = False
+current_speaker = "emily"  # Alternates between "emily" and "daemon"
+last_audio_time = 0
+audio_buffer = []
 auto_recording_interval = 50  # seconds
 interval_spinbox = None  # Will be set when UI is created
 auto_recording_task = None
@@ -416,6 +420,23 @@ async def process_audio_chunk(audio_data: bytes, is_daemon=False):
     try:
         if not audio_data:
             raise ValueError("Empty audio data received")
+            
+        # Switch videos sequentially, not simultaneously
+        logging.info(f"Attempting to switch to talk video (is_daemon={is_daemon})...")
+        if not is_daemon:  # Emily (first speaker) uses loop2/talk2
+            if current_video_window:
+                logging.info("Switching Emily to talk2 video...")
+                current_video_window.switch_to_talk_video()  # This will use talk2.mp4
+                await asyncio.sleep(0.2)  # Give time for video switch
+            else:
+                logging.error("First video window (Emily) not initialized")
+        else:  # Daemon uses loop/talk
+            if second_video_window:
+                logging.info("Switching Daemon to talk video...")
+                second_video_window.switch_to_talk_video()  # This will use talk.mp4
+                await asyncio.sleep(0.2)  # Give time for video switch
+            else:
+                logging.error("Second video window (Daemon) not initialized")
             
         # Get user-specific temp directory with proper permissions
         temp_dir = os.path.join(os.path.expanduser('~'), 'AppData', 'Local', 'Temp', 'AI_Assistant')
@@ -1434,6 +1455,125 @@ def toggle_editor():
 # Global control variables
 auto_recording_task = None  # To store the auto recording thread
 
+def toggle_smart_mode():
+    """Toggle smart mode on/off"""
+    global smart_mode, is_recording
+    smart_mode = not smart_mode
+    smart_mode_btn.config(text="🧠 Smart ON" if smart_mode else "🧠 Smart OFF")
+    
+    if smart_mode:
+        # Start continuous recording
+        is_recording = True
+        update_status("🧠 Smart mode activated - listening continuously")
+        # Start smart recording in a new thread
+        smart_thread = threading.Thread(
+            target=lambda: asyncio.run(start_smart_recording()),
+            daemon=True
+        )
+        smart_thread.start()
+    else:
+        is_recording = False
+        update_status("🧠 Smart mode deactivated")
+
+async def start_smart_recording():
+    """Handle continuous recording in smart mode"""
+    global audio_buffer, last_audio_time, current_speaker
+    
+    try:
+        # Initialize audio input
+        p = pyaudio.PyAudio()
+        input_device = get_input_device()
+        
+        stream = p.open(
+            format=FORMAT,
+            channels=1,
+            rate=RATE,
+            input=True,
+            input_device_index=input_device,
+            frames_per_buffer=AudioConstants.SMART_BUFFER_SIZE,
+            start=True
+        )
+        
+        screenshot_timer = time.time()
+        silence_start = None
+        
+        while smart_mode and is_playing:
+            # Take screenshot every SMART_SCREENSHOT_INTERVAL
+            if time.time() - screenshot_timer >= AudioConstants.SMART_SCREENSHOT_INTERVAL:
+                screenshot_timer = time.time()
+                screenshot = take_screenshot()
+                
+            # Read audio chunk
+            try:
+                data = stream.read(AudioConstants.SMART_BUFFER_SIZE, exception_on_overflow=False)
+                audio_buffer.append(data)
+                
+                # Calculate audio level
+                level = calculate_audio_level(data)
+                root.after(0, lambda l=level: vu_meter.set_level(l))
+                
+                # Check for silence
+                if level < AudioConstants.SILENCE_THRESHOLD:
+                    if silence_start is None:
+                        silence_start = time.time()
+                    elif time.time() - silence_start >= AudioConstants.MIN_SILENCE_DURATION:
+                        # Process recorded audio after silence
+                        if audio_buffer:
+                            # Convert buffer to wav
+                            wav_buffer = io.BytesIO()
+                            with wave.open(wav_buffer, 'wb') as wf:
+                                wf.setnchannels(1)
+                                wf.setsampwidth(2)
+                                wf.setframerate(RATE)
+                                wf.writeframes(b''.join(audio_buffer))
+                            
+                            # Clear buffer
+                            audio_buffer = []
+                            
+                            # Send to current speaker's endpoint
+                            endpoint = emily_endpoint_var.get() if current_speaker == "emily" else daemon_endpoint_var.get()
+                            
+                            # Prepare request data
+                            files = {
+                                'audio': ('audio.wav', wav_buffer.getvalue(), 'audio/wav'),
+                                'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
+                            }
+                            
+                            # Send request
+                            response = requests.post(
+                                endpoint,
+                                files=files,
+                                timeout=NetworkConstants.REQUEST_TIMEOUT
+                            )
+                            
+                            if response.status_code == 200:
+                                # Play response
+                                await process_audio_chunk(response.content, is_daemon=(current_speaker=="daemon"))
+                                
+                                # Switch speakers
+                                current_speaker = "daemon" if current_speaker == "emily" else "emily"
+                                
+                            silence_start = None
+                else:
+                    silence_start = None
+                    
+            except OSError as e:
+                logging.error(f"Error reading audio: {e}")
+                await asyncio.sleep(0.1)
+                continue
+                
+            await asyncio.sleep(0.001)  # Prevent CPU overload
+            
+    except Exception as e:
+        logging.error(f"Smart recording error: {e}")
+        update_status(f"❌ Smart recording error: {str(e)}")
+    finally:
+        if stream:
+            stream.stop_stream()
+            stream.close()
+        if p:
+            p.terminate()
+
 def toggle_auto_recording():
     """Toggle automatic recording every X seconds"""
     global auto_recording, auto_recording_interval, auto_recording_task
@@ -1588,9 +1728,27 @@ def create_device_selectors():
     main_frame = ttk.Frame(root, style='Modern.TFrame')
     main_frame.pack(fill='x', padx=10, pady=5)
 
-    # Controls row (play/pause, auto recording, editor)
+    # Controls row (play/pause, auto recording, smart mode, editor)
     controls_frame = ttk.Frame(main_frame, style='Modern.TFrame')
     controls_frame.pack(fill='x', pady=(0, 5))
+
+    # Mode selection frame
+    mode_frame = ttk.Frame(controls_frame, style='Modern.TFrame')
+    mode_frame.pack(side='left', padx=5)
+    
+    # Add smart mode button
+    global smart_mode_btn
+    smart_mode_btn = tk.Button(mode_frame, text="🧠 Smart OFF",
+        command=toggle_smart_mode,
+        bg=ThemeColors.ACCENT_SECONDARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
+    smart_mode_btn.pack(side='left')
 
     # Play/Pause button
     global play_pause_btn
@@ -1974,7 +2132,7 @@ output_combo.bind('<<ComboboxSelected>>', lambda e: update_mic_status(output_com
 
 def on_closing():
     """Handle application shutdown with force quit fallback."""
-    global running, vu_meter, auto_recording, auto_recording_task, editor_active, current_video_window, second_video_window, browser_button
+    global running, vu_meter, auto_recording, auto_recording_task, editor_active, current_video_window, second_video_window, browser_button, smart_mode, is_recording
     
     logging.info("Starting application shutdown...")
     
@@ -1984,6 +2142,8 @@ def on_closing():
         auto_recording = False
         editor_active = False
         is_playing = False
+        smart_mode = False
+        is_recording = False
         
         # Cancel auto recording task
         if auto_recording_task:
