@@ -1222,6 +1222,8 @@ async def send_current():
     global current_recording_buffer, current_speaker
     
     try:
+        logging.info(f"Send requested - buffer size: {len(current_recording_buffer)} chunks")
+        
         if not current_recording_buffer:
             update_status("❌ No audio recorded yet")
             return
@@ -1284,13 +1286,15 @@ async def send_current():
 
 def toggle_play_pause():
     """Toggle between play and pause states"""
-    global is_playing, is_recording
+    global is_playing, is_recording, current_recording_buffer
     is_playing = not is_playing
     
     # Update button text
     play_pause_btn.config(text="▶️" if not is_playing else "⏸️")
     
     if is_playing:
+        # Clear buffer when starting
+        current_recording_buffer = []
         # Start smart recording
         update_status("▶️ Starting interaction...")
         smart_thread = threading.Thread(
@@ -1596,7 +1600,7 @@ def cleanup_recording(stream: pyaudio.Stream, p: pyaudio.PyAudio):
 
 async def start_smart_recording():
     """Handle continuous recording in smart mode with improved management"""
-    global current_speaker
+    global current_speaker, current_recording_buffer
     
     buffer_manager = AudioBufferManager()
     vad = VoiceActivityDetector()
@@ -1632,12 +1636,26 @@ async def start_smart_recording():
                 
                 # Read and process audio
                 data = stream.read(AudioConstants.SMART_BUFFER_SIZE, exception_on_overflow=False)
-                if not buffer_manager.add(data):
-                    logging.warning("Buffer full - processing now")
-                    update_recording_status("Processing")
-                    await process_buffer(buffer_manager, current_screenshot)
-                    buffer_manager.clear()
-                    update_recording_status("Recording")
+                if not data:
+                    continue
+                    
+                # Add to both buffers
+                buffer_manager.add(data)
+                current_recording_buffer.append(data)  # Add to global buffer
+                
+                # Calculate and display audio level
+                level = calculate_audio_level(data)
+                root.after(0, lambda l=level: vu_meter.set_level(l))
+                
+                # Check for silence/speech end
+                if vad.process(level):
+                    if buffer_manager.current_size > 0:
+                        update_recording_status("Processing")
+                        await process_buffer(buffer_manager, current_screenshot)
+                        buffer_manager.clear()
+                        # Don't clear current_recording_buffer here
+                        update_recording_status("Recording")
+                    vad.reset()
                 
                 # Calculate and display audio level
                 level = calculate_audio_level(data)
