@@ -103,6 +103,7 @@ emily_endpoint_var = None  # Will store Emily endpoint
 daemon_endpoint_var = None  # Will store Daemon endpoint
 ui_elements_created = False  # Track UI element creation
 browser_button = None  # Will store browser control button
+recording_status = None  # Will store recording status label
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -1509,6 +1510,8 @@ async def start_smart_recording():
 
 def create_status_indicators():
     """Create status indicators"""
+    global recording_status, speaker_indicator
+    
     status_frame = ttk.Frame(main_frame, style='Modern.TFrame')
     status_frame.pack(fill='x', pady=5)
     
@@ -1518,7 +1521,6 @@ def create_status_indicators():
         fg=ThemeColors.TEXT_PRIMARY)
     speaker_label.pack(side='left')
     
-    global speaker_indicator
     speaker_indicator = tk.Label(status_frame, text="Emily",
         bg=ThemeColors.ACCENT_PRIMARY,
         fg=ThemeColors.TEXT_BRIGHT,
@@ -1526,7 +1528,6 @@ def create_status_indicators():
     speaker_indicator.pack(side='left', padx=5)
     
     # Recording status
-    global recording_status
     recording_status = tk.Label(status_frame, text="Idle",
         bg=ThemeColors.BG_LIGHT,
         fg=ThemeColors.TEXT_SECONDARY)
@@ -1542,7 +1543,11 @@ def update_speaker_indicator():
 
 def update_recording_status(status: str):
     """Update recording status indicator"""
-    recording_status.config(text=status)
+    global recording_status
+    if recording_status and recording_status.winfo_exists():
+        recording_status.config(text=status)
+    else:
+        logging.warning(f"Attempted to update recording status to '{status}' but label not ready")
 
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
