@@ -113,6 +113,7 @@ daemon_endpoint_var = None  # Will store Daemon endpoint
 ui_elements_created = False  # Track UI element creation
 browser_button = None  # Will store browser control button
 recording_status = None  # Will store recording status label
+session_id = None  # Will store the current session ID
 import tkinter as tk
 from tkinter import scrolledtext, messagebox, ttk
 import re
@@ -1571,11 +1572,55 @@ def create_device_selectors():
         """Non-blocking send button handler"""
         # Disable send button temporarily to prevent double-clicks
         send_btn.config(state='disabled')
-        
-        # Create and start background task
+    
         async def send_task():
             try:
-                await send_current()
+                # Take screenshot
+                screenshot_manager = ScreenshotManager()
+                screenshot = await screenshot_manager.capture()
+            
+                # Collect text content
+                text_content = collect_text_files_content()
+            
+                # Get current endpoint based on speaker
+                endpoint = emily_endpoint_var.get() if current_speaker == "emily" else daemon_endpoint_var.get()
+            
+                # Prepare request data
+                files = {
+                    'audio': ('audio.wav', b''.join(current_recording_buffer), 'audio/wav'),
+                    'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
+                }
+            
+                data = {
+                    'text': text_content,
+                    'session': session_id
+                }
+            
+                # Send request
+                update_status("📤 Sending recording...")
+                response = requests.post(
+                    endpoint,
+                    data=data,
+                    files=files,
+                    timeout=NetworkConstants.REQUEST_TIMEOUT
+                )
+            
+                if response.status_code == 200:
+                    update_status("✅ Processing response...")
+                    await process_audio_chunk(response.content, is_daemon=(current_speaker=="daemon"))
+                    update_status("✅ Response completed")
+                
+                    # Switch speakers after successful response
+                    global current_speaker
+                    current_speaker = "daemon" if current_speaker == "emily" else "emily"
+                    update_speaker_indicator()
+                
+                    # Clear buffer after successful send
+                    global current_recording_buffer
+                    current_recording_buffer = []
+                else:
+                    update_status(f"❌ API error: {response.status_code}")
+                
             except Exception as e:
                 logging.error(f"Send error: {e}")
                 update_status(f"❌ Error: {str(e)}")
