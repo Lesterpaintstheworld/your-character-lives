@@ -830,14 +830,14 @@ def record_audio(duration):
         
         p = pyaudio.PyAudio()
         
-        # Basic audio format - keep it simple
+        # Configure for high quality audio capture
         stream = p.open(
             format=pyaudio.paInt16,
-            channels=1,
-            rate=16000,
+            channels=1,            # Mono input
+            rate=44100,           # CD quality
             input=True,
             input_device_index=input_device,
-            frames_per_buffer=1024
+            frames_per_buffer=4096 # Larger buffer for stability
         )
             
         # Verify stream is active
@@ -846,7 +846,7 @@ def record_audio(duration):
             raise RuntimeError("Audio stream not active")
         logging.info("Stream is active and ready for recording")
             
-        chunks = int(16000 / 1024 * duration)
+        chunks = int(44100 / 4096 * duration)  # Adjust chunks for new rate/buffer
         logging.info(f"Will record {chunks} chunks")
             
         is_recording = True
@@ -856,23 +856,23 @@ def record_audio(duration):
             if not is_playing or not is_recording:
                 break
                 
-            data = stream.read(1024, exception_on_overflow=False)
-        frames.append(data)
+            data = stream.read(4096, exception_on_overflow=False)
+            frames.append(data)
             
-        # Log first chunk to check format
-        if i == 0:
-            logging.info(f"First chunk size: {len(data)} bytes")
-            audio_array = np.frombuffer(data, dtype=np.int16)
-            logging.info(f"Audio array shape: {audio_array.shape}")
-            logging.info(f"Audio range: [{np.min(audio_array)}, {np.max(audio_array)}]")
+            # Log first chunk to check format
+            if i == 0:
+                logging.info(f"First chunk size: {len(data)} bytes")
+                audio_array = np.frombuffer(data, dtype=np.int16)
+                logging.info(f"Audio array shape: {audio_array.shape}")
+                logging.info(f"Audio range: [{np.min(audio_array)}, {np.max(audio_array)}]")
             
-        # Update VU meter
-        level = calculate_audio_level(data)
-        root.after(0, lambda l=level: vu_meter.set_level(l))
+            # Update VU meter
+            level = calculate_audio_level(data)
+            root.after(0, lambda l=level: vu_meter.set_level(l))
             
-        if i % (16000 // 1024) == 0:
-            elapsed = time.time() - start_time
-            update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
+            if i % (44100 // 4096) == 0:  # Adjust status update interval
+                elapsed = time.time() - start_time
+                update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                 
         is_recording = False
         
@@ -885,12 +885,12 @@ def record_audio(duration):
             logging.error("No audio data was recorded")
             raise RuntimeError("No audio data recorded")
             
-        # Create WAV buffer
+        # Create WAV buffer with proper settings
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, 'wb') as wf:
-            wf.setnchannels(1)
-            wf.setsampwidth(2)
-            wf.setframerate(16000)  # Always output at 16kHz
+            wf.setnchannels(1)        # Mono
+            wf.setsampwidth(2)        # 16-bit
+            wf.setframerate(44100)    # CD quality
             wf.writeframes(b''.join(frames))
             
         return wav_buffer.getvalue()
