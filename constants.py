@@ -1,4 +1,5 @@
 """Constants used throughout the application"""
+import pyaudio
 
 class AudioConstants:
     CHUNK_SIZE = 2048
