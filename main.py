@@ -332,26 +332,32 @@ def validate_and_fix_audio_data(audio_data: bytes) -> bytes:
         raise
 
 async def process_audio_chunk(audio_data: bytes, is_daemon=False):
-    """Process and play audio data with proper format handling"""
+    """Process and play audio data with debug logging"""
     temp_path = None
     
     try:
+        logging.info(f"Received audio data size: {len(audio_data)} bytes")
+        
         if not audio_data:
             raise ValueError("Empty audio data received")
             
-        # Switch videos based on speaker
-        if not is_daemon and current_video_window:
-            current_video_window.switch_to_talk_video()
-            await asyncio.sleep(0.2)
-        elif is_daemon and second_video_window:
-            second_video_window.switch_to_talk_video()
-            await asyncio.sleep(0.2)
+        # Try to validate audio format
+        try:
+            with wave.open(io.BytesIO(audio_data)) as wf:
+                logging.info(f"WAV format: channels={wf.getnchannels()}, "
+                           f"width={wf.getsampwidth()}, "
+                           f"rate={wf.getframerate()}, "
+                           f"frames={wf.getnframes()}")
+        except Exception as e:
+            logging.error(f"Not valid WAV data: {e}")
+            # Try to interpret as raw PCM
+            audio_array = np.frombuffer(audio_data, dtype=np.int16)
+            logging.info(f"Raw PCM data shape: {audio_array.shape}")
             
-        # Create temp file with proper permissions
-        temp_fd, temp_path = tempfile.mkstemp(suffix='.mp3')
+        # Write to temp WAV file
+        temp_fd, temp_path = tempfile.mkstemp(suffix='.wav')
         os.close(temp_fd)
         
-        # Write audio data
         with open(temp_path, 'wb') as f:
             f.write(audio_data)
             
@@ -773,10 +779,9 @@ def get_input_device():
         p.terminate()
 
 def record_audio(duration):
-    """Record audio with proper buffer handling and noise reduction"""
+    """Record audio with basic error checking and logging"""
     global is_recording
     logging.info("=== Starting Audio Recording ===")
-    logging.info(f"Requested duration: {duration} seconds")
     
     p = None
     stream = None
@@ -793,6 +798,7 @@ def record_audio(duration):
             raise Exception("Invalid microphone selection")
             
         input_device = int(match.group(1))
+        logging.info(f"Using input device {input_device}")
         
         p = pyaudio.PyAudio()
         
@@ -847,42 +853,15 @@ def record_audio(duration):
         
         p = pyaudio.PyAudio()
         
-        # Log device info
-        try:
-            device_info = p.get_device_info_by_index(input_device)
-            logging.info(f"Device info: {device_info}")
-        except Exception as e:
-            logging.error(f"Error getting device info: {e}")
-        
-        # Try to use 16000Hz first
-        try:
-            logging.info("Attempting to open stream at 16000Hz...")
-            stream = p.open(
-                format=FORMAT,
-                channels=1,
-                rate=16000,
-                input=True,
-                input_device_index=input_device,
-                frames_per_buffer=1024,
-                start=True  # Explicitly start the stream
-            )
-            device_rate = 16000
-            logging.info("Successfully opened stream at 16000Hz")
-        except Exception as e:
-            logging.warning(f"Failed to open stream at 16000Hz: {e}")
-            # Fall back to device's native rate
-            device_info = p.get_device_info_by_index(input_device)
-            device_rate = int(device_info['defaultSampleRate'])
-            logging.info(f"Falling back to device native rate: {device_rate}Hz")
-            stream = p.open(
-                format=FORMAT,
-                channels=1,
-                rate=device_rate,
-                input=True,
-                input_device_index=input_device,
-                frames_per_buffer=1024,
-                start=True  # Explicitly start the stream
-            )
+        # Basic audio format - keep it simple
+        stream = p.open(
+            format=pyaudio.paInt16,
+            channels=1,
+            rate=16000,
+            input=True,
+            input_device_index=input_device,
+            frames_per_buffer=1024
+        )
             
         # Verify stream is active
         if not stream.is_active():
@@ -890,54 +869,33 @@ def record_audio(duration):
             raise RuntimeError("Audio stream not active")
         logging.info("Stream is active and ready for recording")
             
-        # Calculate number of chunks to record
-        chunks = int(device_rate / 1024 * duration)
-        logging.info(f"Will record {chunks} chunks at {device_rate}Hz")
+    chunks = int(16000 / 1024 * duration)
+    logging.info(f"Will record {chunks} chunks")
         
-        # Start recording
-        logging.info(f"Starting recording loop...")
-        update_status("🎤 Recording...")
+    is_recording = True
+    start_time = time.time()
         
-        is_recording = True
-        start_time = time.time()
-        
-        for i in range(chunks):
-            if not is_playing or not is_recording:
-                logging.info("Recording interrupted")
-                break
+    for i in range(chunks):
+        if not is_playing or not is_recording:
+            break
                 
-            try:
-                data = stream.read(1024, exception_on_overflow=False)
-                
-                if not data:
-                    continue
-                    
-                frames.append(data)
-                current_recording_buffer.append(data)  # Add to global buffer
-                
-                # Calculate level with noise floor compensation
-                if noise_floor is not None:
-                    audio_array = np.frombuffer(data, dtype=np.int16)
-                    rms = np.sqrt(np.mean(np.square(audio_array)))
-                    level = max(0, (rms - noise_floor) / (32768 - noise_floor))
-                    root.after(0, lambda l=level: vu_meter.set_level(l))
-                else:
-                    # Fallback to original calculation if no noise floor
-                    level = calculate_audio_level(data)
-                    root.after(0, lambda l=level: vu_meter.set_level(l))
-                
-                # Progress update every second
-                if i % (48000 // 1024) == 0:  # Update every second at 48kHz
-                    elapsed = time.time() - start_time
-                    update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
-                    
-            except OSError as e:
-                logging.error(f"OSError during recording: {e}")
-                time.sleep(0.1)
-                continue
-            except Exception as e:
-                logging.error(f"Error during recording: {e}")
-                continue
+        data = stream.read(1024, exception_on_overflow=False)
+        frames.append(data)
+            
+        # Log first chunk to check format
+        if i == 0:
+            logging.info(f"First chunk size: {len(data)} bytes")
+            audio_array = np.frombuffer(data, dtype=np.int16)
+            logging.info(f"Audio array shape: {audio_array.shape}")
+            logging.info(f"Audio range: [{np.min(audio_array)}, {np.max(audio_array)}]")
+            
+        # Update VU meter
+        level = calculate_audio_level(data)
+        root.after(0, lambda l=level: vu_meter.set_level(l))
+            
+        if i % (16000 // 1024) == 0:
+            elapsed = time.time() - start_time
+            update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                 
         is_recording = False
         
