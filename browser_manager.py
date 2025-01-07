@@ -140,45 +140,60 @@ class BrowserManager:
             return None
 
     async def process_page(self) -> Dict:
-        """Process current page and extract relevant data"""
-        self.logger.info(f"Processing page: {self.page.url}")
+        """Process current page and get next instructions"""
         try:
-            # Navigate to the endpoint first
-            await self.navigate(self.endpoint)
-            self.logger.info(f"Navigated to endpoint: {self.endpoint}")
+            # First get current page info if we're on a page
+            current_data = {}
+            if self.page and self.page.url != "about:blank":
+                current_data = {
+                    "current_url": self.page.url,
+                    "title": await self.page.title(),
+                    "content": await self.page.content(),
+                    "screenshot": base64.b64encode(await self.take_screenshot()).decode() if self.page else None
+                }
             
-            # Wait for any dynamic content to load
-            await self.page.wait_for_load_state("networkidle")
-            
-            # Get page data
-            title = await self.page.title()
-            content = await self.page.content()
-            screenshot = await self.take_screenshot()
-            
-            self.logger.debug(f"Page title: {title}")
-            self.logger.debug(f"Content length: {len(content)} bytes")
-            self.logger.debug(f"Screenshot size: {len(screenshot)} bytes")
-            
-            # Prepare data for endpoint
-            data = {
-                "title": title,
-                "url": self.page.url,
-                "content": content,
-                "screenshot": base64.b64encode(screenshot).decode() if screenshot else None
-            }
-            
-            # Use requests instead of aiohttp
-            import requests
+            # Get instructions from endpoint
+            self.logger.info("Getting navigation instructions from endpoint")
             response = requests.post(
                 self.endpoint,
-                json=data,
+                json=current_data,
                 timeout=30
             )
             
             if response.status_code == 200:
-                result = response.json()
-                self.logger.info("Successfully processed page and sent to endpoint")
-                return result
+                instructions = response.json()
+                self.logger.info(f"Received instructions: {instructions}")
+                
+                # Process instructions
+                if "url" in instructions:
+                    # Navigate to the specified URL
+                    await self.navigate(instructions["url"])
+                    self.logger.info(f"Navigated to: {instructions['url']}")
+                    
+                    # Wait for any dynamic content
+                    await self.page.wait_for_load_state("networkidle")
+                    
+                    # Execute any scripts if specified
+                    if "script" in instructions:
+                        result = await self.execute_script(instructions["script"])
+                        self.logger.info(f"Script execution result: {result}")
+                    
+                    # Fill any forms if specified
+                    if "form_data" in instructions:
+                        for selector, value in instructions["form_data"].items():
+                            await self.page.fill(selector, value)
+                        self.logger.info("Form data filled")
+                        
+                    # Click any elements if specified
+                    if "click" in instructions:
+                        await self.page.click(instructions["click"])
+                        self.logger.info(f"Clicked element: {instructions['click']}")
+                    
+                    return {"status": "success", "url": instructions["url"]}
+                else:
+                    self.logger.warning("No URL in instructions")
+                    return None
+                    
             else:
                 error_text = response.text
                 self.logger.error(f"Endpoint returned status {response.status_code}: {error_text}")
