@@ -1,15 +1,15 @@
 """Audio recording and playback management"""
-
 import os
 import asyncio
-import pyaudio
+import sounddevice as sd
+import numpy as np
 import wave
 import pygame
 import logging
 import io
 import time
 from contextlib import contextmanager
-from typing import Optional, Generator
+from typing import Optional
 from device_manager import DeviceManager
 
 class AudioManager:
