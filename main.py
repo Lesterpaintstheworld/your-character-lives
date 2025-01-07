@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import argparse
 import sys
 import os
 import aiohttp
@@ -1518,6 +1519,8 @@ async def start_smart_recording():
     vad = VoiceActivityDetector()
     screenshot_manager = ScreenshotManager()
     
+    global smart_mode
+    smart_mode = True
     try:
         p = pyaudio.PyAudio()
         input_device = get_input_device()
