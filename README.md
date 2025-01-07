@@ -231,6 +231,20 @@ ck3-ai-assistant/
   - Real-time data analysis
   - Secure cloud synchronization
 
+- Phantom Wallet Integration
+  - Automated wallet connection and detection
+  - Transaction support:
+    - SOL transfers
+    - SPL token transfers
+    - Transaction signing and verification
+  - Secure popup handling
+  - Network management:
+    - Mainnet-beta support
+    - Devnet support for testing
+    - Network status monitoring
+  - Error handling and recovery
+  - Transaction status tracking
+
 - Browser Automation
   - Fourth AI agent dedicated to web interactions
   - Automated browser control and navigation

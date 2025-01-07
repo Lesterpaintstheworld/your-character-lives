@@ -135,6 +135,54 @@
 - Audio latency: < 100ms
 - Response time: < 2s average
 
+### Phantom Wallet Integration
+
+#### Connection Management
+- Automatic wallet detection
+- Connection state tracking
+- Multiple network support
+- Connection recovery
+- Session management
+
+#### Transaction Support
+- Transaction Types:
+  - Native SOL transfers
+  - SPL token transfers
+  - Program interactions
+  - Memo support
+- Transaction Formatting:
+  - Automatic fee calculation
+  - Blockhash management
+  - Signature verification
+  - Transaction confirmation tracking
+
+#### Security Features
+- Popup Management:
+  - Connection approval handling
+  - Transaction approval handling
+  - Timeout management
+  - Retry mechanisms
+- Network Validation:
+  - RPC endpoint verification
+  - Network status monitoring
+  - Version compatibility checks
+  - Connection security validation
+
+#### Performance
+- Connection Timeout: 30 seconds
+- Transaction Timeout: 30 seconds
+- Max Retries: 3
+- Network Polling Interval: 5 seconds
+- Maximum Concurrent Transactions: 1
+
+#### Error Handling
+- Connection Failures
+- Transaction Rejections
+- Network Issues
+- Insufficient Funds
+- Invalid Instructions
+- Timeout Recovery
+
 ## Security Considerations
 
 ### Data Protection
