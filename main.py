@@ -1473,8 +1473,6 @@ async def continuous_recording():
     vad = VoiceActivityDetector()
     screenshot_manager = ScreenshotManager()
     
-    global smart_mode
-    smart_mode = True
     try:
         while smart_mode and is_playing:
             if not recording_enabled:
@@ -1483,80 +1481,75 @@ async def continuous_recording():
                 if is_playing and not recording_enabled:
                     await send_current()
                 continue
-        p = pyaudio.PyAudio()
-        input_device = get_input_device()
-        
-        stream = p.open(
-            format=FORMAT,
-            channels=1,
-            rate=RATE,
-            input=True,
-            input_device_index=input_device,
-            frames_per_buffer=AudioConstants.SMART_BUFFER_SIZE,
-            start=True
-        )
-        
-        last_screenshot_time = time.time()
-        current_screenshot = None
-        update_recording_status("Recording")
-        
-        while smart_mode and is_playing:
+
+            # Initialize audio input
+            p = pyaudio.PyAudio()
+            input_device = get_input_device()
+            chunk_size = 4096  # Larger chunks for better performance
+            
+            stream = p.open(
+                format=FORMAT,
+                channels=1,
+                rate=RATE,
+                input=True,
+                input_device_index=input_device,
+                frames_per_buffer=chunk_size,
+                start=True
+            )
+            
+            last_screenshot_time = time.time()
+            current_screenshot = None
+            update_recording_status("Recording")
+            
             try:
-                # Handle screenshot timing
-                current_time = time.time()
-                if current_time - last_screenshot_time >= AudioConstants.SMART_SCREENSHOT_INTERVAL:
-                    current_screenshot = await screenshot_manager.capture()
-                    last_screenshot_time = current_time
-                
-                # Read and process audio
-                data = stream.read(AudioConstants.SMART_BUFFER_SIZE, exception_on_overflow=False)
-                if not data:
-                    continue
+                while smart_mode and is_playing:
+                    # Use non-blocking read with shorter timeout
+                    try:
+                        data = stream.read(chunk_size, exception_on_overflow=False)
+                    except OSError:
+                        await asyncio.sleep(0.01)
+                        continue
+                        
+                    if not data:
+                        continue
+                        
+                    # Update screenshot less frequently
+                    current_time = time.time()
+                    if current_time - last_screenshot_time >= AudioConstants.SMART_SCREENSHOT_INTERVAL:
+                        current_screenshot = await screenshot_manager.capture()
+                        last_screenshot_time = current_time
                     
-                # Add to both buffers
-                buffer_manager.add(data)
-                current_recording_buffer.append(data)  # Add to global buffer
+                    # Add to buffer more efficiently
+                    buffer_manager.add(data)
+                    current_recording_buffer.append(data)
+                    
+                    # Calculate level and update VU meter less frequently
+                    level = calculate_audio_level(data)
+                    if hasattr(root, 'after'):
+                        root.after(0, lambda l=level: vu_meter.set_level(l))
+                    
+                    # Check for silence/speech end
+                    if vad.process(level):
+                        if buffer_manager.current_size > 0:
+                            update_recording_status("Processing")
+                            await process_buffer(buffer_manager, current_screenshot)
+                            buffer_manager.clear()
+                            update_recording_status("Recording")
+                        vad.reset()
+                    
+                    # Small sleep to prevent CPU overload
+                    await asyncio.sleep(0.001)
+                    
+            finally:
+                stream.stop_stream()
+                stream.close()
+                p.terminate()
                 
-                # Calculate and display audio level
-                level = calculate_audio_level(data)
-                root.after(0, lambda l=level: vu_meter.set_level(l))
-                
-                # Check for silence/speech end
-                if vad.process(level):
-                    if buffer_manager.current_size > 0:
-                        update_recording_status("Processing")
-                        await process_buffer(buffer_manager, current_screenshot)
-                        buffer_manager.clear()
-                        # Don't clear current_recording_buffer here
-                        update_recording_status("Recording")
-                    vad.reset()
-                
-                # Calculate and display audio level
-                level = calculate_audio_level(data)
-                root.after(0, lambda l=level: vu_meter.set_level(l))
-                
-                # Check for silence/speech end
-                if vad.process(level):
-                    if buffer_manager.current_size > 0:
-                        update_recording_status("Processing")
-                        await process_buffer(buffer_manager, current_screenshot)
-                        buffer_manager.clear()
-                        update_recording_status("Recording")
-                    vad.reset()
-                
-            except OSError as e:
-                logging.error(f"Stream read error: {e}")
-                await asyncio.sleep(0.1)
-                continue
-            
-            await asyncio.sleep(0.001)
-            
     except Exception as e:
         logging.error(f"Smart recording error: {e}")
         update_status(f"❌ Smart recording error: {str(e)}")
     finally:
         update_recording_status("Idle")
-        cleanup_recording(stream, p)
 
 
 
