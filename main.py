@@ -1135,40 +1135,40 @@ class VUMeter(Canvas):
                 self.itemconfig(segment_id, fill='dark gray')
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level from raw audio data with conservative scaling"""
+    """Calculate audio level with detailed diagnostics"""
     if isinstance(audio_data, bytes):
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
     else:
         audio_array = audio_data
         
-    # Calculate RMS value
-    rms = np.sqrt(np.mean(np.square(audio_array, dtype=np.float64)))
+    # Add diagnostic info
+    logging.debug(f"Audio data type: {type(audio_data)}")
+    logging.debug(f"Audio array type: {audio_array.dtype}")
+    logging.debug(f"Audio array range: [{np.min(audio_array)}, {np.max(audio_array)}]")
+    logging.debug(f"Audio array mean: {np.mean(audio_array)}")
+    
+    # Calculate RMS with more precision
+    rms = np.sqrt(np.mean(np.square(audio_array.astype(np.float64))))
     logging.debug(f"Raw RMS value: {rms}")
     
     # Convert to decibels and normalize
     if rms > 0:
-        db = 20 * np.log10(rms / 32768.0)
+        db = 20 * np.log10(rms / 32768.0)  # Full scale reference
         logging.debug(f"Decibel value: {db} dB")
         
-        # Conservative ranges to avoid red zone
-        MIN_DB = -60  # Deep silence
-        MAX_DB = -12  # Keep well below 0dB to avoid red
-        NOISE_GATE = -35  # Keep noise gate
+        # More conservative ranges
+        MIN_DB = -60
+        MAX_DB = -24  # Lower max to reduce sensitivity
+        NOISE_GATE = -45  # Higher noise gate to filter more background
         
-        # Apply noise gate
         if db < NOISE_GATE:
             logging.debug("Below noise gate threshold")
             return 0.0
             
-        # Normalize with conservative ceiling
         normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
-        # Moderate compression
-        normalized = np.power(normalized, 0.3)
+        normalized = np.power(normalized, 0.5)  # Less aggressive compression
+        normalized *= 0.9  # Scale down slightly
         
-        # Scale down to avoid peaks
-        normalized *= 0.8  # Only use 80% of range
-        
-        # Clip to 0-1 range
         result = max(0.0, min(1.0, normalized))
         logging.debug(f"Normalized value: {result}")
         return result
