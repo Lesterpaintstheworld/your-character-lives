@@ -1053,9 +1053,9 @@ class VUMeter(Canvas):
         self.high_color = high_color
         
         # Calculate silence threshold position (matching calculate_audio_level)
-        MIN_DB = -60
-        MAX_DB = 0
-        THRESHOLD_DB = -40  # Adjust this to set visible threshold
+        MIN_DB = -30  # Match the new values from calculate_audio_level
+        MAX_DB = -3
+        THRESHOLD_DB = -25  # Set visible threshold
         self.threshold_position = (THRESHOLD_DB - MIN_DB) / (MAX_DB - MIN_DB) * self.segments
         
         # Bind to resize events
@@ -1135,7 +1135,7 @@ class VUMeter(Canvas):
                 self.itemconfig(segment_id, fill='dark gray')
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level from raw audio data"""
+    """Calculate audio level from raw audio data with better calibration"""
     if isinstance(audio_data, bytes):
         # Convert bytes to numpy array
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
@@ -1150,17 +1150,24 @@ def calculate_audio_level(audio_data):
         # Convert to dB relative to full scale
         db = 20 * np.log10(rms / 32768.0)  # 32768 is max value for 16-bit audio
         
-        # Map dB range to 0-1
-        MIN_DB = -60  # Adjust this if needed - lower value = more sensitive
-        MAX_DB = 0
+        # Adjusted dB range - make it less sensitive
+        MIN_DB = -30  # Raise minimum to be less sensitive (was -60)
+        MAX_DB = -3   # Lower maximum to avoid constant red (was 0)
         
-        # Normalize to 0-1 range
+        # Strong noise gate
         if db < MIN_DB:
             return 0.0
-        if db > MAX_DB:
-            return 1.0
             
+        # Normalize with adjusted range
         normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
+        
+        # Add exponential scaling to reduce sensitivity
+        normalized = normalized ** 1.5  # Add non-linear scaling
+        
+        # Threshold small values to zero
+        if normalized < 0.1:
+            return 0.0
+            
         return max(0.0, min(1.0, normalized))
     return 0.0
 
