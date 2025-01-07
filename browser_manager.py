@@ -47,12 +47,9 @@ class BrowserManager:
                     except Exception as e:
                         self.logger.warning(f"Could not verify chromium installation: {e}")
 
-                    # Launch persistent context directly
-                    self.context = await playwright.chromium.launch_persistent_context(
-                        user_data_dir,
+                    # Launch browser first
+                    self.browser = await playwright.chromium.launch(
                         headless=BrowserConstants.HEADLESS_MODE,
-                        viewport={'width': 1280, 'height': 720},
-                        permissions=['geolocation'],
                         args=[
                             '--disable-dev-shm-usage',
                             '--no-sandbox',
@@ -64,14 +61,18 @@ class BrowserManager:
                             '--disable-renderer-backgrounding'
                         ]
                     )
+                    self.logger.info("Browser launched successfully")
+
+                    # Then create context
+                    self.context = await self.browser.new_context(
+                        viewport={'width': 1280, 'height': 720},
+                        permissions=['geolocation']
+                    )
                     self.logger.info("Browser context created")
 
                     # Create new page
                     self.page = await self.context.new_page()
                     self.logger.info("Page created successfully")
-                    
-                    # Store browser reference
-                    self.browser = self.context.browser
                     
                     # Log browser version
                     version = await self.browser.version()
