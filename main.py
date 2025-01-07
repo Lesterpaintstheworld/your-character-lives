@@ -1454,25 +1454,6 @@ def toggle_editor():
 # Global control variables
 auto_recording_task = None  # To store the auto recording thread
 
-def toggle_smart_mode():
-    """Toggle smart mode on/off"""
-    global smart_mode, is_recording
-    smart_mode = not smart_mode
-    smart_mode_btn.config(text="🧠 Smart ON" if smart_mode else "🧠 Smart OFF")
-    
-    if smart_mode:
-        # Start continuous recording
-        is_recording = True
-        update_status("🧠 Smart mode activated - listening continuously")
-        # Start smart recording in a new thread
-        smart_thread = threading.Thread(
-            target=lambda: asyncio.run(start_smart_recording()),
-            daemon=True
-        )
-        smart_thread.start()
-    else:
-        is_recording = False
-        update_status("🧠 Smart mode deactivated")
 
 async def process_buffer(buffer_manager: AudioBufferManager, screenshot: bytes):
     """Process recorded audio buffer"""
@@ -1601,36 +1582,6 @@ async def start_smart_recording():
         update_recording_status("Idle")
         cleanup_recording(stream, p)
 
-def toggle_auto_recording():
-    """Toggle automatic recording every X seconds"""
-    global auto_recording, auto_recording_interval, auto_recording_task
-    
-    # Get interval from spinbox
-    try:
-        auto_recording_interval = max(5, int(interval_spinbox.get()))  # Minimum 5 seconds
-    except ValueError:
-        auto_recording_interval = 15  # Changed default to 15 seconds
-        interval_spinbox.delete(0, tk.END)
-        interval_spinbox.insert(0, "15")  # Changed default to 15 seconds
-    
-    auto_recording = not auto_recording
-    auto_btn.config(text="🔄 Auto ON" if auto_recording else "🔄 Auto OFF")
-    interval_spinbox.config(state='disabled' if auto_recording else 'normal')
-    
-    if auto_recording:
-        update_status(f"🔄 Starting continuous recording (every {auto_recording_interval} seconds)...")
-        
-        # Start auto recording loop in a new thread to handle asyncio
-        def run_auto_record():
-            asyncio.run(auto_record_loop())
-            
-        auto_recording_task = threading.Thread(
-            target=run_auto_record,
-            daemon=True
-        )
-        auto_recording_task.start()
-    else:
-        update_status("⏹️ Automatic recording stopped")
 
 async def auto_record_loop():
     """Run the automatic recording loop"""
