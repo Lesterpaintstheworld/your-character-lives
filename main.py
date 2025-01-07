@@ -1119,7 +1119,7 @@ class VUMeter(Canvas):
                 self.itemconfig(segment_id, fill='dark gray')
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level from raw audio data with very aggressive noise filtering"""
+    """Calculate audio level from raw audio data with extremely aggressive noise filtering"""
     if isinstance(audio_data, bytes):
         # Convert bytes to numpy array
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
@@ -1133,19 +1133,19 @@ def calculate_audio_level(audio_data):
     if rms > 0:
         db = 20 * np.log10(rms / 32768.0)  # Normalize to 16-bit range
         
-        # Extremely strict thresholds
-        MIN_DB = -20  # Much higher minimum to cut out almost all background noise
-        MAX_DB = 0    # Set maximum to 0 dB (full scale)
+        # Even stricter thresholds
+        MIN_DB = -15  # Raise minimum threshold further (was -20)
+        MAX_DB = 0    # Keep maximum at 0 dB (full scale)
         
         # Strong noise gate - anything below MIN_DB is treated as silence
         if db < MIN_DB:
             return 0.0
             
-        # Normalize with cubic scaling to really reduce sensitivity
-        normalized = ((db - MIN_DB) / (MAX_DB - MIN_DB)) ** 3
+        # Normalize with quartic scaling to really reduce sensitivity
+        normalized = ((db - MIN_DB) / (MAX_DB - MIN_DB)) ** 4  # Changed from cubic to quartic
         
-        # Additional threshold to ensure very low levels read as 0
-        if normalized < 0.1:  # Ignore anything below 10% of full scale
+        # Higher threshold to ensure very low levels read as 0
+        if normalized < 0.15:  # Increased from 0.1 to 0.15
             return 0.0
             
         # Clamp to 0-1 range
