@@ -1150,17 +1150,21 @@ def calculate_audio_level(audio_data):
         # Convert to dB relative to full scale
         db = 20 * np.log10(rms / 32768.0)  # 32768 is max value for 16-bit audio
         
-        # Standard dB range but with lower sensitivity
-        MIN_DB = -40  # Less sensitive minimum
-        MAX_DB = -10  # Lower maximum
+        # Adjusted range for laptop mic
+        MIN_DB = -30  # Higher minimum to filter more noise
+        MAX_DB = -5   # Higher maximum for better voice detection
         
-        # Simple linear normalization
+        # Add noise gate
         if db < MIN_DB:
             return 0.0
-        if db > MAX_DB:
-            return 1.0
             
+        # Simple linear normalization
         normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
+        
+        # Additional noise gate threshold
+        if normalized < 0.1:  # Filter out very low levels
+            return 0.0
+            
         return max(0.0, min(1.0, normalized))
     return 0.0
 
