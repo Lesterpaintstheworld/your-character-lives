@@ -1155,11 +1155,12 @@ def stop_auto_recording():
 async def editor_loop():
     """Run the editor loop that processes code changes"""
     try:
+        screenshot_manager = ScreenshotManager()
         while is_playing and editor_active:
             try:
                 # Take screenshots before and after collecting text content
                 update_status("Taking screenshots...")
-                pre_screenshot = take_screenshot()
+                pre_screenshot = await screenshot_manager.capture()
                 if pre_screenshot is None:
                     raise ValueError("Failed to capture pre-screenshot")
 
@@ -1168,7 +1169,7 @@ async def editor_loop():
                 text_content = collect_text_files_content()
                 update_status(f"Text content collected: {len(text_content)} bytes")
 
-                post_screenshot = take_screenshot()
+                post_screenshot = await screenshot_manager.capture()
                 if post_screenshot is None:
                     raise ValueError("Failed to capture post-screenshot")
 
@@ -1992,6 +1993,7 @@ def force_quit():
 async def api_client(interval):
     """Execute recording/response cycles for both characters sequentially"""
     try:
+        screenshot_manager = ScreenshotManager()
         if not is_playing:
             return
             
@@ -2000,7 +2002,7 @@ async def api_client(interval):
         
         # Take screenshots and ensure they're not None
         logging.info("Taking pre-recording screenshot for Emily...")
-        pre_screenshot_emily = take_screenshot()
+        pre_screenshot_emily = await screenshot_manager.capture()
         if pre_screenshot_emily is None:
             raise ValueError("Failed to capture pre-recording screenshot")
             
@@ -2009,7 +2011,7 @@ async def api_client(interval):
         if audio_data is None:
             raise ValueError("Failed to record audio")
             
-        post_screenshot_emily = take_screenshot()
+        post_screenshot_emily = await screenshot_manager.capture()
         if post_screenshot_emily is None:
             raise ValueError("Failed to capture post-recording screenshot")
         
@@ -2075,7 +2077,7 @@ async def api_client(interval):
         
         # Take pre-recording screenshot for Daemon
         logging.info("Taking pre-recording screenshot for Daemon...")
-        pre_screenshot_daemon = take_screenshot()
+        pre_screenshot_daemon = await screenshot_manager.capture()
         
         # Record audio for Daemon
         logging.info("Starting 15-second recording for Daemon...")
@@ -2083,7 +2085,7 @@ async def api_client(interval):
         
         # Take post-recording screenshot for Daemon
         logging.info("Taking post-recording screenshot for Daemon...")
-        post_screenshot_daemon = take_screenshot()
+        post_screenshot_daemon = await screenshot_manager.capture()
         
         text_content = collect_text_files_content()
 
