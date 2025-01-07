@@ -8,7 +8,8 @@ import os
 global current_recording_buffer, current_speaker, is_playing, is_recording, smart_mode
 global running, output_var, emily_endpoint_var, daemon_endpoint_var, ui_elements_created
 global browser_button, recording_status, session_id, current_video_window, second_video_window
-global play_pause_btn, editor_play_pause_btn, editor_active, mic_var, vu_meter
+global play_pause_btn, editor_play_pause_btn, editor_active, mic_var, vu_meter, record_toggle_btn
+global recording_enabled
 
 # Initialize core globals
 current_recording_buffer = []
@@ -19,6 +20,7 @@ running = True
 smart_mode = False
 ui_elements_created = False
 editor_active = False
+recording_enabled = True  # Default to recording enabled
 
 # Initialize UI-related globals
 output_var = None
@@ -1054,9 +1056,14 @@ def calculate_audio_level(audio_data):
 
 async def send_current():
     """Send currently recorded audio buffer"""
-    global current_recording_buffer, current_speaker
+    global current_recording_buffer, current_speaker, recording_enabled
     
     try:
+        if not recording_enabled and not current_recording_buffer:
+            # If recording is disabled and buffer is empty, create silent audio
+            silent_audio = np.zeros(int(44100 * 5), dtype=np.int16).tobytes()
+            current_recording_buffer = [silent_audio]
+            
         logging.info(f"Send requested - buffer size: {len(current_recording_buffer)} chunks")
         
         if not current_recording_buffer:
@@ -1441,7 +1448,7 @@ def cleanup_recording(stream: pyaudio.Stream, p: pyaudio.PyAudio):
 
 async def continuous_recording():
     """Handle continuous recording in smart mode with improved management"""
-    global current_speaker, current_recording_buffer
+    global current_speaker, current_recording_buffer, recording_enabled
     
     buffer_manager = AudioBufferManager()
     vad = VoiceActivityDetector()
@@ -1450,6 +1457,13 @@ async def continuous_recording():
     global smart_mode
     smart_mode = True
     try:
+        while smart_mode and is_playing:
+            if not recording_enabled:
+                # If recording is disabled, wait 5 seconds then trigger send
+                await asyncio.sleep(5)
+                if is_playing and not recording_enabled:
+                    await send_current()
+                continue
         p = pyaudio.PyAudio()
         input_device = get_input_device()
         
@@ -1623,6 +1637,20 @@ def create_device_selectors():
         padx=10,
         pady=5)
     play_pause_btn.pack(side='left', padx=5)
+
+    # Recording toggle button
+    global record_toggle_btn
+    record_toggle_btn = tk.Button(controls_frame, text="🎤 Recording ON",
+        command=toggle_recording,
+        bg=ThemeColors.ACCENT_PRIMARY,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
+    record_toggle_btn.pack(side='left', padx=5)
     
     # Send button
     def send_button_click():
