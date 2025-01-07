@@ -1052,6 +1052,12 @@ class VUMeter(Canvas):
         self.mid_color = mid_color
         self.high_color = high_color
         
+        # Calculate silence threshold position
+        MIN_DB = -15  # Same as in calculate_audio_level
+        MAX_DB = 0
+        THRESHOLD = 0.15  # Same as in calculate_audio_level
+        self.threshold_position = THRESHOLD * self.segments
+        
         # Bind to resize events
         self.bind('<Configure>', self.on_resize)
         self.create_segments()
@@ -1065,7 +1071,7 @@ class VUMeter(Canvas):
         self.set_level(self.level)  # Redraw with current level
 
     def create_segments(self):
-        """Create segments with smooth color transition"""
+        """Create segments with smooth color transition and threshold marker"""
         # Clear existing segments
         self.delete('all')
         self.segments_ids = []
@@ -1097,6 +1103,16 @@ class VUMeter(Canvas):
                 width=0
             )
             self.segments_ids.append((segment, color))
+            
+        # Add threshold marker line
+        threshold_x = self.threshold_position * self.segment_width
+        self.create_line(
+            threshold_x, 0, 
+            threshold_x, self.winfo_height(),
+            fill='white',
+            width=2,
+            dash=(2, 2)  # Create dashed line
+        )
 
     def blend_colors(self, color1, color2, ratio):
         """Blend two hex colors"""
