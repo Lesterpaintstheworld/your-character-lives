@@ -904,12 +904,11 @@ def record_audio(duration: int) -> bytes:
                 current_recording_buffer.append(data)
                 bytes_recorded += len(data)
                 
-                # Update VU meter less frequently
-                if i % 4 == 0:
-                    level = calculate_audio_level(data)
-                    if hasattr(root, 'after'):
-                        root.after(0, lambda l=level: vu_meter.set_level(l))
-                    
+                # Update VU meter more frequently (every chunk)
+                level = calculate_audio_level(data)
+                if hasattr(root, 'after'):
+                    root.after(0, lambda l=level: vu_meter.set_level(l))
+                
                 # Update status every second
                 if i % (RATE // CHUNK) == 0:
                     elapsed = time.time() - start_time
@@ -961,21 +960,25 @@ class VUMeter(Canvas):
                         **kwargs)
         self.width = width
         self.height = height
-        self.segments = 30
+        self.segments = 30  # More segments for smoother display
         self.low_color = low_color
         self.mid_color = mid_color
         self.high_color = high_color
         
-        # Calculate silence threshold position (matching calculate_audio_level)
-        MIN_DB = -30  # Match the new values from calculate_audio_level
-        MAX_DB = -3
-        THRESHOLD_DB = -25  # Set visible threshold
+        # Calculate silence threshold position
+        MIN_DB = -60
+        MAX_DB = -10
+        THRESHOLD_DB = -40  # Adjust this for desired threshold marker
         self.threshold_position = (THRESHOLD_DB - MIN_DB) / (MAX_DB - MIN_DB) * self.segments
         
-        # Bind to resize events
         self.bind('<Configure>', self.on_resize)
         self.create_segments()
         self.level = 0
+        
+        # Add peak hold
+        self.peak_level = 0
+        self.peak_hold_time = 0
+        self.peak_hold_duration = 30  # Frames to hold peak
 
     def on_resize(self, event):
         """Handle resize events"""
@@ -1038,56 +1041,66 @@ class VUMeter(Canvas):
         return f'#{r:02x}{g:02x}{b:02x}'
 
     def set_level(self, level):
-        """Update the meter level (0.0 to 1.0)"""
+        """Update the meter level with peak hold"""
         self.level = min(max(level, 0.0), 1.0)
+        
+        # Update peak level
+        if self.level > self.peak_level:
+            self.peak_level = self.level
+            self.peak_hold_time = self.peak_hold_duration
+        elif self.peak_hold_time > 0:
+            self.peak_hold_time -= 1
+        else:
+            self.peak_level *= 0.95  # Gradual peak falloff
+        
         active_segments = int(self.level * self.segments)
+        peak_segment = int(self.peak_level * self.segments)
         
         for i, (segment_id, color) in enumerate(self.segments_ids):
             if i < active_segments:
                 self.itemconfig(segment_id, fill=color)
+            elif i == peak_segment:
+                self.itemconfig(segment_id, fill=ThemeColors.VU_HIGH)  # Peak indicator
             else:
-                self.itemconfig(segment_id, fill='dark gray')
+                self.itemconfig(segment_id, fill=ThemeColors.BG_DARK)
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level with detailed diagnostics"""
-    if isinstance(audio_data, bytes):
-        audio_array = np.frombuffer(audio_data, dtype=np.int16)
-    else:
-        audio_array = audio_data
-        
-    # Add diagnostic info
-    logging.debug(f"Audio data type: {type(audio_data)}")
-    logging.debug(f"Audio array type: {audio_array.dtype}")
-    logging.debug(f"Audio array range: [{np.min(audio_array)}, {np.max(audio_array)}]")
-    logging.debug(f"Audio array mean: {np.mean(audio_array)}")
-    
-    # Calculate RMS with more precision
-    rms = np.sqrt(np.mean(np.square(audio_array.astype(np.float64))))
-    logging.debug(f"Raw RMS value: {rms}")
-    
-    # Convert to decibels and normalize
-    if rms > 0:
-        db = 20 * np.log10(rms / 32768.0)  # Full scale reference
-        logging.debug(f"Decibel value: {db} dB")
-        
-        # More conservative ranges
-        MIN_DB = -60
-        MAX_DB = -24  # Lower max to reduce sensitivity
-        NOISE_GATE = -45  # Higher noise gate to filter more background
-        
-        if db < NOISE_GATE:
-            logging.debug("Below noise gate threshold")
-            return 0.0
+    """Calculate audio level with improved sensitivity"""
+    try:
+        if isinstance(audio_data, bytes):
+            audio_array = np.frombuffer(audio_data, dtype=np.int16)
+        else:
+            audio_array = audio_data
             
-        normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
-        normalized = np.power(normalized, 0.5)  # Less aggressive compression
-        normalized *= 0.9  # Scale down slightly
+        # Calculate RMS with more precision
+        rms = np.sqrt(np.mean(np.square(audio_array.astype(np.float64))))
         
-        result = max(0.0, min(1.0, normalized))
-        logging.debug(f"Normalized value: {result}")
-        return result
+        # Convert to decibels with better scaling
+        if rms > 0:
+            db = 20 * np.log10(rms / 32768.0)  # Full scale reference
+            
+            # Adjust these ranges for better visibility
+            MIN_DB = -60
+            MAX_DB = -10  # Less negative for more sensitivity
+            
+            # Normalize with improved scaling
+            if db < MIN_DB:
+                return 0.0
+            if db > MAX_DB:
+                return 1.0
+                
+            # Linear mapping from dB to 0-1 range
+            normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
+            # Apply slight compression curve
+            normalized = np.power(normalized, 0.7)  # Makes meter more responsive
+            
+            return max(0.0, min(1.0, normalized))
+            
+        return 0.0
         
-    return 0.0
+    except Exception as e:
+        logging.error(f"Error calculating audio level: {e}")
+        return 0.0
 
 async def send_current():
     """Send currently recorded audio buffer"""
