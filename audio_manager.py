@@ -175,14 +175,12 @@ class AudioManager:
         """Context manager for handling audio streams"""
         try:
             input_device = self.get_input_device()
-            self.recording_stream = self.p.open(
-                format=pyaudio.paFloat32,  # Higher precision format
+            self.recording_stream = sd.InputStream(
+                device=input_device,
                 channels=1,
-                rate=44100,  # CD quality
-                input=True,
-                input_device_index=input_device,
-                frames_per_buffer=4096,  # Larger buffer
-                stream_callback=None  # Disable callback for direct reading
+                samplerate=44100,  # CD quality
+                blocksize=4096,  # Larger buffer
+                dtype=np.float32  # Higher precision format
             )
             yield self.recording_stream
         finally:
@@ -210,10 +208,13 @@ class AudioManager:
                 # Use standard audio settings
                 BUFFER_SIZE = 2048  # Standard buffer size
                 SAMPLE_RATE = 16000  # Standard sample rate for speech
-                FORMAT = pyaudio.paInt16  # 16-bit PCM
                 
-                stream = self.p.open(
-                    format=FORMAT,
+                stream = sd.InputStream(
+                    device=device_index,
+                    channels=1,
+                    samplerate=SAMPLE_RATE,
+                    blocksize=BUFFER_SIZE,
+                    dtype=np.int16  # 16-bit PCM
                     channels=1,
                     rate=SAMPLE_RATE,
                     input=True,
@@ -283,9 +284,9 @@ class AudioManager:
                 logging.error(f"Recording attempt {retry_count} failed: {e}")
                 if retry_count >= max_retries:
                     raise RuntimeError(f"Failed to record audio after {max_retries} attempts")
-                # Reset PyAudio instance before retry
+                # Reset sounddevice before retry
                 self.cleanup()
-                self.p = pyaudio.PyAudio()
+                sd.default.reset()
                 time.sleep(retry_delay)
 
     async def play_audio(self, audio_data: bytes):
