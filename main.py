@@ -1135,7 +1135,7 @@ class VUMeter(Canvas):
                 self.itemconfig(segment_id, fill='dark gray')
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level from raw audio data"""
+    """Calculate audio level from raw audio data with smoothing"""
     if isinstance(audio_data, bytes):
         # Convert bytes to numpy array
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
@@ -1149,28 +1149,28 @@ def calculate_audio_level(audio_data):
     # Convert to decibels and normalize
     if rms > 0:
         # Convert to dB relative to full scale
-        db = 20 * np.log10(rms / 32768.0)  # 32768 is max value for 16-bit audio
+        db = 20 * np.log10(rms / 32768.0)
         logging.debug(f"Decibel value: {db} dB")
         
-        # Adjusted range for laptop mic
-        MIN_DB = -30  # Higher minimum to filter more noise
-        MAX_DB = -5   # Higher maximum for better voice detection
+        # Adjusted ranges with better scaling
+        MIN_DB = -50  # Higher minimum to catch more quiet sounds
+        MAX_DB = -10  # Lower maximum to prevent maxing out
+        NOISE_GATE = -45  # Noise gate threshold
         
-        # Add noise gate
-        if db < MIN_DB:
+        # Apply noise gate
+        if db < NOISE_GATE:
             logging.debug("Below noise gate threshold")
             return 0.0
             
-        # Simple linear normalization
+        # Improved normalization with compression
         normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
-        logging.debug(f"Normalized value: {normalized}")
+        normalized = np.power(normalized, 0.7)  # Add slight compression
         
-        # Additional noise gate threshold
-        if normalized < 0.1:  # Filter out very low levels
-            logging.debug("Below minimum normalized threshold")
-            return 0.0
-            
-        return max(0.0, min(1.0, normalized))
+        # Clip to 0-1 range
+        result = max(0.0, min(1.0, normalized))
+        logging.debug(f"Normalized value: {result}")
+        return result
+        
     return 0.0
 
 def toggle_play_pause():
