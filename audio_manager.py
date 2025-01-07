@@ -322,13 +322,13 @@ class AudioManager:
                         try:
                             stream.stop_stream()
                             stream.close()
-                        except:
-                            pass
+                        except Exception as e:
+                            logging.error(f"Error closing stream: {e}")
                     if p:
                         try:
                             p.terminate()
-                        except:
-                            pass
+                        except Exception as e:
+                            logging.error(f"Error terminating PyAudio: {e}")
 
             except Exception as e:
                 retry_count += 1

@@ -831,7 +831,6 @@ def record_audio(duration):
         logging.info("Recording disabled - waiting 1 second")
         update_status("⏳ Waiting 1 second...")
         time.sleep(1)
-        # Create 1 second of silence at correct sample rate
         silent_data = np.zeros(int(48000 * 1), dtype=np.int16).tobytes()
         current_recording_buffer = [silent_data]
         return silent_data
@@ -841,7 +840,7 @@ def record_audio(duration):
     frames = []
     
     try:
-        # Get selected mic index
+        # Get selected mic index with validation
         selected = mic_var.get()
         if not selected:
             raise Exception("No microphone selected")
@@ -850,35 +849,78 @@ def record_audio(duration):
         if not match:
             raise Exception("Invalid microphone selection")
             
-        input_device = int(match.group(1))
-        logging.info(f"Using input device {input_device}")
+        device_index = int(match.group(1))
+        logging.info(f"Using input device {device_index}")
+
+        # Initialize PyAudio with retry mechanism
+        max_retries = 3
+        for attempt in range(max_retries):
+            try:
+                p = pyaudio.PyAudio()
+                
+                # Verify device exists and is valid
+                device_info = p.get_device_info_by_index(device_index)
+                if device_info['maxInputChannels'] == 0:
+                    raise ValueError(f"Device {device_index} has no input channels")
+                
+                logging.info(f"Device info: {device_info}")
+                
+                # Use device's native sample rate if possible
+                native_rate = int(device_info['defaultSampleRate'])
+                RATE = native_rate if native_rate in [44100, 48000] else 44100
+                
+                CHUNK = 1024
+                FORMAT = pyaudio.paInt16
+                CHANNELS = 1
+                
+                # Open stream with explicit error checking
+                stream = p.open(
+                    format=FORMAT,
+                    channels=CHANNELS,
+                    rate=RATE,
+                    input=True,
+                    input_device_index=device_index,
+                    frames_per_buffer=CHUNK,
+                    start=False  # Don't start yet
+                )
+                
+                # Try to start stream
+                stream.start_stream()
+                
+                # Verify stream is actually active
+                if not stream.is_active():
+                    raise RuntimeError("Stream failed to start")
+                    
+                # Test read from stream
+                test_data = stream.read(CHUNK, exception_on_overflow=False)
+                if not test_data:
+                    raise RuntimeError("Failed to read test data from stream")
+                
+                logging.info("Audio stream successfully initialized")
+                break
+                
+            except Exception as e:
+                logging.error(f"Attempt {attempt + 1} failed: {e}")
+                if stream:
+                    try:
+                        stream.stop_stream()
+                        stream.close()
+                    except:
+                        pass
+                if p:
+                    try:
+                        p.terminate()
+                    except:
+                        pass
+                    
+                if attempt == max_retries - 1:
+                    raise RuntimeError(f"Failed to initialize audio after {max_retries} attempts")
+                    
+                time.sleep(0.5)  # Wait before retry
+                continue
         
-        p = pyaudio.PyAudio()
-        
-        # Use higher quality settings
-        CHUNK = 1024
-        FORMAT = pyaudio.paInt16
-        CHANNELS = 1
-        RATE = 48000  # Higher sample rate for better quality
-        
-        stream = p.open(
-            format=FORMAT,
-            channels=CHANNELS,
-            rate=RATE,
-            input=True,
-            input_device_index=input_device,
-            frames_per_buffer=CHUNK,
-            start=False
-        )
-        
-        # Verify stream is active
-        if not stream.is_active():
-            logging.error("Stream not active after opening")
-            raise RuntimeError("Audio stream not active")
-        logging.info("Stream is active and ready for recording")
-            
-        chunks = int(44100 / 4096 * duration)  # Adjust chunks for new rate/buffer
-        logging.info(f"Will record {chunks} chunks")
+        chunks = int(RATE / CHUNK * duration)
+        logging.info(f"Will record {chunks} chunks at {RATE}Hz")
             
         is_recording = True
         start_time = time.time()
@@ -887,43 +929,42 @@ def record_audio(duration):
             if not is_playing or not is_recording:
                 break
                 
-            data = stream.read(4096, exception_on_overflow=False)
-            frames.append(data)
-            
-            # Log first chunk to check format
-            if i == 0:
-                logging.info(f"First chunk size: {len(data)} bytes")
-                audio_array = np.frombuffer(data, dtype=np.int16)
-                logging.info(f"Audio array shape: {audio_array.shape}")
-                logging.info(f"Audio range: [{np.min(audio_array)}, {np.max(audio_array)}]")
-            
-            # Update VU meter
-            level = calculate_audio_level(data)
-            root.after(0, lambda l=level: vu_meter.set_level(l))
-            
-            if i % (44100 // 4096) == 0:  # Adjust status update interval
-                elapsed = time.time() - start_time
-                update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
+            try:
+                data = stream.read(CHUNK, exception_on_overflow=False)
+                if not data:
+                    logging.warning(f"Empty data chunk at index {i}")
+                    continue
+                    
+                frames.append(data)
+                current_recording_buffer.append(data)
+                
+                # Update VU meter
+                if i % 2 == 0:
+                    level = calculate_audio_level(data)
+                    root.after(0, lambda l=level: vu_meter.set_level(l))
+                
+                if i % (RATE // CHUNK) == 0:
+                    elapsed = time.time() - start_time
+                    update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
+                    
+            except IOError as e:
+                logging.warning(f"IOError during recording: {e}")
+                continue
                 
         is_recording = False
         
-        # Log recording results
-        elapsed = time.time() - start_time
-        logging.info(f"Recording completed in {elapsed:.1f}s")
-        logging.info(f"Recorded {len(frames)} chunks out of {chunks} expected")
-        
         if not frames:
-            logging.error("No audio data was recorded")
             raise RuntimeError("No audio data recorded")
             
-        # Create WAV buffer with proper settings
+        # Create WAV buffer
         wav_buffer = io.BytesIO()
         with wave.open(wav_buffer, 'wb') as wf:
-            wf.setnchannels(1)        # Mono
-            wf.setsampwidth(2)        # 16-bit
-            wf.setframerate(44100)    # CD quality
+            wf.setnchannels(CHANNELS)
+            wf.setsampwidth(2)
+            wf.setframerate(RATE)
             wf.writeframes(b''.join(frames))
             
+        logging.info(f"Successfully recorded {len(frames)} chunks")
         return wav_buffer.getvalue()
         
     finally:
