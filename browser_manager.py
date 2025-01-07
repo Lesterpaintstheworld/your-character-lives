@@ -74,9 +74,18 @@ class BrowserManager:
                     self.page = await self.context.new_page()
                     self.logger.info("Page created successfully")
                     
-                    # Log browser version
-                    version = await self.browser.version()
-                    self.logger.info(f"Browser version: {version}")
+                    # Get browser version info
+                    try:
+                        # Get version info through browser context
+                        version_info = await self.browser.version
+                        if isinstance(version_info, str):
+                            self.logger.info(f"Browser version: {version_info}")
+                        else:
+                            version_info = await self.context.evaluate('navigator.userAgent')
+                            self.logger.info(f"Browser user agent: {version_info}")
+                    except Exception as e:
+                        self.logger.warning(f"Could not get browser version: {e}")
+                        # Continue anyway since this is not critical
                     
                 except Exception as e:
                     self.logger.error(f"Failed to launch browser: {e}", exc_info=True)
