@@ -191,28 +191,79 @@ class BrowserManager:
         try:
             # Get current page info if we're on a page
             current_data = {}
+            webpage_content = ""  # Initialize webpage content
+            
             if self.page and self.page.url != "about:blank":
+                # Get basic page info
                 current_data = {
                     "current_url": self.page.url,
                     "title": await self.page.title(),
                     "content": await self.page.content()
                 }
+                
+                # Extract readable text content from the page
+                webpage_content = await self.page.evaluate("""() => {
+                    // Helper function to get visible text
+                    function getVisibleText(node) {
+                        if (node.nodeType === Node.TEXT_NODE) {
+                            return node.textContent.trim();
+                        }
+                        
+                        // Skip hidden elements
+                        const style = window.getComputedStyle(node);
+                        if (style && (style.display === 'none' || style.visibility === 'hidden')) {
+                            return '';
+                        }
+                        
+                        // Recursively get text from child nodes
+                        let text = '';
+                        for (let child of node.childNodes) {
+                            if (child.nodeType === Node.ELEMENT_NODE) {
+                                text += ' ' + getVisibleText(child);
+                            } else if (child.nodeType === Node.TEXT_NODE) {
+                                text += ' ' + child.textContent.trim();
+                            }
+                        }
+                        return text.trim();
+                    }
+                    
+                    // Get main content, prioritizing article/main content areas
+                    const mainContent = document.querySelector('article, [role="main"], main, .main-content');
+                    if (mainContent) {
+                        return getVisibleText(mainContent);
+                    }
+                    
+                    // Fallback to body if no main content area found
+                    return getVisibleText(document.body);
+                }""")
+                
+                # Format webpage content for context
+                if webpage_content:
+                    webpage_content = f"\n=== Current Webpage Content ===\nURL: {self.page.url}\nTitle: {await self.page.title()}\n\n{webpage_content}\n=== End Webpage Content ===\n"
+                
                 # Take screenshot as binary
                 screenshot_bytes = await self.take_screenshot()
                 if screenshot_bytes:
-                    current_data["screenshot"] = screenshot_bytes  # Store raw bytes
+                    current_data["screenshot"] = screenshot_bytes
             
             # Get instructions from endpoint
             self.logger.info("Getting navigation instructions from endpoint")
+            
             # Prepare multipart form data
             files = {
                 'screenshot': ('screenshot.jpg', current_data.pop('screenshot', None), 'image/jpeg')
             }
+            
+            # Add webpage content to text data if available
+            if 'text' in current_data:
+                current_data['text'] += webpage_content
+            else:
+                current_data['text'] = webpage_content
                 
             response = requests.post(
                 self.endpoint,
-                data=current_data,  # Regular form data
-                files=files,        # File data
+                data=current_data,
+                files=files,
                 timeout=30
             )
             
