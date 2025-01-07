@@ -1519,6 +1519,7 @@ def update_recording_status(status: str):
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
     global ui_elements_created, editor_play_pause_btn, editor_active, browser_button
+    global current_recording_buffer, current_speaker
     
     # Check if UI elements have already been created
     if ui_elements_created:
@@ -1570,7 +1571,6 @@ def create_device_selectors():
     # Send button
     def send_button_click():
         """Non-blocking send button handler"""
-        global current_speaker
         # Disable send button temporarily to prevent double-clicks
         send_btn.config(state='disabled')
     
