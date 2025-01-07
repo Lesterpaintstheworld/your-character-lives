@@ -1585,7 +1585,7 @@ def create_device_selectors():
     # Send button
     def send_button_click():
         """Non-blocking send button handler"""
-        global current_speaker
+        global current_speaker, current_recording_buffer
         logging.info("=== Send Button Clicked ===")
         
         # Verify we have data to send
