@@ -1104,26 +1104,32 @@ class VUMeter(Canvas):
                 self.itemconfig(segment_id, fill='dark gray')
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level from raw audio data with better calibration"""
+    """Calculate audio level from raw audio data with aggressive noise filtering"""
     if isinstance(audio_data, bytes):
         # Convert bytes to numpy array
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
     else:
         audio_array = audio_data
         
-    # Calculate RMS value
+    # Calculate RMS value with noise floor
     rms = np.sqrt(np.mean(np.square(audio_array, dtype=np.float64)))
     
-    # Convert to decibels and normalize with adjusted thresholds
+    # Convert to decibels and normalize with much stricter thresholds
     if rms > 0:
         db = 20 * np.log10(rms / 32768.0)  # Normalize to 16-bit range
         
-        # Adjust these thresholds based on your microphone sensitivity
-        MIN_DB = -60  # Silence threshold
-        MAX_DB = -10  # Maximum expected level
+        # Much stricter thresholds
+        MIN_DB = -30  # Higher minimum to cut out more noise
+        MAX_DB = -5   # Higher maximum for more headroom
         
-        # Normalize decibels to 0-1 range with new thresholds
-        normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
+        # Add noise gate - anything below MIN_DB is treated as silence
+        if db < MIN_DB:
+            return 0.0
+            
+        # Normalize with exponential scaling to reduce sensitivity
+        normalized = ((db - MIN_DB) / (MAX_DB - MIN_DB)) ** 2
+        
+        # Clamp to 0-1 range
         return max(0.0, min(1.0, normalized))
     return 0.0
 
