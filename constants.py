@@ -1,14 +1,14 @@
 """Constants used throughout the application"""
 
 class AudioConstants:
-    CHUNK_SIZE = 1024
-    FORMAT = 16  # bits
+    CHUNK_SIZE = 2048
+    FORMAT = pyaudio.paInt16
     CHANNELS = 1
-    SAMPLE_RATE = 24000
+    SAMPLE_RATE = 16000
     SILENCE_THRESHOLD = -60  # dB
     MIN_SILENCE_DURATION = 3.0  # seconds
     SMART_SCREENSHOT_INTERVAL = 20  # seconds
-    SMART_BUFFER_SIZE = 1024
+    SMART_BUFFER_SIZE = 2048
     MAX_RECORDING_SIZE = 500 * 1024 * 1024  # 500MB
 
 class NetworkConstants:
