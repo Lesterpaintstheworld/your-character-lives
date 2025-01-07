@@ -150,6 +150,40 @@ class BrowserManager:
             self.logger.error(f"Failed to send data to endpoint: {e}")
             return None
 
+    async def wait_for_clickable(self, selector: str, timeout: int = 10000) -> bool:
+        """Wait for element to be clickable with better error reporting"""
+        try:
+            element = await self.page.wait_for_selector(
+                selector,
+                state='visible',
+                timeout=timeout
+            )
+            if element:
+                is_visible = await element.is_visible()
+                is_enabled = await element.is_enabled()
+                if not is_visible or not is_enabled:
+                    self.logger.warning(f"Element {selector} found but not interactable: visible={is_visible}, enabled={is_enabled}")
+                    return False
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"Error waiting for {selector}: {e}")
+            return False
+
+    async def safe_click(self, selector: str, timeout: int = 10000) -> bool:
+        """Safely click an element with retries"""
+        try:
+            if await self.wait_for_clickable(selector, timeout):
+                element = await self.page.query_selector(selector)
+                await element.scroll_into_view_if_needed()
+                await asyncio.sleep(0.5)  # Stability delay
+                await element.click()
+                return True
+            return False
+        except Exception as e:
+            self.logger.error(f"Safe click failed for {selector}: {e}")
+            return False
+
     async def process_page(self) -> Dict:
         """Process current page and execute instruction sequences"""
         try:
@@ -183,53 +217,97 @@ class BrowserManager:
                 results = {}
                 # Process each instruction in sequence
                 for instruction in instructions:
-                    action = instruction.get('action')
-                    
-                    if action == 'navigate':
-                        url = instruction.get('url')
-                        await self.navigate(url)
-                        if 'wait_for' in instruction:
-                            await self.page.wait_for_selector(instruction['wait_for'])
-                            
-                    elif action == 'waitForSelector':
-                        selector = instruction.get('selector')
-                        timeout = instruction.get('timeout', 5000)
-                        await self.page.wait_for_selector(selector, timeout=timeout)
+                    try:
+                        action = instruction.get('action')
+                        max_retries = 3
+                        retry_delay = 2  # seconds
                         
-                    elif action == 'click':
-                        selector = instruction.get('selector')
-                        await self.page.click(selector)
-                        
-                    elif action == 'type':
-                        selector = instruction.get('selector')
-                        text = instruction.get('text')
-                        await self.page.fill(selector, text)
-                        
-                    elif action == 'press':
-                        key = instruction.get('key')
-                        await self.page.keyboard.press(key)
-                        
-                    elif action == 'extract':
-                        selector = instruction.get('selector')
-                        attribute = instruction.get('attribute')
-                        output_key = instruction.get('output')
-                        elements = await self.page.query_selector_all(selector)
-                        extracted = []
-                        for element in elements:
-                            if attribute == 'innerText':
-                                text = await element.inner_text()
-                                extracted.append(text)
-                        results[output_key] = extracted
-                        
-                    elif action == 'screenshot':
-                        path = instruction.get('path')
-                        await self.take_screenshot(path)
-                        
-                    elif action == 'close':
-                        await self.page.close()
-                        
-                    else:
-                        self.logger.warning(f"Unknown action: {action}")
+                        for attempt in range(max_retries):
+                            try:
+                                if action == 'navigate':
+                                    url = instruction.get('url')
+                                    await self.navigate(url)
+                                    if 'wait_for' in instruction:
+                                        await self.page.wait_for_selector(
+                                            instruction['wait_for'],
+                                            state='visible',
+                                            timeout=10000
+                                        )
+                                        
+                                elif action == 'waitForSelector':
+                                    selector = instruction.get('selector')
+                                    timeout = instruction.get('timeout', 10000)
+                                    await self.page.wait_for_selector(
+                                        selector,
+                                        state='visible',
+                                        timeout=timeout
+                                    )
+                                    
+                                elif action == 'click':
+                                    selector = instruction.get('selector')
+                                    if await self.safe_click(selector):
+                                        break
+                                    raise Exception(f"Failed to click {selector}")
+                                    
+                                elif action == 'type':
+                                    selector = instruction.get('selector')
+                                    text = instruction.get('text')
+                                    await self.page.wait_for_selector(selector, state='visible')
+                                    await self.page.fill(selector, text)
+                                    
+                                elif action == 'press':
+                                    key = instruction.get('key')
+                                    await self.page.keyboard.press(key)
+                                    
+                                elif action == 'extract':
+                                    selector = instruction.get('selector')
+                                    attribute = instruction.get('attribute')
+                                    output_key = instruction.get('output')
+                                    await self.page.wait_for_selector(selector, state='visible')
+                                    elements = await self.page.query_selector_all(selector)
+                                    extracted = []
+                                    for element in elements:
+                                        if attribute == 'innerText':
+                                            text = await element.inner_text()
+                                            extracted.append(text)
+                                    results[output_key] = extracted
+                                    
+                                elif action == 'screenshot':
+                                    path = instruction.get('path')
+                                    await self.take_screenshot(path)
+                                    
+                                elif action == 'close':
+                                    await self.page.close()
+                                    
+                                else:
+                                    self.logger.warning(f"Unknown action: {action}")
+                                    
+                                break  # Action succeeded, exit retry loop
+                                
+                            except Exception as e:
+                                if attempt == max_retries - 1:
+                                    self.logger.error(f"Action {action} failed after {max_retries} attempts: {e}")
+                                    # Take screenshot on failure
+                                    error_screenshot = await self.take_screenshot()
+                                    if error_screenshot:
+                                        error_path = f"error_{action}_{time.time()}.png"
+                                        with open(error_path, "wb") as f:
+                                            f.write(error_screenshot)
+                                        self.logger.info(f"Error screenshot saved to {error_path}")
+                                    raise
+                                else:
+                                    self.logger.warning(f"Attempt {attempt + 1} failed for {action}: {e}. Retrying...")
+                                    await asyncio.sleep(retry_delay)
+                                    # Refresh page if needed
+                                    if 'refresh_on_retry' in instruction and instruction['refresh_on_retry']:
+                                        await self.page.reload()
+                                    continue
+                                    
+                    except Exception as e:
+                        self.logger.error(f"Failed to execute {action}: {e}")
+                        if instruction.get('critical', False):
+                            raise  # Re-raise if instruction is marked as critical
+                        continue  # Otherwise continue with next instruction
                         
                 return results
                     
