@@ -108,10 +108,10 @@ class AudioManager:
                     test_stream = self.p.open(
                         format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
                         channels=self.config.CHANNELS,
-                        rate=self.config.SAMPLE_RATE,
+                        rate=16000,  # Try lower sample rate
                         input=True,
                         input_device_index=default_index,
-                        frames_per_buffer=self.config.CHUNK_SIZE,
+                        frames_per_buffer=1024,  # Smaller buffer
                         start=False
                     )
                     test_stream.close()
@@ -129,10 +129,10 @@ class AudioManager:
                             test_stream = self.p.open(
                                 format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
                                 channels=self.config.CHANNELS,
-                                rate=self.config.SAMPLE_RATE,
+                                rate=16000,  # Try lower sample rate
                                 input=True,
                                 input_device_index=i,
-                                frames_per_buffer=self.config.CHUNK_SIZE,
+                                frames_per_buffer=1024,  # Smaller buffer
                                 start=False
                             )
                             test_stream.close()
@@ -150,10 +150,10 @@ class AudioManager:
                             test_stream = self.p.open(
                                 format=self.p.get_format_from_width(self.config.AUDIO_FORMAT // 8),
                                 channels=self.config.CHANNELS,
-                                rate=self.config.SAMPLE_RATE,
+                                rate=16000,  # Try lower sample rate
                                 input=True,
                                 input_device_index=i,
-                                frames_per_buffer=self.config.CHUNK_SIZE,
+                                frames_per_buffer=1024,  # Smaller buffer
                                 start=False
                             )
                             test_stream.close()
@@ -200,7 +200,6 @@ class AudioManager:
         while retry_count < max_retries:
             try:
                 logging.info("\n=== Starting Audio Recording with Diagnostics ===")
-                logging.info(f"Target bitrate: 705 kbits/s")
                 logging.info(f"Requested duration: {duration} seconds")
 
                 p = None
@@ -227,20 +226,17 @@ class AudioManager:
                     logging.info(f"Max input channels: {device_info['maxInputChannels']}")
                     logging.info(f"Default sample rate: {device_info['defaultSampleRate']}")
                     
-                    # Configure for exact 705.6 kbits/s:
-                    # Bitrate = SampleRate * BitsPerSample * Channels
-                    # 705600 = 44100 * 16 * 1
-                    CHUNK = 4096  # Increased for stability
+                    # Configure for more stable recording
+                    CHUNK = 1024  # Smaller chunks
                     FORMAT = pyaudio.paInt16  # 16-bit
                     CHANNELS = 1  # Mono
-                    RATE = 44100  # CD quality
+                    RATE = 16000  # Lower sample rate
                     
                     logging.info("\n=== Recording Configuration ===")
                     logging.info(f"Format: 16-bit PCM")
                     logging.info(f"Channels: {CHANNELS} (Mono)")
                     logging.info(f"Sample Rate: {RATE} Hz")
                     logging.info(f"Chunk Size: {CHUNK}")
-                    logging.info(f"Theoretical Bitrate: {RATE * 16 * CHANNELS / 1000:.1f} kbits/s")
 
                     # Open stream with explicit settings
                     stream = p.open(
@@ -253,13 +249,7 @@ class AudioManager:
                         start=False  # Don't start yet
                     )
 
-                    # Verify stream configuration
-                    stream_info = stream._stream.get_info()
-                    logging.info("\n=== Stream Configuration ===")
-                    logging.info(f"Stream active: {stream.is_active()}")
-                    logging.info(f"Stream info: {stream_info}")
-
-                    # Start stream
+                    # Start stream explicitly
                     stream.start_stream()
                     if not stream.is_active():
                         raise RuntimeError("Failed to start audio stream")
@@ -269,7 +259,7 @@ class AudioManager:
                     chunks_needed = total_frames // CHUNK
                     logging.info(f"\nWill record {chunks_needed} chunks ({total_frames} frames)")
 
-                    # Record with timing and size monitoring
+                    # Record with timing and monitoring
                     start_time = time.time()
                     bytes_recorded = 0
                     
@@ -283,11 +273,9 @@ class AudioManager:
                             frames.append(data)
                             bytes_recorded += len(data)
                             
-                            # Monitor actual bitrate every second
+                            # Monitor progress every second
                             elapsed = time.time() - start_time
                             if i % (RATE // CHUNK) == 0:  # Once per second
-                                current_bitrate = (bytes_recorded * 8) / (elapsed * 1000)
-                                logging.info(f"Current bitrate: {current_bitrate:.1f} kbits/s")
                                 logging.info(f"Progress: {int(elapsed)}s / {duration}s")
                                 
                             # Update VU meter less frequently
@@ -304,12 +292,10 @@ class AudioManager:
                     end_time = time.time()
                     total_time = end_time - start_time
                     total_bytes = sum(len(f) for f in frames)
-                    actual_bitrate = (total_bytes * 8) / (total_time * 1000)
 
                     logging.info("\n=== Recording Complete ===")
                     logging.info(f"Total bytes: {total_bytes}")
                     logging.info(f"Total time: {total_time:.2f} seconds")
-                    logging.info(f"Final bitrate: {actual_bitrate:.1f} kbits/s")
                     
                     # Create WAV with explicit format
                     wav_buffer = io.BytesIO()
