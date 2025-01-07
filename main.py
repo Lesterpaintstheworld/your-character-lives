@@ -822,19 +822,20 @@ def toggle_recording():
     update_status(f"Recording {'enabled' if recording_enabled else 'disabled'} - {'using microphone' if recording_enabled else 'auto-send after 5s'}")
 
 def record_audio(duration):
-    """Record audio with optional silent mode"""
-    global is_recording, recording_enabled
+    """Record audio with improved error handling and feedback"""
+    global is_recording, recording_enabled, current_recording_buffer
+    
+    logging.info(f"Starting {duration}s recording...")
     
     if not recording_enabled:
-        # If recording is disabled, wait 1 second and return empty audio
         logging.info("Recording disabled - waiting 1 second")
         update_status("⏳ Waiting 1 second...")
         time.sleep(1)
-        # Return 1 second of silence
-        return np.zeros(int(44100 * 1), dtype=np.int16).tobytes()
-        
-    logging.info("=== Starting Audio Recording ===")
-    
+        # Create 1 second of silence
+        silent_data = np.zeros(int(44100 * 1), dtype=np.int16).tobytes()
+        current_recording_buffer = [silent_data]  # Store in buffer
+        return silent_data
+
     p = None
     stream = None
     frames = []
@@ -1666,20 +1667,24 @@ def create_device_selectors():
     
     # Send button
     def send_button_click():
-        """Non-blocking send button handler"""
-        global current_recording_buffer  # Declare global at function level
+        """Non-blocking send button handler with improved error handling"""
+        global current_recording_buffer
     
         logging.info("=== Send Button Clicked ===")
     
         # Verify we have data to send
         if not current_recording_buffer:
             logging.warning("No audio data in buffer")
-            update_status("❌ No audio recorded")
-            return
-        
-        # Disable send button temporarily to prevent double-clicks
+            # Try to record some audio
+            audio_data = record_audio(5)  # Record 5 seconds
+            if audio_data:
+                current_recording_buffer = [audio_data]
+            else:
+                update_status("❌ No audio recorded")
+                return
+    
+        # Disable send button temporarily
         send_btn.config(state='disabled')
-        logging.info(f"Current buffer size: {len(current_recording_buffer)} chunks")
         
         async def send_task():
             global current_recording_buffer, current_speaker
