@@ -788,57 +788,6 @@ def record_audio(duration):
         
         p = pyaudio.PyAudio()
         
-        # Always use 16-bit PCM format
-        stream = p.open(
-            format=pyaudio.paInt16,
-            channels=1,
-            rate=16000,  # Fixed rate for better compatibility
-            input=True,
-            input_device_index=input_device,
-            frames_per_buffer=1024,
-            start=True
-        )
-        
-        # Sample noise for 100ms
-        noise_data = []
-        for _ in range(5):  # ~100ms at 48kHz
-            data = stream.read(1024, exception_on_overflow=False)
-            noise_data.append(np.frombuffer(data, dtype=np.int16))
-            
-        noise_floor = np.mean([np.sqrt(np.mean(np.square(chunk))) for chunk in noise_data])
-        logging.info(f"Measured noise floor RMS: {noise_floor}")
-        
-    except Exception as e:
-        logging.error(f"Error measuring noise floor: {e}")
-    finally:
-        if stream:
-            stream.stop_stream()
-            stream.close()
-        if p:
-            p.terminate()
-
-    update_status("🎤 Initializing audio...")
-    
-    p = None
-    stream = None
-    frames = []
-    
-    try:
-        # Get selected mic index
-        selected = mic_var.get()
-        logging.info(f"Selected microphone: {selected}")
-        if not selected:
-            raise Exception("No microphone selected")
-            
-        match = re.search(r'Device (\d+)', selected)
-        if not match:
-            raise Exception("Invalid microphone selection")
-            
-        input_device = int(match.group(1))
-        logging.info(f"Using input device index: {input_device}")
-        
-        p = pyaudio.PyAudio()
-        
         # Configure for high quality audio capture
         stream = p.open(
             format=pyaudio.paInt16,
@@ -848,6 +797,18 @@ def record_audio(duration):
             input_device_index=input_device,
             frames_per_buffer=4096 # Larger buffer for stability
         )
+        
+        # Verify stream is active
+        if not stream.is_active():
+            logging.error("Stream not active after opening")
+            raise RuntimeError("Audio stream not active")
+        logging.info("Stream is active and ready for recording")
+            
+        chunks = int(44100 / 4096 * duration)  # Adjust chunks for new rate/buffer
+        logging.info(f"Will record {chunks} chunks")
+            
+        is_recording = True
+        start_time = time.time()
             
         # Verify stream is active
         if not stream.is_active():

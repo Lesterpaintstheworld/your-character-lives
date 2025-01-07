@@ -280,26 +280,18 @@ class AudioManager:
                                 elapsed = time.time() - start_time
                                 logging.info(f"Recording progress: {elapsed:.1f}s/{duration}s")
                                 self._update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
-                        except OSError as e:
-                            logging.error(f"OSError during recording chunk {i}: {e}")
-                            time.sleep(0.1)
-                            continue
-                        except Exception as e:
-                            logging.error(f"Unexpected error recording chunk {i}: {e}")
-                            continue
-                    
-                    # Log final recording stats
-                    elapsed = time.time() - start_time
-                    logging.info(f"Recording completed in {elapsed:.1f}s")
-                    logging.info(f"Recorded {len(frames)} chunks out of {chunks} expected")
-            
-                    is_recording = False
-
-                if not frames:
-                    logging.error("No audio data was recorded")
-                    raise RuntimeError("No audio data recorded")
-                    
-                logging.info(f"Successfully recorded {len(frames)} chunks")
+    finally:
+        if stream:
+            try:
+                stream.stop_stream()
+                stream.close()
+            except Exception as e:
+                logging.warning(f"Error closing stream: {e}")
+        if p:
+            try:
+                p.terminate()
+            except Exception as e:
+                logging.warning(f"Error terminating PyAudio: {e}")
                 
                 # Resample to 16000 Hz if needed
                 if self.supported_rate != 16000:
