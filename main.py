@@ -873,9 +873,9 @@ def record_audio(duration):
         logging.info(f"Will record {chunks} chunks")
             
         is_recording = True
-    start_time = time.time()
+        start_time = time.time()
         
-    for i in range(chunks):
+        for i in range(chunks):
         if not is_playing or not is_recording:
             break
                 
