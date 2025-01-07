@@ -1570,7 +1570,7 @@ def create_device_selectors():
     # Send button
     def send_button_click():
         """Non-blocking send button handler"""
-        global current_speaker, current_recording_buffer
+        global current_speaker
         # Disable send button temporarily to prevent double-clicks
         send_btn.config(state='disabled')
     
