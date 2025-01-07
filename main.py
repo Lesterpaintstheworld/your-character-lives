@@ -7,7 +7,11 @@ import os
 def get_or_create_eventloop():
     """Get the current event loop or create a new one for the thread"""
     try:
-        return asyncio.get_event_loop()
+        loop = asyncio.get_event_loop()
+        if loop.is_closed():
+            loop = asyncio.new_event_loop()
+            asyncio.set_event_loop(loop)
+        return loop
     except RuntimeError:
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
@@ -1581,66 +1585,114 @@ def create_device_selectors():
     # Send button
     def send_button_click():
         """Non-blocking send button handler"""
+        logging.info("=== Send Button Clicked ===")
+        
+        # Verify we have data to send
+        if not current_recording_buffer:
+            logging.warning("No audio data in buffer")
+            update_status("❌ No audio recorded")
+            return
+            
         # Disable send button temporarily to prevent double-clicks
         send_btn.config(state='disabled')
-    
+        logging.info(f"Current buffer size: {len(current_recording_buffer)} chunks")
+        
         async def send_task():
-            global current_recording_buffer, current_speaker
             try:
                 # Take screenshot
+                logging.info("Taking screenshot...")
                 screenshot_manager = ScreenshotManager()
                 screenshot = await screenshot_manager.capture()
-            
+                if screenshot is None:
+                    raise ValueError("Failed to capture screenshot")
+                logging.info(f"Screenshot captured: {len(screenshot)} bytes")
+                
                 # Collect text content
+                logging.info("Collecting text content...")
                 text_content = collect_text_files_content()
-            
+                logging.info(f"Text content collected: {len(text_content)} bytes")
+                
                 # Get current endpoint based on speaker
                 endpoint = emily_endpoint_var.get() if current_speaker == "emily" else daemon_endpoint_var.get()
-            
+                logging.info(f"Using endpoint: {endpoint}")
+                
+                # Convert audio buffer to WAV
+                logging.info("Converting audio buffer to WAV...")
+                wav_buffer = io.BytesIO()
+                with wave.open(wav_buffer, 'wb') as wf:
+                    wf.setnchannels(AudioConstants.CHANNELS)
+                    wf.setsampwidth(2)  # 16-bit
+                    wf.setframerate(AudioConstants.SAMPLE_RATE)
+                    wf.writeframes(b''.join(current_recording_buffer))
+                
+                audio_data = wav_buffer.getvalue()
+                logging.info(f"WAV audio size: {len(audio_data)} bytes")
+                
                 # Prepare request data
                 files = {
-                    'audio': ('audio.wav', b''.join(current_recording_buffer), 'audio/wav'),
+                    'audio': ('audio.wav', audio_data, 'audio/wav'),
                     'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
                 }
-            
+                
                 data = {
                     'text': text_content,
                     'session': session_id
                 }
-            
+                
                 # Send request
+                logging.info("Sending request...")
                 update_status("📤 Sending recording...")
+                
                 response = requests.post(
                     endpoint,
                     data=data,
                     files=files,
                     timeout=NetworkConstants.REQUEST_TIMEOUT
                 )
-            
+                
+                logging.info(f"Response status: {response.status_code}")
+                logging.info(f"Response headers: {response.headers}")
+                
                 if response.status_code == 200:
+                    logging.info(f"Response content size: {len(response.content)} bytes")
                     update_status("✅ Processing response...")
                     await process_audio_chunk(response.content, is_daemon=(current_speaker=="daemon"))
                     update_status("✅ Response completed")
-                
+                    
                     # Switch speakers after successful response
+                    global current_speaker
                     current_speaker = "daemon" if current_speaker == "emily" else "emily"
                     update_speaker_indicator()
-                
+                    
                     # Clear buffer after successful send
+                    global current_recording_buffer
                     current_recording_buffer = []
                 else:
-                    update_status(f"❌ API error: {response.status_code}")
-                
+                    error_msg = f"API error: {response.status_code}"
+                    if response.content:
+                        error_msg += f" - {response.content.decode()[:200]}"
+                    logging.error(error_msg)
+                    update_status(f"❌ {error_msg}")
+                    
             except Exception as e:
-                logging.error(f"Send error: {e}")
+                logging.error(f"Send error: {e}", exc_info=True)
                 update_status(f"❌ Error: {str(e)}")
             finally:
                 # Re-enable send button in main thread
                 root.after(0, lambda: send_btn.config(state='normal'))
 
         # Run task in background
-        loop = get_or_create_eventloop()
-        asyncio.run_coroutine_threadsafe(send_task(), loop)
+        try:
+            loop = get_or_create_eventloop()
+            if loop and loop.is_running():
+                asyncio.run_coroutine_threadsafe(send_task(), loop)
+            else:
+                logging.error("No running event loop found")
+                update_status("❌ Event loop error")
+        except Exception as e:
+            logging.error(f"Failed to start send task: {e}")
+            update_status("❌ Failed to start send")
+            send_btn.config(state='normal')
 
     send_btn = tk.Button(controls_frame, text="📤 Send",
         command=send_button_click,
