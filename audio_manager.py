@@ -190,7 +190,7 @@ class AudioManager:
                 self.recording_stream = None
 
     def record_audio(self, duration: int) -> bytes:
-        """Record audio with proper resource management and error recovery"""
+        """Record audio with proper buffer management to prevent clicks"""
         max_retries = 3
         retry_delay = 1.0  # seconds
         retry_count = 0
@@ -205,9 +205,9 @@ class AudioManager:
                 device_info = self.p.get_device_info_by_index(device_index)
                 logging.info(f"Using device: {device_info['name']}")
                 
-                # Use standard audio settings
-                BUFFER_SIZE = 2048  # Standard buffer size
-                SAMPLE_RATE = 16000  # Standard sample rate for speech
+                # Use larger buffer size and CD quality audio
+                BUFFER_SIZE = 4096  # Increased buffer size
+                SAMPLE_RATE = 44100  # CD quality
                 
                 stream = sd.InputStream(
                     device=device_index,
@@ -228,6 +228,9 @@ class AudioManager:
                 chunks = int(SAMPLE_RATE / BUFFER_SIZE * duration)
                 logging.info(f"Will record {chunks} chunks")
                 
+                # Add small delay before recording starts
+                time.sleep(0.1)
+                
                 is_recording = True
                 start_time = time.time()
                 
@@ -240,8 +243,8 @@ class AudioManager:
                         data = stream.read(BUFFER_SIZE, exception_on_overflow=False)
                         frames.append(data)
                         
-                        # Calculate and update VU meter if callback is set
-                        if hasattr(self, 'level_callback'):
+                        # Update VU meter less frequently to reduce overhead
+                        if i % 4 == 0 and hasattr(self, 'level_callback'):
                             level = self._calculate_audio_level(data)
                             self.level_callback(level)
                         
@@ -250,11 +253,15 @@ class AudioManager:
                             elapsed = time.time() - start_time
                             self._update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                             
-                    except Exception as e:
-                        logging.warning(f"Stream read error: {e}")
+                    except OSError as e:
+                        logging.warning(f"Stream read error (continuing): {e}")
                         continue
                 
+                # Add small delay before closing stream
+                time.sleep(0.1)
+                
                 stream.stop_stream()
+                time.sleep(0.1)  # Another small delay
                 stream.close()
                 
                 # Create WAV buffer with correct settings

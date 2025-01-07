@@ -1,14 +1,14 @@
 """Constants used throughout the application"""
 
 class AudioConstants:
-    CHUNK_SIZE = 2048
+    CHUNK_SIZE = 4096  # Increased buffer size
     FORMAT = 'int16'  # sounddevice uses dtype strings instead of constants
     CHANNELS = 1
-    SAMPLE_RATE = 16000
+    SAMPLE_RATE = 44100  # Standard CD quality
     SILENCE_THRESHOLD = -60  # dB
     MIN_SILENCE_DURATION = 3.0  # seconds
     SMART_SCREENSHOT_INTERVAL = 20  # seconds
-    SMART_BUFFER_SIZE = 2048
+    SMART_BUFFER_SIZE = 4096  # Match chunk size
     MAX_RECORDING_SIZE = 500 * 1024 * 1024  # 500MB
 
 class NetworkConstants:
