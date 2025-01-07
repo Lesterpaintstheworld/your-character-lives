@@ -821,17 +821,17 @@ def toggle_recording():
     )
     update_status(f"Recording {'enabled' if recording_enabled else 'disabled'} - {'using microphone' if recording_enabled else 'auto-send after 5s'}")
 
-def record_audio(duration):
-    """Record audio with improved error handling and feedback"""
+def record_audio(duration: int) -> bytes:
+    """Record audio with consistent sample rate"""
     global is_recording, recording_enabled, current_recording_buffer
     
     logging.info(f"Starting {duration}s recording...")
     
     if not recording_enabled:
-        logging.info("Recording disabled - waiting 1 second")
-        update_status("⏳ Waiting 1 second...")
-        time.sleep(1)
-        silent_data = np.zeros(int(48000 * 1), dtype=np.int16).tobytes()
+        logging.info("Recording disabled - creating silent audio")
+        # Create silence at correct sample rate
+        SAMPLE_RATE = 44100  # Standard sample rate
+        silent_data = np.zeros(int(SAMPLE_RATE * duration), dtype=np.int16).tobytes()
         current_recording_buffer = [silent_data]
         return silent_data
 
