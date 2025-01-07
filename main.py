@@ -1135,7 +1135,7 @@ class VUMeter(Canvas):
                 self.itemconfig(segment_id, fill='dark gray')
 
 def calculate_audio_level(audio_data):
-    """Calculate audio level from raw audio data with aggressive scaling"""
+    """Calculate audio level from raw audio data with conservative scaling"""
     if isinstance(audio_data, bytes):
         audio_array = np.frombuffer(audio_data, dtype=np.int16)
     else:
@@ -1150,20 +1150,23 @@ def calculate_audio_level(audio_data):
         db = 20 * np.log10(rms / 32768.0)
         logging.debug(f"Decibel value: {db} dB")
         
-        # Correct ranges - allow peaks above 0dB
+        # Conservative ranges to avoid red zone
         MIN_DB = -60  # Deep silence
-        MAX_DB = 12   # Allow peaks well above 0dB
-        NOISE_GATE = -35  # Aggressive noise gate
+        MAX_DB = -12  # Keep well below 0dB to avoid red
+        NOISE_GATE = -35  # Keep noise gate
         
-        # Apply strict noise gate
+        # Apply noise gate
         if db < NOISE_GATE:
             logging.debug("Below noise gate threshold")
             return 0.0
             
-        # Aggressive normalization with higher headroom
+        # Normalize with conservative ceiling
         normalized = (db - MIN_DB) / (MAX_DB - MIN_DB)
-        # Very strong compression
-        normalized = np.power(normalized, 0.2)  # Super aggressive compression
+        # Moderate compression
+        normalized = np.power(normalized, 0.3)
+        
+        # Scale down to avoid peaks
+        normalized *= 0.8  # Only use 80% of range
         
         # Clip to 0-1 range
         result = max(0.0, min(1.0, normalized))
