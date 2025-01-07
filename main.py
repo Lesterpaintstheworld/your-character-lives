@@ -1043,28 +1043,42 @@ class VUMeter(Canvas):
                  mid_color=ThemeColors.VU_MID,
                  high_color=ThemeColors.VU_HIGH, **kwargs):
         super().__init__(master, width=width, height=height, bg=bg,
-                        highlightthickness=1,
-                        highlightbackground=ThemeColors.BORDER,
+                        highlightthickness=0,  # Remove border
                         **kwargs)
         self.width = width
         self.height = height
-        self.segments = 30  # More segments for smoother appearance
-        self.segment_width = (width - 4) / self.segments
+        self.segments = 30
         self.low_color = low_color
         self.mid_color = mid_color
         self.high_color = high_color
+        
+        # Bind to resize events
+        self.bind('<Configure>', self.on_resize)
         self.create_segments()
         self.level = 0
 
+    def on_resize(self, event):
+        """Handle resize events"""
+        self.width = event.width
+        self.height = event.height
+        self.create_segments()
+        self.set_level(self.level)  # Redraw with current level
+
     def create_segments(self):
         """Create segments with smooth color transition"""
+        # Clear existing segments
+        self.delete('all')
         self.segments_ids = []
-        self.segment_width = self.width / self.segments  # Use full width
+        
+        # Calculate segment width based on actual widget width
+        actual_width = self.winfo_width()
+        self.segment_width = actual_width / self.segments
+        
         for i in range(self.segments):
             x1 = i * self.segment_width
-            y1 = 2
-            x2 = x1 + self.segment_width - 1
-            y2 = self.height - 2
+            y1 = 0
+            x2 = (i + 1) * self.segment_width
+            y2 = self.winfo_height()
             
             # Smooth color gradient
             if i < self.segments * 0.4:  # First 40% - green
@@ -1697,7 +1711,7 @@ def create_device_selectors():
         bg=ThemeColors.BG_DARK,
         fg=ThemeColors.TEXT_PRIMARY).pack(side='left')
     vu_meter = VUMeter(vu_frame, width=200, height=20)
-    vu_meter.pack(side='left', fill='x', expand=True, padx=(5, 0))
+    vu_meter.pack(side='left', fill='x', expand=True, padx=(5, 0))  # Added expand=True
 
     # Endpoints frame
     endpoints_frame = ttk.Frame(main_frame, style='Modern.TFrame')
