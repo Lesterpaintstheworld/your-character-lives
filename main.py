@@ -2561,7 +2561,7 @@ def setup_logging():
         logging.root.removeHandler(handler)
 
     # Add UTF-8 handler with DEBUG level
-    handler = UTFStreamHandler(sys.stdout)
+    handler = UTFStreamHandler(sys.stdout, encoding='utf-8')
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logging.root.addHandler(handler)
     logging.root.setLevel(logging.DEBUG)
