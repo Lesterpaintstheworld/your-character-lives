@@ -830,7 +830,7 @@ def record_audio(duration: int) -> bytes:
     global is_recording, recording_enabled, current_recording_buffer, mic_var, vu_meter, root
     
     logging.info(f"Starting {duration}s recording...")
-    
+
     if not recording_enabled:
         logging.info("Recording disabled - creating silent audio")
         # Create silence at correct rate for 256 kbits/sec
@@ -842,7 +842,7 @@ def record_audio(duration: int) -> bytes:
     p = None
     stream = None
     frames = []
-    
+
     try:
         # Get selected mic index with validation
         selected = mic_var.get()
@@ -889,8 +889,9 @@ def record_audio(duration: int) -> bytes:
         # Start stream explicitly
         stream.start_stream()
         if not stream.is_active():
+            logging.error("Audio stream failed to start.")
             raise RuntimeError("Failed to start audio stream")
-        
+
         # Calculate frames needed
         total_frames = int(RATE * duration)
         chunks_needed = total_frames // CHUNK
@@ -948,7 +949,7 @@ def record_audio(duration: int) -> bytes:
         return wav_buffer.getvalue()
         
     except Exception as e:
-        logging.error(f"Recording error: {e}")
+        logging.error(f"Recording error: {e}", exc_info=True)
         update_status(f"❌ Recording error: {str(e)}")
         return None  # Indicate failure to record audio
 
