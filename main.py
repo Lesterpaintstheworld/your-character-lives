@@ -746,7 +746,7 @@ def get_input_device():
             logging.warning(f"Could not get default input device: {e}")
 
         # List all audio devices
-        logging.info("\n=== Available Audio Devices ===")
+        logging.info("\n=== Available Audio Input Devices ===")
         devices_info = []
         for i in range(p.get_device_count()):
             try:
