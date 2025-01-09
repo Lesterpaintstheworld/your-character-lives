@@ -917,6 +917,12 @@ def record_audio(duration: int) -> bytes:
                 current_recording_buffer.append(data)
                 bytes_recorded += len(data)
                 
+                # Update recording progress every second
+                elapsed = time.time() - start_time
+                if i % (RATE // CHUNK) == 0:  # Once per second
+                    update_status(f"🎤 Enregistrement... {int(elapsed)}/{duration}s")
+                    root.update()  # Force UI update
+                
                 # Update VU meter more frequently (every chunk)
                 level = calculate_audio_level(data)
                 if hasattr(root, 'after') and vu_meter:
