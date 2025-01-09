@@ -915,8 +915,8 @@ def record_audio(duration: int) -> bytes:
                 
                 # Update VU meter more frequently (every chunk)
                 level = calculate_audio_level(data)
-                if hasattr(root, 'after'):
-                    root.after(0, lambda l=level: update_vu_meter(l))
+                if hasattr(root, 'after') and vu_meter:
+                    root.after(0, lambda l=level: vu_meter.set_level(l))
                 
                 # Update status every second
                 if i % (RATE // CHUNK) == 0:
@@ -2448,30 +2448,35 @@ async def api_client(interval):
         
         # Record audio for Daemon
         logging.info("Starting 15-second recording for Daemon...")
-        device_info = p.get_device_info_by_index(device_index)
-        logging.info(f"Device info: {device_info}")
+        p = pyaudio.PyAudio()
+        device_index = get_input_device()
+        if device_index is not None:
+            device_info = p.get_device_info_by_index(device_index)
+            logging.info(f"Device info: {device_info}")
 
-        # List supported sample rates
-        supported_rates = [8000, 16000, 22050, 32000, 44100, 48000]
-        supported_formats = [pyaudio.paInt16, pyaudio.paInt24, pyaudio.paInt32]
+            # List supported sample rates
+            supported_rates = [8000, 16000, 22050, 32000, 44100, 48000]
+            supported_formats = [pyaudio.paInt16, pyaudio.paInt24, pyaudio.paInt32]
 
-        logging.info(f"Testing supported sample rates and formats for the device...")
-        for rate in supported_rates:
-            for fmt in supported_formats:
-                try:
-                    stream = p.open(
-                        format=fmt,
-                        channels=CHANNELS,
-                        rate=rate,
-                        input=True,
-                        input_device_index=device_index,
-                        frames_per_buffer=CHUNK,
-                        start=False
-                    )
-                    stream.close()
-                    logging.info(f"Supported rate: {rate} Hz, format: {fmt}")
-                except Exception as e:
-                    logging.info(f"Not supported rate: {rate} Hz, format: {fmt} - {e}")
+            logging.info(f"Testing supported sample rates and formats for the device...")
+            for rate in supported_rates:
+                for fmt in supported_formats:
+                    try:
+                        stream = p.open(
+                            format=fmt,
+                            channels=CHANNELS,
+                            rate=rate,
+                            input=True,
+                            input_device_index=device_index,
+                            frames_per_buffer=CHUNK,
+                            start=False
+                        )
+                        stream.close()
+                        logging.info(f"Supported rate: {rate} Hz, format: {fmt}")
+                    except Exception as e:
+                        logging.info(f"Not supported rate: {rate} Hz, format: {fmt} - {e}")
+        else:
+            logging.error("No valid input device found.")
         audio_data = record_audio(15)
         
         # Take post-recording screenshot for Daemon
