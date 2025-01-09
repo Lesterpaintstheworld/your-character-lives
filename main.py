@@ -2383,106 +2383,78 @@ async def api_client(interval):
             return
             
         # First character (Emily)
-        update_status("Starting Emily's recording cycle...")
+        update_status("🎤 Démarrage de l'enregistrement...")
         
-        # Take screenshots and ensure they're not None
-        logging.info("Taking pre-recording screenshot for Emily...")
-        pre_screenshot_emily = await screenshot_manager.capture()
-        if pre_screenshot_emily is None:
-            raise ValueError("Failed to capture pre-recording screenshot")
+        # Record audio with counter display
+        audio_data = None
+        for i in range(20):  # 20 secondes
+            if not is_playing:
+                break
+            update_status(f"🎤 Enregistrement... {i+1}/20s")
+            await asyncio.sleep(1)
+            if i == 0:  # Start recording on first iteration
+                audio_data = record_audio(20)
+                if audio_data is None:
+                    raise ValueError("Failed to record audio")
+
+        if not audio_data:
+            raise ValueError("No audio data recorded")
+
+        # Take screenshots
+        screenshot = await screenshot_manager.capture()
+        if screenshot is None:
+            raise ValueError("Failed to capture screenshot")
             
-        # Record audio for Emily
-        audio_data = record_audio(20)
-        if audio_data is None:
-            raise ValueError("Failed to record audio")
-            
-        post_screenshot_emily = await screenshot_manager.capture()
-        if post_screenshot_emily is None:
-            raise ValueError("Failed to capture post-recording screenshot")
-        
         # Collect text content
         text_content = collect_text_files_content()
 
-        # Prepare multipart form data with session ID
+        # Send to Emily first
         files = {
-            'pre_screenshot': ('pre_screenshot.jpg', pre_screenshot_emily, 'image/jpeg'),
-            'post_screenshot': ('post_screenshot.jpg', post_screenshot_emily, 'image/jpeg'),
-            'audio': ('audio.wav', audio_data, 'audio/wav')
+            'audio': ('audio.wav', audio_data, 'audio/wav'),
+            'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
         }
-
-        # Add text content and session ID to form data
         data = {
             'text': text_content,
             'session': session_id
         }
 
-        # Get endpoints from UI
+        # Send to Emily endpoint
         emily_endpoint = emily_endpoint_var.get()
-        daemon_endpoint = daemon_endpoint_var.get()
-
-        # Log request details
-        logging.info(f"Sending request to Emily endpoint: {emily_endpoint}")
-        logging.info(f"Files being sent: {[k for k in files.keys()]}")
-        logging.info(f"Screenshot sizes - Pre: {len(pre_screenshot_emily)}, Post: {len(post_screenshot_emily)}")
-
-        # Send request with explicit content types
+        update_status("📤 Envoi à Emily...")
         response = requests.post(
             emily_endpoint,
             data=data,
             files=files,
-            timeout=NetworkConstants.REQUEST_TIMEOUT,
-            headers={'Accept': 'application/octet-stream'}
-        )
-
-        # Log response details
-        logging.info(f"Response status: {response.status_code}")
-        logging.info(f"Response headers: {response.headers}")
-        logging.info(f"Response content type: {response.headers.get('content-type')}")
-        
-        # Process Emily's response and wait for completion
-        if response.status_code == 200:
-            try:
-                logging.info("Playing Emily's response...")
-                await process_audio_chunk(response.content, is_daemon=False)
-                logging.info("Emily's response completed")
-            except Exception as e:
-                logging.error(f"Error processing Emily's response: {e}")
-                update_status(f"❌ Error playing response: {str(e)}")
-                # Continue execution even if playback fails
-            
-        # Use the same data for Daemon
-        data_daemon = {
-            'text': text_content,
-            'session': session_id
-        }
-        files_daemon = {
-            'audio': ('audio.wav', audio_data, 'audio/wav'),
-            'screenshot': ('screenshot.jpg', post_screenshot_emily, 'image/jpeg')
-        }
-
-        # Send request to Daemon endpoint
-        logging.info("Sending data to Daemon endpoint...")
-        response_daemon = requests.post(
-            daemon_endpoint,
-            data=data_daemon,
-            files=files_daemon,
             timeout=NetworkConstants.REQUEST_TIMEOUT
         )
 
-        # Process Daemon's response
-        if response_daemon.status_code == 200:
-            logging.info("Playing Daemon's response...")
-            await process_audio_chunk(response_daemon.content, is_daemon=True)
-            logging.info("Daemon's response completed")
+        if response.status_code == 200:
+            update_status("✅ Lecture de la réponse d'Emily...")
+            await process_audio_chunk(response.content, is_daemon=False)
+
+            # Then send to Daemon with same audio/screenshot
+            daemon_endpoint = daemon_endpoint_var.get()
+            update_status("📤 Envoi à Daemon...")
+            response_daemon = requests.post(
+                daemon_endpoint,
+                data=data,
+                files=files,
+                timeout=NetworkConstants.REQUEST_TIMEOUT
+            )
+
+            if response_daemon.status_code == 200:
+                update_status("✅ Lecture de la réponse de Daemon...")
+                await process_audio_chunk(response_daemon.content, is_daemon=True)
+            else:
+                update_status(f"❌ Erreur API Daemon: {response_daemon.status_code}")
         else:
-            logging.error(f"Daemon API error: {response_daemon.status_code}")
-            update_status(f"❌ Daemon API error: {response_daemon.status_code}")
+            update_status(f"❌ Erreur API Emily: {response.status_code}")
 
     except Exception as e:
         logging.error(f"Error occurred: {e}")
-        update_status(f"❌ Error: {str(e)}")
+        update_status(f"❌ Erreur: {str(e)}")
     finally:
-        update_status("✅ Cycle complet terminé")
+        update_status("✅ Cycle terminé")
 
 def setup_logging():
     """Configure logging with Unicode support"""
