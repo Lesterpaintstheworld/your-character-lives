@@ -2487,20 +2487,10 @@ async def fixed_mode_loop():
     
     try:
         while fixed_mode and is_playing:
-            await fixed_recording_manager.start_cycle(
-                emily_endpoint_var.get(),
-                daemon_endpoint_var.get(),
-                session_id,
-                update_status
-            )
+            await fixed_recording_cycle()
             
-            # Small pause between cycles
-            if fixed_mode and is_playing:
-                update_status("⏳ Waiting for next cycle...")
-                await asyncio.sleep(2)
-                
     except Exception as e:
-        logging.error(f"Error in fixed loop: {e}")
+        logging.error(f"Error in fixed mode loop: {e}")
         update_status(f"❌ Error: {str(e)}")
     finally:
         fixed_mode = False
