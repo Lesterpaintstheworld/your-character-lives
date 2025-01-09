@@ -899,7 +899,7 @@ def record_audio(duration: int) -> bytes:
                 break
                 
             try:
-                data = stream.read(CHUNK, exception_on_overflow=False)
+                data = stream.read(CHUNK, exception_on_overflow=True)
                 frames.append(data)
                 if current_recording_buffer is None:
                     current_recording_buffer = []
@@ -909,7 +909,11 @@ def record_audio(duration: int) -> bytes:
                 # Update VU meter more frequently (every chunk)
                 level = calculate_audio_level(data)
                 if hasattr(root, 'after'):
-                    root.after(0, lambda l=level: vu_meter.set_level(l))
+                    root.after(0, lambda l=level: update_vu_meter(l))
+
+            def update_vu_meter(level):
+                logging.debug(f"Updating VU meter with level: {level}")
+                vu_meter.set_level(level)
                 
                 # Update status every second
                 if i % (RATE // CHUNK) == 0:
@@ -1077,7 +1081,12 @@ def calculate_audio_level(audio_data):
         if isinstance(audio_data, bytes):
             audio_array = np.frombuffer(audio_data, dtype=np.int16)
         else:
-            audio_array = audio_data
+            logging.error("Audio data is not in bytes format.")
+            return 0.0
+        
+        if audio_array.dtype != np.int16:
+            logging.error(f"Unexpected audio data type: {audio_array.dtype}")
+            return 0.0
 
         if audio_array.size == 0:
             logging.error("Audio data array is empty.")

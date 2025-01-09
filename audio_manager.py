@@ -237,7 +237,7 @@ class AudioManager:
                     CHUNK = 1024  # Smaller chunks
                     FORMAT = pyaudio.paInt16  # 16-bit
                     CHANNELS = 1  # Mono
-                    RATE = 16000  # Lower sample rate
+                    RATE = 44100  # Set to 44.1 kHz, standard sample rate
                     
                     logging.info("\n=== Recording Configuration ===")
                     logging.info(f"Format: 16-bit PCM")
