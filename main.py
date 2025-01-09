@@ -842,12 +842,13 @@ def record_audio(duration: int) -> bytes:
     try:
         # Get selected mic index with validation
         selected = mic_var.get()
+        logging.info(f"Selected microphone: {selected}")
         if not selected:
             raise Exception("No microphone selected")
             
         match = re.search(r'Device (\d+)', selected)
         if not match:
-            raise Exception("Invalid microphone selection")
+            raise Exception(f"Invalid microphone selection: {selected}")
             
         device_index = int(match.group(1))
         logging.info(f"Using input device {device_index}")
@@ -869,7 +870,7 @@ def record_audio(duration: int) -> bytes:
         stream = p.open(
             format=FORMAT,
             channels=CHANNELS,
-            rate=RATE,  # Force 44.1kHz
+            rate=RATE,  # Set to 16 kHz
             input=True,
             input_device_index=device_index,
             frames_per_buffer=CHUNK,
@@ -928,12 +929,17 @@ def record_audio(duration: int) -> bytes:
         with wave.open(wav_buffer, 'wb') as wf:
             wf.setnchannels(CHANNELS)
             wf.setsampwidth(2)  # 16-bit
-            wf.setframerate(RATE)  # Consistent 44.1kHz
+            wf.setframerate(RATE)  # Set to 16 kHz
             wf.writeframes(b''.join(frames))
             
         logging.info(f"Successfully recorded {len(frames)} chunks")
         return wav_buffer.getvalue()
         
+    except Exception as e:
+        logging.error(f"Recording error: {e}")
+        update_status(f"❌ Recording error: {str(e)}")
+        return None  # Indicate failure to record audio
+
     finally:
         if stream:
             try:
@@ -1111,7 +1117,7 @@ async def send_current():
             logging.info("No audio in buffer - recording 5 seconds")
             audio_data = record_audio(5)  # Record 5 seconds
             if audio_data is None:
-                update_status("❌ Failed to record audio")
+                update_status("❌ Recording failed. Please check your microphone settings.")
                 return
             current_recording_buffer = [audio_data]
         else:
@@ -2094,6 +2100,12 @@ def refresh_devices(mic_combo, output_combo):
     mics = get_available_microphones()
     mic_options = [f"{m['name']} (Device {m['index']})" for m in mics]
     mic_combo['values'] = mic_options
+
+    if not mic_options:
+        messagebox.showerror(
+            "No Input Devices Found",
+            "No working input audio devices were found. Please connect a microphone and restart the application."
+        )
     
     # Update output devices
     outputs = get_available_outputs()
@@ -2105,7 +2117,8 @@ def refresh_devices(mic_combo, output_combo):
         mic_combo.set(current_mic)
     elif mic_options:
         mic_combo.set(mic_options[0])
-        
+        mic_var.set(mic_options[0])  # Ensure mic_var is updated
+
     if current_output in output_options:
         output_combo.set(current_output)
     elif output_options:
