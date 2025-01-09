@@ -11,6 +11,10 @@ global browser_button, recording_status, session_id, current_video_window, secon
 global play_pause_btn, editor_play_pause_btn, editor_active, mic_var, vu_meter, record_toggle_btn
 global recording_enabled
 
+# Initialize fixed mode variables
+fixed_mode = False
+fixed_recording_task = None
+
 # Initialize core globals
 current_recording_buffer = []
 current_speaker = "emily"
