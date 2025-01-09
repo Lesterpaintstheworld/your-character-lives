@@ -35,8 +35,19 @@ def main():
         '--noupx',
         '--disable-windowed-traceback',
         
-        # Exclude PyQt6 to avoid Qt binding conflict
+        # Exclude problematic packages
         '--exclude-module', 'PyQt6',
+        '--exclude-module', 'matplotlib',
+        '--exclude-module', 'matplotlib_inline',
+        '--exclude-module', 'IPython',
+        '--exclude-module', 'jupyter_client',
+        '--exclude-module', 'jupyter_core',
+        '--exclude-module', 'ipykernel',
+        '--exclude-module', 'debugpy',
+        '--exclude-module', 'tornado',
+        '--exclude-module', 'jedi',
+        '--exclude-module', 'parso',
+        '--exclude-module', 'prompt_toolkit',
         
         # Core hidden imports
         '--hidden-import=queue',
