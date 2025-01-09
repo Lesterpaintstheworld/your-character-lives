@@ -35,6 +35,9 @@ def main():
         '--noupx',
         '--disable-windowed-traceback',
         
+        # Exclude PyQt6 to avoid Qt binding conflict
+        '--exclude-module', 'PyQt6',
+        
         # Core hidden imports
         '--hidden-import=queue',
         '--hidden-import=pyaudio',
