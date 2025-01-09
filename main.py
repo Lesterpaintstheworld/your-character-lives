@@ -1568,10 +1568,15 @@ async def continuous_recording():
             
             last_screenshot_time = time.time()
             current_screenshot = None
+            start_time = time.time()  # Add start time
             update_recording_status("Recording")
             
             try:
                 while smart_mode and is_playing:
+                    # Calculate elapsed time
+                    elapsed = int(time.time() - start_time)
+                    update_status(f"🎤 Enregistrement... {elapsed}/20s")
+                    
                     # Use non-blocking read with shorter timeout
                     try:
                         data = stream.read(chunk_size, exception_on_overflow=False)
@@ -1603,10 +1608,10 @@ async def continuous_recording():
                             update_recording_status("Processing")
                             await process_buffer(buffer_manager, current_screenshot)
                             buffer_manager.clear()
+                            start_time = time.time()  # Reset counter
                             update_recording_status("Recording")
                         vad.reset()
                     
-                    # Small sleep to prevent CPU overload
                     await asyncio.sleep(0.001)
                     
             finally:
