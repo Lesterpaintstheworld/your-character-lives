@@ -56,6 +56,7 @@ from audio_buffer import AudioBufferManager
 from voice_activity import VoiceActivityDetector
 from screenshot_manager import ScreenshotManager
 from repo_visualizer import start_visualization
+from fixed_recording_manager import FixedRecordingManager
 import time
 import io
 import wave
