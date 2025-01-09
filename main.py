@@ -5,8 +5,8 @@ import sys
 import os
 
 # Global variables and initialization
-global current_recording_buffer, current_speaker, is_playing, is_recording, smart_mode
-global running, output_var, emily_endpoint_var, daemon_endpoint_var, ui_elements_created
+global current_recording_buffer, current_speaker, is_playing, is_recording, smart_mode, fixed_mode
+global running, output_var, emily_endpoint_var, daemon_endpoint_var, ui_elements_created, fixed_mode, fixed_recording_task
 global browser_button, recording_status, session_id, current_video_window, second_video_window
 global play_pause_btn, editor_play_pause_btn, editor_active, mic_var, vu_meter, record_toggle_btn
 global recording_enabled
@@ -2359,6 +2359,103 @@ def on_closing():
     except Exception as e:
         logging.error(f"Error during shutdown: {e}")
         force_quit()
+
+async def fixed_recording_cycle():
+    """Handle fixed 20-second recording cycle"""
+    global fixed_mode
+    
+    try:
+        while fixed_mode and is_playing:
+            # Start recording cycle
+            update_status("🎤 Démarrage du cycle d'enregistrement fixe...")
+            
+            # Record for exactly 20 seconds with counter
+            audio_data = None
+            for i in range(20):
+                if not fixed_mode or not is_playing:
+                    return
+                update_status(f"🎤 Enregistrement... {i+1}/20s")
+                await asyncio.sleep(1)
+                if i == 0:  # Start recording on first iteration
+                    audio_data = record_audio(20)
+                    if audio_data is None:
+                        raise ValueError("Échec de l'enregistrement audio")
+
+            if not audio_data:
+                raise ValueError("Pas de données audio enregistrées")
+
+            # Take screenshot and collect text
+            screenshot_manager = ScreenshotManager()
+            screenshot = await screenshot_manager.capture()
+            text_content = collect_text_files_content()
+
+            # Prepare request data
+            files = {
+                'audio': ('audio.wav', audio_data, 'audio/wav'),
+                'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
+            }
+            data = {
+                'text': text_content,
+                'session': session_id
+            }
+
+            # Send to Emily
+            emily_endpoint = emily_endpoint_var.get()
+            update_status("📤 Envoi à Emily...")
+            response = requests.post(
+                emily_endpoint,
+                data=data,
+                files=files,
+                timeout=NetworkConstants.REQUEST_TIMEOUT
+            )
+
+            if response.status_code == 200:
+                update_status("✅ Lecture de la réponse d'Emily...")
+                await process_audio_chunk(response.content, is_daemon=False)
+
+                # Send to Daemon with same data
+                daemon_endpoint = daemon_endpoint_var.get()
+                update_status("📤 Envoi à Daemon...")
+                response_daemon = requests.post(
+                    daemon_endpoint,
+                    data=data,
+                    files=files,
+                    timeout=NetworkConstants.REQUEST_TIMEOUT
+                )
+
+                if response_daemon.status_code == 200:
+                    update_status("✅ Lecture de la réponse de Daemon...")
+                    await process_audio_chunk(response_daemon.content, is_daemon=True)
+                else:
+                    update_status(f"❌ Erreur API Daemon: {response_daemon.status_code}")
+            else:
+                update_status(f"❌ Erreur API Emily: {response.status_code}")
+
+    except Exception as e:
+        logging.error(f"Erreur dans le cycle fixe: {e}")
+        update_status(f"❌ Erreur: {str(e)}")
+        fixed_mode = False
+
+def toggle_fixed_mode():
+    """Toggle fixed 20-second recording mode"""
+    global fixed_mode, fixed_recording_task
+    
+    fixed_mode = not fixed_mode
+    fixed_play_pause_btn.config(
+        text="⏸️ Fixed" if fixed_mode else "▶️ Fixed",
+        bg=ThemeColors.ACCENT_PRIMARY if fixed_mode else ThemeColors.BG_LIGHT
+    )
+    
+    if fixed_mode:
+        update_status("▶️ Démarrage du mode enregistrement fixe...")
+        # Start fixed recording in a new thread
+        fixed_recording_task = threading.Thread(
+            target=lambda: asyncio.run(fixed_recording_cycle()),
+            daemon=True
+        )
+        fixed_recording_task.start()
+    else:
+        update_status("⏸️ Mode enregistrement fixe arrêté")
 
 def force_quit():
     """Force quit the application if normal shutdown fails."""
