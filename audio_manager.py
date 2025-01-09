@@ -2,6 +2,7 @@
 import os
 import re
 import asyncio
+from fixed_recording_manager import FixedRecordingManager
 import sounddevice as sd
 import numpy as np
 import wave

@@ -2492,7 +2492,9 @@ def toggle_fixed_mode():
         if not hasattr(toggle_fixed_mode, 'recording_manager'):
             toggle_fixed_mode.recording_manager = FixedRecordingManager(
                 audio_manager,
-                ScreenshotManager()
+                ScreenshotManager(),
+                collect_text_files_content,
+                process_audio_chunk
             )
         
         update_status("▶️ Starting fixed recording mode...")

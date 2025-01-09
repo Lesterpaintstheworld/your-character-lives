@@ -1,16 +1,19 @@
 """Fixed recording cycle management"""
 import asyncio
 import logging
+import requests
 from typing import Optional
 from constants import AudioConstants, NetworkConstants
 
 class FixedRecordingManager:
-    def __init__(self, audio_manager, screenshot_manager):
+    def __init__(self, audio_manager, screenshot_manager, collect_text_fn=None, process_audio_fn=None):
         self.audio_manager = audio_manager
         self.screenshot_manager = screenshot_manager
         self.is_active = False
         self.current_cycle = 0
         self.logger = logging.getLogger(__name__)
+        self.collect_text_fn = collect_text_fn
+        self.process_audio_fn = process_audio_fn
 
     async def start_cycle(self, emily_endpoint: str, daemon_endpoint: str, 
                          session_id: str, update_status_callback) -> None:
@@ -89,7 +92,7 @@ class FixedRecordingManager:
             }
             
             data = {
-                'text': collect_text_files_content(),
+                'text': self.collect_text_fn() if self.collect_text_fn else "",
                 'session': session_id
             }
 
@@ -97,7 +100,8 @@ class FixedRecordingManager:
             
             if response.status_code == 200:
                 update_status_callback(f"✅ Playing {agent}'s response...")
-                await process_audio_chunk(response.content, is_daemon=is_daemon)
+                if self.process_audio_fn:
+                    await self.process_audio_fn(response.content, is_daemon=is_daemon)
             else:
                 raise ValueError(f"API error {agent}: {response.status_code}")
 
