@@ -2554,8 +2554,7 @@ def setup_logging():
                     stream.buffer.write(msg.encode(self.encoding))
                     stream.buffer.write(b'\n')
                 else:
-                    stream.buffer.write(msg)
-                    stream.buffer.write(b'\n')
+                    stream.write(msg.decode(self.encoding) + self.terminator)
                 self.flush()
             except Exception:
                 self.handleError(record)
