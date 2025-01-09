@@ -660,23 +660,26 @@ def get_available_microphones():
             default_info = p.get_default_input_device_info()
             logging.info(f"Default input device: {default_info['name']}")
             # Test default device
-            test_stream = p.open(
-                format=FORMAT,
-                channels=1,
-                rate=16000,
-                input=True,
-                input_device_index=default_info['index'],
-                frames_per_buffer=1024,
-                start=False
-            )
-            test_stream.close()
-            mics.append({
-                'index': default_info['index'],
-                'name': f"{default_info['name']} (Default)",
-                'channels': default_info['maxInputChannels'],
-                'default_rate': int(default_info['defaultSampleRate'])
-            })
-            logging.info("Default device working")
+            try:
+                test_stream = p.open(
+                    format=FORMAT,
+                    channels=1,
+                    rate=16000,
+                    input=True,
+                    input_device_index=default_info['index'],
+                    frames_per_buffer=1024,
+                    start=False
+                )
+                test_stream.close()
+                mics.append({
+                    'index': default_info['index'],
+                    'name': f"{default_info['name']} (Default)",
+                    'channels': default_info['maxInputChannels'],
+                    'default_rate': int(default_info['defaultSampleRate'])
+                })
+                logging.info("Default device working")
+            except Exception as e:
+                logging.warning(f"Default device test failed: {e}")
         except Exception as e:
             logging.warning(f"Default device test failed: {e}")
 
@@ -923,9 +926,9 @@ def record_audio(duration: int) -> bytes:
                     elapsed = time.time() - start_time
                     update_status(f"🎤 Recording... {int(elapsed)}/{duration}s")
                     
-            except IOError as e:
-                logging.error(f"IOError during recording: {e}")
-                update_status(f"❌ Recording error: {str(e)}")
+            except Exception as e:
+                logging.error(f"Exception during recording at chunk {i}: {e}", exc_info=True)
+                update_status(f"❌ Recording error at chunk {i}: {str(e)}")
                 break
                 
         is_recording = False
@@ -1096,7 +1099,10 @@ def calculate_audio_level(audio_data):
             logging.error("Audio data array is empty.")
             return 0.0
             
-        # Calculate RMS with more precision
+        # Handle multiple channels
+        if CHANNELS > 1:
+            audio_array = np.reshape(audio_array, (-1, CHANNELS))
+            audio_array = np.mean(audio_array, axis=1)  # Mix down to mono
         rms = np.sqrt(np.mean(np.square(audio_array.astype(np.float64))))
         
         # Convert to decibels with better scaling
