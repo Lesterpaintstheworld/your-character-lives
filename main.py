@@ -1673,6 +1673,33 @@ def update_recording_status(status: str):
     else:
         logging.warning(f"Attempted to update recording status to '{status}' but label not ready")
 
+def toggle_fixed_mode():
+    """Toggle fixed recording mode on/off"""
+    global fixed_mode, fixed_recording_manager
+    
+    fixed_mode = not fixed_mode
+    fixed_play_pause_btn.config(
+        text="⏸️ Fixed" if fixed_mode else "▶️ Fixed",
+        bg=ThemeColors.ACCENT_PRIMARY if fixed_mode else ThemeColors.BG_LIGHT
+    )
+    
+    if fixed_mode:
+        if not hasattr(toggle_fixed_mode, 'recording_manager'):
+            toggle_fixed_mode.recording_manager = FixedRecordingManager(
+                audio_manager,
+                ScreenshotManager(),
+                collect_text_files_content,
+                process_audio_chunk
+            )
+        
+        update_status("▶️ Starting fixed recording mode...")
+        threading.Thread(
+            target=lambda: asyncio.run(fixed_mode_loop()),
+            daemon=True
+        ).start()
+    else:
+        update_status("⏸️ Fixed recording mode stopped")
+
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
     global ui_elements_created, editor_play_pause_btn, editor_active, browser_button, vu_meter
@@ -2483,32 +2510,6 @@ async def fixed_mode_loop():
             bg=ThemeColors.BG_LIGHT
         ))
 
-def toggle_fixed_mode():
-    """Toggle fixed recording mode on/off"""
-    global fixed_mode, fixed_recording_manager
-    
-    fixed_mode = not fixed_mode
-    fixed_play_pause_btn.config(
-        text="⏸️ Fixed" if fixed_mode else "▶️ Fixed",
-        bg=ThemeColors.ACCENT_PRIMARY if fixed_mode else ThemeColors.BG_LIGHT
-    )
-    
-    if fixed_mode:
-        if not hasattr(toggle_fixed_mode, 'recording_manager'):
-            toggle_fixed_mode.recording_manager = FixedRecordingManager(
-                audio_manager,
-                ScreenshotManager(),
-                collect_text_files_content,
-                process_audio_chunk
-            )
-        
-        update_status("▶️ Starting fixed recording mode...")
-        threading.Thread(
-            target=lambda: asyncio.run(fixed_mode_loop()),
-            daemon=True
-        ).start()
-    else:
-        update_status("⏸️ Fixed recording mode stopped")
 
 def force_quit():
     """Force quit the application if normal shutdown fails."""
