@@ -2541,13 +2541,17 @@ def setup_logging():
     """Configure logging with Unicode support"""
     # Force UTF-8 encoding for logging
     class UTFStreamHandler(logging.StreamHandler):
+        def __init__(self, stream=None, encoding='utf-8'):
+            super().__init__(stream)
+            self.encoding = encoding
+
         def emit(self, record):
             try:
                 msg = self.format(record)
                 stream = self.stream
                 # Ensure Unicode encoding
                 if isinstance(msg, str):
-                    stream.buffer.write(msg.encode('utf-8'))
+                    stream.buffer.write(msg.encode(self.encoding))
                     stream.buffer.write(b'\n')
                 else:
                     stream.buffer.write(msg)
@@ -2561,7 +2565,7 @@ def setup_logging():
         logging.root.removeHandler(handler)
 
     # Add UTF-8 handler with DEBUG level
-    handler = UTFStreamHandler(sys.stdout, encoding='utf-8')
+    handler = UTFStreamHandler(sys.stdout)
     handler.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
     logging.root.addHandler(handler)
     logging.root.setLevel(logging.DEBUG)
