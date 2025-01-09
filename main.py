@@ -2406,35 +2406,33 @@ def on_closing():
         force_quit()
 
 async def fixed_recording_cycle():
-    """Handle fixed 20-second recording cycle"""
+    """Handle fixed 20-second recording cycle with countdown"""
     global fixed_mode
     
     try:
         while fixed_mode and is_playing:
-            # Start recording cycle
-            update_status("🎤 Démarrage du cycle d'enregistrement fixe...")
-            
-            # Record for exactly 20 seconds with counter
-            audio_data = None
-            for i in range(20):
+            # Start countdown
+            update_status("🎤 Starting fixed recording cycle...")
+            for i in range(3, 0, -1):
                 if not fixed_mode or not is_playing:
                     return
-                update_status(f"🎤 Enregistrement... {i+1}/20s")
+                update_status(f"⏳ Starting in {i}...")
                 await asyncio.sleep(1)
-                if i == 0:  # Start recording on first iteration
-                    audio_data = record_audio(20)
-                    if audio_data is None:
-                        raise ValueError("Échec de l'enregistrement audio")
-
-            if not audio_data:
-                raise ValueError("Pas de données audio enregistrées")
+            
+            # Record for exactly 20 seconds with counter
+            update_status("🎤 Recording started!")
+            audio_data = record_audio(20)
+            if audio_data is None:
+                raise ValueError("Recording failed")
 
             # Take screenshot and collect text
             screenshot_manager = ScreenshotManager()
             screenshot = await screenshot_manager.capture()
             text_content = collect_text_files_content()
 
-            # Prepare request data
+            # Send to Emily
+            update_status("📤 Sending to Emily...")
+            emily_endpoint = emily_endpoint_var.get()
             files = {
                 'audio': ('audio.wav', audio_data, 'audio/wav'),
                 'screenshot': ('screenshot.jpg', screenshot, 'image/jpeg')
@@ -2444,9 +2442,6 @@ async def fixed_recording_cycle():
                 'session': session_id
             }
 
-            # Send to Emily
-            emily_endpoint = emily_endpoint_var.get()
-            update_status("📤 Envoi à Emily...")
             response = requests.post(
                 emily_endpoint,
                 data=data,
@@ -2455,12 +2450,12 @@ async def fixed_recording_cycle():
             )
 
             if response.status_code == 200:
-                update_status("✅ Lecture de la réponse d'Emily...")
+                update_status("✅ Playing Emily's response...")
                 await process_audio_chunk(response.content, is_daemon=False)
 
-                # Send to Daemon with same data
+                # Send to Daemon
+                update_status("📤 Sending to Daemon...")
                 daemon_endpoint = daemon_endpoint_var.get()
-                update_status("📤 Envoi à Daemon...")
                 response_daemon = requests.post(
                     daemon_endpoint,
                     data=data,
@@ -2469,16 +2464,21 @@ async def fixed_recording_cycle():
                 )
 
                 if response_daemon.status_code == 200:
-                    update_status("✅ Lecture de la réponse de Daemon...")
+                    update_status("✅ Playing Daemon's response...")
                     await process_audio_chunk(response_daemon.content, is_daemon=True)
                 else:
-                    update_status(f"❌ Erreur API Daemon: {response_daemon.status_code}")
+                    update_status(f"❌ Daemon API error: {response_daemon.status_code}")
             else:
-                update_status(f"❌ Erreur API Emily: {response.status_code}")
+                update_status(f"❌ Emily API error: {response.status_code}")
+
+            # Small pause between cycles
+            if fixed_mode and is_playing:
+                update_status("⏳ Waiting for next cycle...")
+                await asyncio.sleep(2)
 
     except Exception as e:
-        logging.error(f"Erreur dans le cycle fixe: {e}")
-        update_status(f"❌ Erreur: {str(e)}")
+        logging.error(f"Fixed recording cycle error: {e}")
+        update_status(f"❌ Error: {str(e)}")
         fixed_mode = False
 
 async def fixed_mode_loop():
