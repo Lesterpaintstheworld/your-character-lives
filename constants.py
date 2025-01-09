@@ -9,6 +9,9 @@ class AudioConstants:
     SILENCE_THRESHOLD = -60
     MIN_SILENCE_DURATION = 3.0
     SMART_SCREENSHOT_INTERVAL = 20
+    FIXED_RECORDING_DURATION = 20  # Fixed duration in seconds
+    FIXED_BUFFER_SIZE = 2048      # Optimized buffer size
+    FIXED_SAMPLE_RATE = 16000     # Fixed sample rate
     SMART_BUFFER_SIZE = 1024  # Match chunk size
     MAX_RECORDING_SIZE = 500 * 1024 * 1024
 

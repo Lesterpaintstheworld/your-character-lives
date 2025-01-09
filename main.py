@@ -2449,9 +2449,38 @@ async def fixed_recording_cycle():
         update_status(f"❌ Erreur: {str(e)}")
         fixed_mode = False
 
+async def fixed_mode_loop():
+    """Main loop for fixed mode"""
+    global fixed_mode
+    
+    try:
+        while fixed_mode and is_playing:
+            await fixed_recording_manager.start_cycle(
+                emily_endpoint_var.get(),
+                daemon_endpoint_var.get(),
+                session_id,
+                update_status
+            )
+            
+            # Small pause between cycles
+            if fixed_mode and is_playing:
+                update_status("⏳ Waiting for next cycle...")
+                await asyncio.sleep(2)
+                
+    except Exception as e:
+        logging.error(f"Error in fixed loop: {e}")
+        update_status(f"❌ Error: {str(e)}")
+    finally:
+        fixed_mode = False
+        # Update button visually in main thread
+        root.after(0, lambda: fixed_play_pause_btn.config(
+            text="▶️ Fixed",
+            bg=ThemeColors.BG_LIGHT
+        ))
+
 def toggle_fixed_mode():
-    """Toggle fixed 20-second recording mode"""
-    global fixed_mode, fixed_recording_task
+    """Toggle fixed recording mode on/off"""
+    global fixed_mode, fixed_recording_manager
     
     fixed_mode = not fixed_mode
     fixed_play_pause_btn.config(
@@ -2460,15 +2489,19 @@ def toggle_fixed_mode():
     )
     
     if fixed_mode:
-        update_status("▶️ Démarrage du mode enregistrement fixe...")
-        # Start fixed recording in a new thread
-        fixed_recording_task = threading.Thread(
-            target=lambda: asyncio.run(fixed_recording_cycle()),
+        if not hasattr(toggle_fixed_mode, 'recording_manager'):
+            toggle_fixed_mode.recording_manager = FixedRecordingManager(
+                audio_manager,
+                ScreenshotManager()
+            )
+        
+        update_status("▶️ Starting fixed recording mode...")
+        threading.Thread(
+            target=lambda: asyncio.run(fixed_mode_loop()),
             daemon=True
-        )
-        fixed_recording_task.start()
+        ).start()
     else:
-        update_status("⏸️ Mode enregistrement fixe arrêté")
+        update_status("⏸️ Fixed recording mode stopped")
 
 def force_quit():
     """Force quit the application if normal shutdown fails."""
