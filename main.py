@@ -684,6 +684,7 @@ def get_available_microphones():
         for i in range(p.get_device_count()):
             try:
                 device_info = p.get_device_info_by_index(i)
+                logging.debug(f"Device {i}: {device_info}")
                 # Skip if not an input device or already added as default
                 if (device_info['maxInputChannels'] == 0 or 
                     any(m['index'] == i for m in mics)):
@@ -1077,6 +1078,10 @@ def calculate_audio_level(audio_data):
             audio_array = np.frombuffer(audio_data, dtype=np.int16)
         else:
             audio_array = audio_data
+
+        if audio_array.size == 0:
+            logging.error("Audio data array is empty.")
+            return 0.0
             
         # Calculate RMS with more precision
         rms = np.sqrt(np.mean(np.square(audio_array.astype(np.float64))))
@@ -1105,7 +1110,7 @@ def calculate_audio_level(audio_data):
         return 0.0
         
     except Exception as e:
-        logging.error(f"Error calculating audio level: {e}")
+        logging.error(f"Error calculating audio level: {e}", exc_info=True)
         return 0.0
 
 async def send_current():
@@ -1634,7 +1639,7 @@ def update_recording_status(status: str):
 
 def create_device_selectors():
     """Create modern-styled input and output device selection frame"""
-    global ui_elements_created, editor_play_pause_btn, editor_active, browser_button
+    global ui_elements_created, editor_play_pause_btn, editor_active, browser_button, vu_meter
     # Initialize globals if not already set
     if 'current_recording_buffer' not in globals():
         current_recording_buffer = []
