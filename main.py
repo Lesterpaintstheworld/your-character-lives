@@ -824,7 +824,7 @@ def toggle_recording():
 
 def record_audio(duration: int) -> bytes:
     """Record audio at 256 kbits/sec (16kHz, 16-bit, mono)"""
-    global is_recording, recording_enabled, current_recording_buffer
+    global is_recording, recording_enabled, current_recording_buffer, mic_var, vu_meter, root
     
     logging.info(f"Starting {duration}s recording...")
     
