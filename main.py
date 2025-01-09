@@ -2381,7 +2381,7 @@ async def api_client(interval):
             raise ValueError("Failed to capture pre-recording screenshot")
             
         # Record audio for Emily
-        audio_data = record_audio(15)
+        audio_data = record_audio(20)
         if audio_data is None:
             raise ValueError("Failed to record audio")
             
@@ -2439,104 +2439,39 @@ async def api_client(interval):
                 update_status(f"❌ Error playing response: {str(e)}")
                 # Continue execution even if playback fails
             
-        # Wait 1 second after Emily's response finishes
-        logging.info("Waiting 1 second before Daemon's turn...")
-        await asyncio.sleep(1)
-        
-        # Second character (Daemon)
-        if not is_playing:  # Check if still playing after wait
-            return
-            
-        update_status("Starting Daemon's recording cycle...")
-        
-        # Take pre-recording screenshot for Daemon
-        logging.info("Taking pre-recording screenshot for Daemon...")
-        pre_screenshot_daemon = await screenshot_manager.capture()
-        
-        # Record audio for Daemon
-        logging.info("Starting 15-second recording for Daemon...")
-        p = pyaudio.PyAudio()
-        device_index = get_input_device()
-        if device_index is not None:
-            device_info = p.get_device_info_by_index(device_index)
-            logging.info(f"Device info: {device_info}")
-
-            # List supported sample rates
-            supported_rates = [8000, 16000, 22050, 32000, 44100, 48000]
-            supported_formats = [pyaudio.paInt16, pyaudio.paInt24, pyaudio.paInt32]
-
-            logging.info(f"Testing supported sample rates and formats for the device...")
-            for rate in supported_rates:
-                for fmt in supported_formats:
-                    try:
-                        stream = p.open(
-                            format=fmt,
-                            channels=CHANNELS,
-                            rate=rate,
-                            input=True,
-                            input_device_index=device_index,
-                            frames_per_buffer=CHUNK,
-                            start=False
-                        )
-                        stream.close()
-                        logging.info(f"Supported rate: {rate} Hz, format: {fmt}")
-                    except Exception as e:
-                        logging.info(f"Not supported rate: {rate} Hz, format: {fmt} - {e}")
-        else:
-            logging.error("No valid input device found.")
-        audio_data = record_audio(15)
-        
-        # Take post-recording screenshot for Daemon
-        logging.info("Taking post-recording screenshot for Daemon...")
-        post_screenshot_daemon = await screenshot_manager.capture()
-        
-        text_content = collect_text_files_content()
-
-        data = {'text': text_content}
-        files = {
-            'pre_screenshot': ('pre_screenshot.jpg', pre_screenshot_daemon, 'image/jpeg'),
-            'post_screenshot': ('post_screenshot.jpg', post_screenshot_daemon, 'image/jpeg'),
-            'audio': ('audio.wav', audio_data, 'audio/wav')
+        # Use the same data for Daemon
+        data_daemon = {
+            'text': text_content,
+            'session': session_id
+        }
+        files_daemon = {
+            'audio': ('audio.wav', audio_data, 'audio/wav'),
+            'screenshot': ('screenshot.jpg', post_screenshot_emily, 'image/jpeg')
         }
 
-        # Send request for Daemon
+        # Send request to Daemon endpoint
         logging.info("Sending data to Daemon endpoint...")
-        response = requests.post(
+        response_daemon = requests.post(
             daemon_endpoint,
-            data=data,
-            files=files,
+            data=data_daemon,
+            files=files_daemon,
             timeout=NetworkConstants.REQUEST_TIMEOUT
         )
-        
-        # Process Daemon's response and wait for completion
-        if response.status_code == 200:
+
+        # Process Daemon's response
+        if response_daemon.status_code == 200:
             logging.info("Playing Daemon's response...")
-            # Only process audio once for Daemon
-            await process_audio_chunk(response.content, is_daemon=True)
+            await process_audio_chunk(response_daemon.content, is_daemon=True)
             logging.info("Daemon's response completed")
-            
-        # Log response details for debugging
-        logging.info(f"Response status: {response.status_code}")
-        logging.info(f"Response headers: {response.headers}")
-        logging.info(f"Content-Type: {response.headers.get('content-type', 'unknown')}")
-                    
-        # Inspect the raw binary content
-        binary_data = response.content
-        logging.info(f"Raw binary length: {len(binary_data)} bytes")
-        
-        # Basic validation of response
-        if response.status_code != 200:
-            logging.error(f"Error response from n8n: {response.status_code}")
-            logging.error(f"Response content: {response.text[:1000]}")
-            response.raise_for_status()
-            
-        if len(binary_data) < 1000:  # Arbitrary minimum size for valid audio
-            logging.warning(f"Audio data suspiciously small: {len(binary_data)} bytes")
-            raise ValueError("Audio data too small to be valid")
+        else:
+            logging.error(f"Daemon API error: {response_daemon.status_code}")
+            update_status(f"❌ Daemon API error: {response_daemon.status_code}")
 
     except Exception as e:
         logging.error(f"Error occurred: {e}")
         update_status(f"❌ Error: {str(e)}")
+    finally:
+        update_status("✅ Cycle complet terminé")
 
 def setup_logging():
     """Configure logging with Unicode support"""
