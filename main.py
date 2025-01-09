@@ -1908,6 +1908,19 @@ def create_device_selectors():
         pady=5)
     browser_button.pack(side='left')
 
+    # Fixed mode button
+    global fixed_play_pause_btn
+    fixed_play_pause_btn = tk.Button(browser_frame, text="▶️ Fixed",
+        command=toggle_fixed_mode,
+        bg=ThemeColors.BG_LIGHT,
+        fg=ThemeColors.TEXT_BRIGHT,
+        relief='flat',
+        activebackground=ThemeColors.BG_HOVER,
+        activeforeground=ThemeColors.TEXT_BRIGHT,
+        borderwidth=0,
+        padx=10,
+        pady=5)
+    fixed_play_pause_btn.pack(side='left', padx=5)
 
     # Device selection frame
     devices_frame = ttk.Frame(main_frame, style='Modern.TFrame')
